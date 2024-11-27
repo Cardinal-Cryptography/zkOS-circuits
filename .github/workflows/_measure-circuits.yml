@@ -1,0 +1,74 @@
+---
+name: Measure circuits
+
+on:
+  workflow_call:
+
+jobs:
+  main:
+    name: Measure circuits
+    # runs-on: [self-hosted, Linux, X64, large]
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code (from the current branch)
+        uses: actions/checkout@v4
+
+      - name: Prepare Rust env
+        uses: ./.github/actions/prepare-rust-env
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      #################### Run measurements on main branch ####################
+
+      - name: Checkout repository from `main`
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Build measure-circuits binary from `main`
+        run: cd main && make build
+
+      - name: Run measure-circuits binary from `main`
+        run: ./main/target/release/measure-circuits > main-report.txt
+
+      - name: Log measurements from `main`
+        run: cat main-report.txt
+
+      #################### Run measurements on the current branch ####################
+
+      - name: Download measure-circuits binary from the current branch
+        uses: actions/download-artifact@v4
+        with:
+          name: measure-circuits
+
+      - name: Make binary executable
+        run: chmod +x ./measure-circuits
+
+      - name: Run measure-circuits binary from the current branch
+        run: ./measure-circuits > current-report.txt
+
+      - name: Log measurements from the current branch
+        run: cat current-report.txt
+
+      #################### Compare measurements ####################
+
+      - name: Install Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install python deps
+        run: pip install pandas jinja2
+
+      - name: Run metrics-diff-presenter script
+        run: python3 .github/scripts/metrics-diff-presenter.py
+
+      - name: Post measurements difference
+        if: ${{ hashFiles('comparison_diff.html') != '' }}
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          file-path: comparison_diff.html
+          comment-tag: measurements-diff

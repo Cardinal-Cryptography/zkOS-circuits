@@ -1,0 +1,31 @@
+---
+name: Main branch push or pull_request
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.ref }}-${{ github.workflow }}"
+  cancel-in-progress: true
+
+jobs:
+
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  rust-crates-checks:
+    name: Rust crates checks
+    uses: ./.github/workflows/_rust-crates-checks.yml
+    secrets: inherit
+
+  measure-circuits:
+    name: Measure circuits
+    needs: [rust-crates-checks]
+    uses: ./.github/workflows/_measure-circuits.yml
+    secrets: inherit

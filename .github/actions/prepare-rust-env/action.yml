@@ -1,0 +1,23 @@
+---
+name: 'Prepare Rust environment'
+description: >
+  Installs Rust toolchain, authenticates with SSH (in order to access Github private repos)
+inputs:
+  ssh-private-key:
+    description: 'SSH private key to authenticate with'
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ inputs.ssh-private-key }}
+
+    - name: Install Rust toolchain
+      uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v7
+      with:
+        channel: nightly
+
+    - name: Install sccache
+      shell: bash
+      run: scripts/install-sccache
