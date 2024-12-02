@@ -1,21 +1,23 @@
 use core::borrow::Borrow;
 
-use halo2_proofs::{
-    circuit::{Layouter, Value},
-    plonk::{Advice, Error},
-};
+use halo2_proofs::circuit::Value;
+use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
-    column_pool::ColumnPool,
     consts::merkle_constants::ARITY,
+    embed::Embed,
     merkle::{circuit::MerkleCircuit, MerkleInstance},
     poseidon::off_circuit::hash,
-    synthesis_helpers::{assign_2d_advice_array, assign_values_to_advice},
-    AssignedCell, FieldExt, ProverKnowledge, PublicInputProvider,
+    FieldExt, ProverKnowledge, PublicInputProvider,
 };
 
 #[derive(Clone, Debug)]
+#[embeddable(
+    receiver = "MerkleProverKnowledge<TREE_HEIGHT, Value<F>>",
+    impl_generics = "<const TREE_HEIGHT: usize, F: FieldExt>",
+    embedded = "MerkleProverKnowledge<TREE_HEIGHT, crate::AssignedCell<F>>"
+)]
 pub struct MerkleProverKnowledge<const TREE_HEIGHT: usize, T> {
     pub leaf: T,
     pub path: [[T; ARITY]; TREE_HEIGHT],
@@ -38,23 +40,6 @@ impl<const TREE_HEIGHT: usize, T: Clone> MerkleProverKnowledge<TREE_HEIGHT, T> {
             leaf: leaf.borrow().clone(),
             path: path.borrow().clone(),
         }
-    }
-}
-
-impl<const TREE_HEIGHT: usize, F: FieldExt> MerkleProverKnowledge<TREE_HEIGHT, Value<F>> {
-    pub fn embed(
-        &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
-    ) -> Result<MerkleProverKnowledge<TREE_HEIGHT, AssignedCell<F>>, Error> {
-        let mut layouter = layouter.namespace(|| "MerkleProverKnowledge");
-        let [leaf] =
-            assign_values_to_advice(&mut layouter, advice_pool, "leaf", [(self.leaf, "leaf")])?;
-        let path = layouter.assign_region(
-            || "path",
-            |region| assign_2d_advice_array(region, self.path, advice_pool.get_array()),
-        )?;
-        Ok(MerkleProverKnowledge { path, leaf })
     }
 }
 

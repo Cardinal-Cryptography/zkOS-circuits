@@ -10,14 +10,11 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct IdHidingChip<F: FieldExt, const CHUNK_SIZE: usize> {
     pub poseidon: PoseidonChip<F>,
-    pub range_check: LookupRangeCheckChip<F, CHUNK_SIZE>,
+    pub range_check: LookupRangeCheckChip<CHUNK_SIZE>,
 }
 
 impl<F: FieldExt, const CHUNK_SIZE: usize> IdHidingChip<F, CHUNK_SIZE> {
-    pub fn new(
-        poseidon: PoseidonChip<F>,
-        range_check: LookupRangeCheckChip<F, CHUNK_SIZE>,
-    ) -> Self {
+    pub fn new(poseidon: PoseidonChip<F>, range_check: LookupRangeCheckChip<CHUNK_SIZE>) -> Self {
         Self {
             poseidon,
             range_check,

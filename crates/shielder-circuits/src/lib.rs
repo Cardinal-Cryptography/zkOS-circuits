@@ -10,11 +10,11 @@ pub mod circuits;
 mod column_pool;
 mod config_builder;
 pub mod consts;
+mod embed;
 mod gates;
 mod instance_wrapper;
 pub mod poseidon;
 mod range_table;
-mod synthesis_helpers;
 mod todo;
 mod version;
 

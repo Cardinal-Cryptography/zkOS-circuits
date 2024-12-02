@@ -1,3 +1,5 @@
+use alloc::collections::BTreeSet;
+
 use halo2_proofs::{
     arithmetic::Field,
     circuit::Layouter,
@@ -33,6 +35,7 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
         cs: &mut ConstraintSystem<F>,
         (needle_advice, haystack_advice): Self::Advices,
     ) -> Self {
+        Self::ensure_unique_columns(&(needle_advice, haystack_advice));
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -81,5 +84,20 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
                 Ok(())
             },
         )
+    }
+}
+
+impl<const N: usize> MembershipGate<N> {
+    fn ensure_unique_columns(
+        (needle_advice, haystack_advice): &(Column<Advice>, [Column<Advice>; N]),
+    ) {
+        let mut set = BTreeSet::from_iter(haystack_advice.iter().map(|column| column.index()));
+        set.insert(needle_advice.index());
+
+        assert_eq!(
+            set.len(),
+            N + 1,
+            "Needle and haystack columns must be unique"
+        );
     }
 }

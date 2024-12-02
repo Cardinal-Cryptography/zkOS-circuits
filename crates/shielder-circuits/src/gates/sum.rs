@@ -1,4 +1,4 @@
-use alloc::vec;
+use alloc::{collections::BTreeSet, vec};
 
 use halo2_proofs::{
     arithmetic::Field,
@@ -12,7 +12,7 @@ use crate::{gates::Gate, AssignedCell};
 /// Represents the relation: `summand_1 + summand_2 = sum`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SumGate {
-    advice: Column<Advice>,
+    advice: [Column<Advice>; 3],
     selector: Selector,
 }
 
@@ -24,23 +24,22 @@ pub struct SumGateValues<F: Field> {
 }
 
 const SELECTOR_OFFSET: usize = 0;
-const SUMMAND_1_OFFSET: usize = 0;
-const SUMMAND_2_OFFSET: usize = 1;
-const SUM_OFFSET: usize = 2;
+const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Sum gate";
 
 impl<F: Field> Gate<F> for SumGate {
     type Values = SumGateValues<F>;
-    type Advices = Column<Advice>;
+    type Advices = [Column<Advice>; 3];
 
     fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self {
+        Self::ensure_unique_columns(&advice);
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
             let selector = vc.query_selector(selector);
-            let summand_1 = vc.query_advice(advice, Rotation(SUMMAND_1_OFFSET as i32));
-            let summand_2 = vc.query_advice(advice, Rotation(SUMMAND_2_OFFSET as i32));
-            let sum = vc.query_advice(advice, Rotation(SUM_OFFSET as i32));
+            let summand_1 = vc.query_advice(advice[0], Rotation(ADVICE_OFFSET as i32));
+            let summand_2 = vc.query_advice(advice[1], Rotation(ADVICE_OFFSET as i32));
+            let sum = vc.query_advice(advice[2], Rotation(ADVICE_OFFSET as i32));
             vec![selector * (summand_1 + summand_2 - sum)]
         });
         Self { advice, selector }
@@ -56,16 +55,26 @@ impl<F: Field> Gate<F> for SumGate {
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
 
-                for (cell, name, offset) in [
-                    (&input.summand_1, "summand 1", SUMMAND_1_OFFSET),
-                    (&input.summand_2, "summand 2", SUMMAND_2_OFFSET),
-                    (&input.sum, "sum", SUM_OFFSET),
-                ] {
-                    cell.copy_advice(|| name, &mut region, self.advice, offset)?;
+                for (idx, (cell, name, offset)) in [
+                    (&input.summand_1, "summand 1", ADVICE_OFFSET),
+                    (&input.summand_2, "summand 2", ADVICE_OFFSET),
+                    (&input.sum, "sum", ADVICE_OFFSET),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    cell.copy_advice(|| name, &mut region, self.advice[idx], offset)?;
                 }
 
                 Ok(())
             },
         )
+    }
+}
+
+impl SumGate {
+    fn ensure_unique_columns(advice: &[Column<Advice>; 3]) {
+        let set = BTreeSet::from_iter(advice.map(|column| column.index()));
+        assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
     }
 }

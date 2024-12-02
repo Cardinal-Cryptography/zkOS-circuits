@@ -35,7 +35,7 @@ pub struct WithdrawChip<F: FieldExt, const CHUNK_SIZE: usize> {
     pub public_inputs: InstanceWrapper<WithdrawInstance>,
     pub poseidon: PoseidonChip<F>,
     pub merkle: MerkleChip<F>,
-    pub range_check: LookupRangeCheckChip<F, CHUNK_SIZE>,
+    pub range_check: LookupRangeCheckChip<CHUNK_SIZE>,
     pub sum_chip: SumChip,
 }
 

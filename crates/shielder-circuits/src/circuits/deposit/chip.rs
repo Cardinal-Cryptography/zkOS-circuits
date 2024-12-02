@@ -33,7 +33,7 @@ pub struct DepositChip<F: FieldExt, const CHUNK_SIZE: usize> {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip<F>,
-    pub range_check: LookupRangeCheckChip<F, CHUNK_SIZE>,
+    pub range_check: LookupRangeCheckChip<CHUNK_SIZE>,
     pub merkle: MerkleChip<F>,
     pub sum: SumChip,
 }

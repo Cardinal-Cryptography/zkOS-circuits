@@ -1,33 +1,29 @@
-use halo2_proofs::{
-    circuit::{Layouter, Value},
-    plonk::{Advice, Error},
-};
+use halo2_proofs::circuit::Value;
+use macros::embeddable;
 use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
-    column_pool::ColumnPool,
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK, NONCE_UPPER_LIMIT,
     },
+    embed::Embed,
     merkle::generate_example_path_with_given_leaf,
     note_hash,
     poseidon::off_circuit::hash,
-    synthesis_helpers::{assign_2d_advice_array, assign_values_to_advice},
     utils::padded_hash,
     version::NOTE_VERSION,
     withdraw::{circuit::WithdrawCircuit, WithdrawInstance},
-    AssignedCell, FieldExt, Note, ProverKnowledge, PublicInputProvider,
+    FieldExt, Note, ProverKnowledge, PublicInputProvider,
 };
 
-// Stores values needed to compute example inputs for `WithdrawCircuit`. Provides a function
-// to create such inputs.
-//
-// Some of the fields of this struct are private inputs, some are public inputs,
-// and some do not appear as inputs at all, but are just intermediate advice values.
-#[allow(dead_code)] // some fields are not used, but might be useful in the future
 #[derive(Clone, Debug, Default)]
+#[embeddable(
+    receiver = "WithdrawProverKnowledge<Value<F>, CHUNK_SIZE>",
+    impl_generics = "<F: FieldExt, const CHUNK_SIZE: usize>",
+    embedded = "WithdrawProverKnowledge<crate::AssignedCell<F>, CHUNK_SIZE>"
+)]
 pub struct WithdrawProverKnowledge<F, const CHUNK_SIZE: usize> {
     pub withdrawal_value: F,
 
@@ -52,47 +48,6 @@ pub struct WithdrawProverKnowledge<F, const CHUNK_SIZE: usize> {
 }
 
 impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawProverKnowledge<Value<F>, CHUNK_SIZE> {
-    pub fn embed(
-        &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
-    ) -> Result<WithdrawProverKnowledge<AssignedCell<F>, CHUNK_SIZE>, Error> {
-        let [trapdoor_new, trapdoor_old, nullifier_new, nullifier_old, account_old_balance, id, nonce, withdrawal_value, commitment] =
-            assign_values_to_advice(
-                layouter,
-                advice_pool,
-                "DepositPrivateInput",
-                [
-                    (self.trapdoor_new, "trapdoor_new"),
-                    (self.trapdoor_old, "trapdoor_old"),
-                    (self.nullifier_new, "nullifier_new"),
-                    (self.nullifier_old, "nullifier_old"),
-                    (self.account_old_balance, "account_old_balance"),
-                    (self.id, "id"),
-                    (self.nonce, "nonce"),
-                    (self.withdrawal_value, "withdrawal_value"),
-                    (self.commitment, "commitment"),
-                ],
-            )?;
-        let path = layouter.assign_region(
-            || "path witness",
-            |region| assign_2d_advice_array(region, self.path, advice_pool.get_array()),
-        )?;
-
-        Ok(WithdrawProverKnowledge {
-            trapdoor_new,
-            trapdoor_old,
-            nullifier_new,
-            nullifier_old,
-            account_old_balance,
-            id,
-            nonce,
-            path,
-            withdrawal_value,
-            commitment,
-        })
-    }
-
     pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
         IntermediateValues {
             account_new_balance: self.account_old_balance - self.withdrawal_value,
@@ -190,26 +145,12 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> PublicInputProvider<WithdrawInstance,
 
 /// Stores values that are a result of intermediate computations.
 #[derive(Clone, Debug, Default)]
+#[embeddable(
+    receiver = "IntermediateValues<Value<F>>",
+    impl_generics = "<F: FieldExt>",
+    embedded = "IntermediateValues<crate::AssignedCell<F>>"
+)]
 pub struct IntermediateValues<F> {
     /// account balance after the withdrawal is made.
     pub account_new_balance: F,
-}
-
-impl<F: FieldExt> IntermediateValues<Value<F>> {
-    pub fn embed(
-        self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
-    ) -> Result<IntermediateValues<AssignedCell<F>>, Error> {
-        let [account_new_balance] = assign_values_to_advice(
-            layouter,
-            advice_pool,
-            "IntermediateValues",
-            [(self.account_new_balance, "account_new_balance")],
-        )?;
-
-        Ok(IntermediateValues {
-            account_new_balance,
-        })
-    }
 }

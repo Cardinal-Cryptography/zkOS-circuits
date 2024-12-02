@@ -1,52 +1,27 @@
-use halo2_proofs::{
-    circuit::{Layouter, Value},
-    plonk::{Advice, Error},
-};
+use halo2_proofs::circuit::Value;
+use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
-    column_pool::ColumnPool,
+    embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
-    synthesis_helpers::assign_values_to_advice,
     utils::padded_hash,
     version::NOTE_VERSION,
-    AssignedCell, FieldExt, Note, ProverKnowledge, PublicInputProvider,
+    FieldExt, Note, ProverKnowledge, PublicInputProvider,
 };
 
 #[derive(Clone, Debug, Default)]
+#[embeddable(
+    receiver = "NewAccountProverKnowledge<Value<F>>",
+    impl_generics = "<F: FieldExt>",
+    embedded = "NewAccountProverKnowledge<crate::AssignedCell<F>>"
+)]
 pub struct NewAccountProverKnowledge<T> {
     pub id: T,
     pub nullifier: T,
     pub trapdoor: T,
     pub initial_deposit: T,
-}
-
-impl<F: FieldExt> NewAccountProverKnowledge<Value<F>> {
-    pub fn embed(
-        &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
-    ) -> Result<NewAccountProverKnowledge<AssignedCell<F>>, Error> {
-        let [id, nullifier, trapdoor, initial_deposit] = assign_values_to_advice(
-            layouter,
-            advice_pool,
-            "NewAccountPrivateInput",
-            [
-                (self.id, "id"),
-                (self.nullifier, "nullifier"),
-                (self.trapdoor, "trapdoor"),
-                (self.initial_deposit, "initial_deposit"),
-            ],
-        )?;
-
-        Ok(NewAccountProverKnowledge {
-            id,
-            nullifier,
-            trapdoor,
-            initial_deposit,
-        })
-    }
 }
 
 impl<F: FieldExt> ProverKnowledge<F> for NewAccountProverKnowledge<F> {
