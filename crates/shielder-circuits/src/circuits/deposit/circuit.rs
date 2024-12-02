@@ -10,6 +10,7 @@ use crate::{
     },
     config_builder::ConfigsBuilder,
     deposit::{DepositConstraints, DepositInstance},
+    embed::Embed,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
 };
@@ -57,11 +58,16 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> Circuit<F> for DepositCircuit<F, CHUN
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<DepositConstraints>::new();
-        let knowledge = self.0.embed(&mut layouter, &main_chip.advice_pool)?;
-        let intermediate = self
-            .0
-            .compute_intermediate_values()
-            .embed(&mut layouter, &main_chip.advice_pool)?;
+        let knowledge = self.0.embed(
+            &mut layouter,
+            &main_chip.advice_pool,
+            "DepositProverKnowledge",
+        )?;
+        let intermediate = self.0.compute_intermediate_values().embed(
+            &mut layouter,
+            &main_chip.advice_pool,
+            "DepositIntermediateValues",
+        )?;
 
         main_chip.check_old_note(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;

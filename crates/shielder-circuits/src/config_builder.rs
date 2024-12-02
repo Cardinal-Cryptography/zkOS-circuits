@@ -18,7 +18,7 @@ pub struct With<T>(T);
 type WithSum = With<SumChip>;
 type WithMerkle<F> = With<MerkleChip<F>>;
 type WithPoseidon<F> = With<PoseidonChip<F>>;
-type WithRangeCheck<F, const CHUNK_SIZE: usize> = With<LookupRangeCheckChip<F, { CHUNK_SIZE }>>;
+type WithRangeCheck<const CHUNK_SIZE: usize> = With<LookupRangeCheckChip<{ CHUNK_SIZE }>>;
 
 pub struct ConfigsBuilder<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck> {
     base_builder: BaseBuilder<'cs, F>,
@@ -42,11 +42,13 @@ impl<'cs, F: FieldExt> ConfigsBuilder<'cs, F, Empty, Empty, Empty, Empty> {
 
 impl<'cs, F: FieldExt, Poseidon> ConfigsBuilder<'cs, F, Poseidon, Empty, Empty, Empty> {
     pub fn sum(mut self) -> ConfigsBuilder<'cs, F, Poseidon, Empty, WithSum, Empty> {
-        let advice = self.base_builder.advice_pool_with_capacity(1).get_any();
+        let advice_pool = self.base_builder.advice_pool_with_capacity(3);
+        let gate_advice = advice_pool.get_array();
+        let advice = advice_pool.get_any();
         let system = &mut self.base_builder.system;
 
         let sum = SumChip {
-            gate: SumGate::create_gate(system, advice),
+            gate: SumGate::create_gate(system, gate_advice),
             advice,
         };
 
@@ -123,12 +125,12 @@ impl<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck>
 {
     pub fn range_check<const CHUNK_SIZE: usize>(
         mut self,
-    ) -> ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck<F, CHUNK_SIZE>> {
+    ) -> ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck<CHUNK_SIZE>> {
         let advice = self.base_builder.advice_pool_with_capacity(1).get_any();
         let system = &mut self.base_builder.system;
 
         let table = RangeTable::<CHUNK_SIZE>::new(system);
-        let range_check = LookupRangeCheckChip::<_, CHUNK_SIZE>::configure(system, advice, table);
+        let range_check = LookupRangeCheckChip::<CHUNK_SIZE>::configure(system, advice, table);
 
         ConfigsBuilder {
             base_builder: self.base_builder,
@@ -141,9 +143,9 @@ impl<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck>
 }
 
 impl<'cs, F: FieldExt, Poseidon, Merkle, Sum, const CHUNK_SIZE: usize>
-    ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck<F, CHUNK_SIZE>>
+    ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck<CHUNK_SIZE>>
 {
-    pub fn resolve_range_check_chip(&self) -> LookupRangeCheckChip<F, CHUNK_SIZE> {
+    pub fn resolve_range_check_chip(&self) -> LookupRangeCheckChip<CHUNK_SIZE> {
         self.range_check.0.clone()
     }
 }

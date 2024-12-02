@@ -6,6 +6,7 @@ use halo2_proofs::{
 use crate::{
     circuits::new_account::{chip::NewAccountChip, knowledge::NewAccountProverKnowledge},
     config_builder::ConfigsBuilder,
+    embed::Embed,
     instance_wrapper::InstanceWrapper,
     new_account::{NewAccountConstraints, NewAccountInstance},
     todo::Todo,
@@ -40,7 +41,11 @@ impl<F: FieldExt> Circuit<F> for NewAccountCircuit<F> {
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<NewAccountConstraints>::new();
-        let knowledge = self.0.embed(&mut layouter, &main_chip.advice_pool)?;
+        let knowledge = self.0.embed(
+            &mut layouter,
+            &main_chip.advice_pool,
+            "NewAccountProverKnowledge",
+        )?;
         main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
         todo.assert_done()
     }

@@ -6,6 +6,7 @@ use halo2_proofs::{
 use crate::{
     circuits::merkle::knowledge::MerkleProverKnowledge,
     config_builder::ConfigsBuilder,
+    embed::Embed,
     instance_wrapper::InstanceWrapper,
     merkle::{chip::MerkleChip, MerkleConstraints, MerkleInstance},
     todo::Todo,
@@ -40,7 +41,11 @@ impl<const TREE_HEIGHT: usize, F: FieldExt> Circuit<F> for MerkleCircuit<TREE_HE
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<MerkleConstraints>::new();
-        let knowledge = self.0.embed(&mut layouter, &main_chip.advice_pool)?;
+        let knowledge = self.0.embed(
+            &mut layouter,
+            &main_chip.advice_pool,
+            "MerkleProverKnowledge",
+        )?;
         main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
         todo.assert_done()
     }

@@ -6,6 +6,7 @@ use halo2_proofs::{
 use crate::{
     circuits::withdraw::chip::WithdrawChip,
     config_builder::ConfigsBuilder,
+    embed::Embed,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
     withdraw::{WithdrawConstraints, WithdrawInstance, WithdrawProverKnowledge},
@@ -55,11 +56,16 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> Circuit<F> for WithdrawCircuit<F, CHU
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<WithdrawConstraints>::new();
-        let knowledge = self.0.embed(&mut layouter, &main_chip.advice_pool)?;
-        let intermediate = self
-            .0
-            .compute_intermediate_values()
-            .embed(&mut layouter, &main_chip.advice_pool)?;
+        let knowledge = self.0.embed(
+            &mut layouter,
+            &main_chip.advice_pool,
+            "WithdrawProverKnowledge",
+        )?;
+        let intermediate = self.0.compute_intermediate_values().embed(
+            &mut layouter,
+            &main_chip.advice_pool,
+            "WithdrawIntermediateValues",
+        )?;
 
         main_chip.check_old_note(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
