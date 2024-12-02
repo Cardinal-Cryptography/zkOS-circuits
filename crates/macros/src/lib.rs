@@ -21,7 +21,7 @@ mod embed;
 ///
 /// # Example
 ///
-/// ```rust, no_run
+/// ```no_run
 /// use crate::embeddable;
 ///
 /// #[embeddable(
