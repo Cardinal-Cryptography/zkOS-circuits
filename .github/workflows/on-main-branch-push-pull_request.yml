@@ -3,9 +3,6 @@ name: Main branch push or pull_request
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
