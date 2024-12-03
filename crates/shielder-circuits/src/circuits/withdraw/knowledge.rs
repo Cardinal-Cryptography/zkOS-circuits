@@ -50,7 +50,7 @@ pub struct WithdrawProverKnowledge<F, const CHUNK_SIZE: usize> {
 impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawProverKnowledge<Value<F>, CHUNK_SIZE> {
     pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
         IntermediateValues {
-            account_new_balance: self.account_old_balance - self.withdrawal_value,
+            new_account_balance: self.account_old_balance - self.withdrawal_value,
         }
     }
 }
@@ -151,6 +151,6 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> PublicInputProvider<WithdrawInstance,
     embedded = "IntermediateValues<crate::AssignedCell<F>>"
 )]
 pub struct IntermediateValues<F> {
-    /// account balance after the withdrawal is made.
-    pub account_new_balance: F,
+    /// Account balance after the withdrawal is made.
+    pub new_account_balance: F,
 }

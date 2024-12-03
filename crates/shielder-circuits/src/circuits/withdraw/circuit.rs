@@ -35,8 +35,6 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> Circuit<F> for WithdrawCircuit<F, CHU
             .merkle(public_inputs.narrow())
             .range_check();
 
-        let range_check = configs_builder.resolve_range_check_chip();
-
         let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
         let (_, sum_chip) = configs_builder.resolve_sum_chip();
 
@@ -45,7 +43,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> Circuit<F> for WithdrawCircuit<F, CHU
             public_inputs,
             poseidon,
             merkle,
-            range_check,
+            range_check: configs_builder.resolve_range_check(),
             sum_chip,
         }
     }
