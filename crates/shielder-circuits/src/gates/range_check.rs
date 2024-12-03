@@ -26,6 +26,13 @@ impl<const CHUNK_SIZE: usize, F: FieldExt> Gate<F> for RangeCheckGate<CHUNK_SIZE
     type Values = RangeCheckGateValues<F>;
     type Advices = Column<Advice>;
 
+    /// The gate operates on a single advice column `A` and a table `T`. It enforces that:
+    ///
+    /// `A[x] - A[x+1] * 2^CHUNK_SIZE` belongs to `T`
+    ///
+    /// where:
+    ///  - `x` is the row where the gate is enabled
+    ///  - `T` represents set `[0, 2^CHUNK_SIZE)`
     fn create_gate(cs: &mut ConstraintSystem<F>, running_sum: Self::Advices) -> Self {
         let selector = cs.complex_selector();
         let table = RangeTable::new(cs);
