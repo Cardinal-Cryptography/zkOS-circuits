@@ -1,14 +1,13 @@
 use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
-    chips::{range_check::LookupRangeCheckChip, sum::SumChip},
+    chips::{range_check::RangeCheckChip, sum::SumChip},
     column_pool::ColumnPool,
     consts::merkle_constants::{ARITY, WIDTH},
-    gates::{membership::MembershipGate, sum::SumGate, Gate},
+    gates::{membership::MembershipGate, range_check::RangeCheckGate, sum::SumGate, Gate},
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
     poseidon::{circuit::PoseidonChip, spec::PoseidonSpec},
-    range_table::RangeTable,
     FieldExt,
 };
 
@@ -18,7 +17,7 @@ pub struct With<T>(T);
 type WithSum = With<SumChip>;
 type WithMerkle<F> = With<MerkleChip<F>>;
 type WithPoseidon<F> = With<PoseidonChip<F>>;
-type WithRangeCheck<const CHUNK_SIZE: usize> = With<LookupRangeCheckChip<{ CHUNK_SIZE }>>;
+type WithRangeCheck<const CHUNK_SIZE: usize> = With<RangeCheckChip<{ CHUNK_SIZE }>>;
 
 pub struct ConfigsBuilder<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck> {
     base_builder: BaseBuilder<'cs, F>,
@@ -127,10 +126,11 @@ impl<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck>
         mut self,
     ) -> ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck<CHUNK_SIZE>> {
         let advice = self.base_builder.advice_pool_with_capacity(1).get_any();
+        let advice_pool = self.base_builder.advice_pool.clone();
         let system = &mut self.base_builder.system;
 
-        let table = RangeTable::<CHUNK_SIZE>::new(system);
-        let range_check = LookupRangeCheckChip::<CHUNK_SIZE>::configure(system, advice, table);
+        let gate = RangeCheckGate::<CHUNK_SIZE>::create_gate(system, advice);
+        let range_check = RangeCheckChip { gate, advice_pool };
 
         ConfigsBuilder {
             base_builder: self.base_builder,
@@ -145,7 +145,7 @@ impl<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck>
 impl<'cs, F: FieldExt, Poseidon, Merkle, Sum, const CHUNK_SIZE: usize>
     ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck<CHUNK_SIZE>>
 {
-    pub fn resolve_range_check_chip(&self) -> LookupRangeCheckChip<CHUNK_SIZE> {
+    pub fn resolve_range_check(&self) -> RangeCheckChip<CHUNK_SIZE> {
         self.range_check.0.clone()
     }
 }
