@@ -7,3 +7,8 @@ license = "GPL-3.0-only"
 [dependencies]
 halo2_proofs = { workspace = true }
 shielder-circuits = { workspace = true, features = ["multithreading"] }
+postgres = "0.19.9"
+clap = { version = "4.5.22", features = ["derive"] }
+anyhow = "1.0.94"
+secrecy = "0.10.3"
+prettytable-rs = "0.10.0"
