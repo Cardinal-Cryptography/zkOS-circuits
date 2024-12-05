@@ -74,6 +74,7 @@ impl<const CHUNK_SIZE: usize, F: FieldExt> Gate<F> for RangeCheckGate<CHUNK_SIZE
         //  - a[i] < 2^CHUNK_SIZE, for i = 0...n-2
 
         let n = running_sum.len();
+        assert!(n >= 2, "Running sum must have at least two elements");
         assert!((n - 1) * CHUNK_SIZE <= F::CAPACITY as usize);
 
         self.table.ensure_initialized(layouter)?;
@@ -83,7 +84,7 @@ impl<const CHUNK_SIZE: usize, F: FieldExt> Gate<F> for RangeCheckGate<CHUNK_SIZE
                 // 1. Copy the running sum into the region.
                 let running_sum = self.copy_running_sum(&mut region, &running_sum)?;
                 // 2. For all consecutive pairs of sums, enable the selector.
-                for i in 0..n - 1 {
+                for i in 0..=n - 2 {
                     self.selector.enable(&mut region, i)?;
                 }
                 // 3. Ensure that the last sum is zero.
