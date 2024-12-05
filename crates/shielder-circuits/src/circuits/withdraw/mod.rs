@@ -6,8 +6,8 @@ mod chip;
 mod circuit;
 mod knowledge;
 
-pub use circuit::*;
-pub use knowledge::*;
+pub use circuit::WithdrawCircuit;
+pub use knowledge::WithdrawProverKnowledge;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum WithdrawInstance {

@@ -8,7 +8,7 @@ use crate::{
     chips::{
         id_hiding::IdHidingChip,
         note::{Note, NoteChip},
-        range_check::LookupRangeCheckChip,
+        range_check::RangeCheckChip,
         sum::SumChip,
     },
     circuits::{
@@ -33,7 +33,7 @@ pub struct DepositChip<F: FieldExt, const CHUNK_SIZE: usize> {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip<F>,
-    pub range_check: LookupRangeCheckChip<CHUNK_SIZE>,
+    pub range_check: RangeCheckChip<CHUNK_SIZE>,
     pub merkle: MerkleChip<F>,
     pub sum: SumChip,
 }

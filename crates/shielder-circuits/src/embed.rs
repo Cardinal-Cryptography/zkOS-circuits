@@ -1,4 +1,4 @@
-use alloc::{format, string::String, vec};
+use alloc::{format, string::String, vec, vec::Vec};
 
 use halo2_proofs::{
     circuit::{Layouter, Value},
@@ -19,6 +19,19 @@ pub trait Embed<F: Field> {
         advice_pool: &ColumnPool<Advice>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error>;
+}
+
+impl<F: Field, E: Embed<F>> Embed<F> for &E {
+    type Embedded = E::Embedded;
+
+    fn embed(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        advice_pool: &ColumnPool<Advice>,
+        annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, Error> {
+        (*self).embed(layouter, advice_pool, annotation)
+    }
 }
 
 impl<F: Field> Embed<F> for Value<F> {
@@ -47,11 +60,30 @@ impl<F: Field, E: Embed<F>, const N: usize> Embed<F> for [E; N] {
         advice_pool: &ColumnPool<Advice>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
+        Ok(self
+            .iter()
+            .collect::<Vec<_>>()
+            .embed(layouter, advice_pool, annotation)?
+            .try_into()
+            .map_err(|_| ())
+            .expect("Safe unwrap"))
+    }
+}
+
+impl<F: Field, E: Embed<F>> Embed<F> for Vec<E> {
+    type Embedded = Vec<E::Embedded>;
+
+    fn embed(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        advice_pool: &ColumnPool<Advice>,
+        annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, Error> {
         let annotation = annotation.into();
         let mut embedded = vec![];
         for (i, item) in self.iter().enumerate() {
             embedded.push(item.embed(layouter, advice_pool, format!("{}[{}]", annotation, i))?);
         }
-        Ok(embedded.try_into().map_err(|_| ()).expect("Safe unwrap"))
+        Ok(embedded)
     }
 }
