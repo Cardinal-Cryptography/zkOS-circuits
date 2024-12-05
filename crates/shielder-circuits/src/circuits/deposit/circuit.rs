@@ -88,11 +88,11 @@ mod tests {
                 expect_prover_success_and_run_verification, run_full_pipeline,
                 PublicInputProviderExt,
             },
-            utils::padded_hash,
         },
         consts::RANGE_PROOF_CHUNK_SIZE,
         deposit::{DepositInstance, DepositInstance::*},
         note_hash,
+        poseidon::off_circuit::hash,
         version::NOTE_VERSION,
         Note, ProverKnowledge, PublicInputProvider,
     };
@@ -162,7 +162,7 @@ mod tests {
                 trapdoor: pk.trapdoor_old,
                 account_balance: pk.account_old_balance,
             }) + modification /* Modification here! */;
-            let h_nullifier_old = padded_hash(&[pk.nullifier_old]);
+            let h_nullifier_old = hash(&[pk.nullifier_old]);
 
             // Build the Merkle proof.
             let (merkle_root, path) = generate_example_path_with_given_leaf(h_note_old, &mut rng);
@@ -184,7 +184,7 @@ mod tests {
             });
 
             let pub_input = |instance: DepositInstance| match instance {
-                IdHiding => padded_hash(&[padded_hash(&[pk.id]), pk.nonce]),
+                IdHiding => hash(&[hash(&[pk.id]), pk.nonce]),
                 MerkleRoot => merkle_root,
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,

@@ -22,7 +22,7 @@ use crate::{
         DepositInstance::{self, HashedNewNote, HashedOldNullifier, *},
     },
     instance_wrapper::InstanceWrapper,
-    poseidon::circuit::{padded_hash, PoseidonChip},
+    poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
     version::NOTE_VERSION,
     AssignedCell,
@@ -70,10 +70,10 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> DepositChip<F, CHUNK_SIZE> {
         knowledge: &DepositProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
-        let hashed_old_nullifier = padded_hash(
+        let hashed_old_nullifier = hash(
             &mut layouter.namespace(|| "Old nullifier Hash"),
             self.poseidon.clone(),
-            &[&knowledge.nullifier_old],
+            [knowledge.nullifier_old.clone()],
         )?;
         todo.check_off(HashedOldNullifierIsCorrect)?;
 

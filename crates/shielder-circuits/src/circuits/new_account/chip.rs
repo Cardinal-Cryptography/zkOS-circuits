@@ -11,7 +11,7 @@ use crate::{
     new_account::{
         NewAccountConstraints, NewAccountConstraints::*, NewAccountInstance, NewAccountInstance::*,
     },
-    poseidon::circuit::{padded_hash, PoseidonChip},
+    poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
     version::NOTE_VERSION,
     AssignedCell,
@@ -39,7 +39,7 @@ impl<F: FieldExt> NewAccountChip<F> {
         )?;
         todo.check_off(InitialDepositInstanceIsConstrainedToAdvice)?;
 
-        let h_id = padded_hash(layouter, self.poseidon.clone(), &[&knowledge.id])?;
+        let h_id = hash(layouter, self.poseidon.clone(), [knowledge.id.clone()])?;
         todo.check_off(HashedIdIsCorrect)?;
 
         let note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
