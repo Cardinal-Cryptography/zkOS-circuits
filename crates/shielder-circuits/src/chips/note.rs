@@ -4,6 +4,7 @@ use halo2_proofs::{
 };
 
 use crate::{
+    chips::balances::BalancesChip,
     column_pool::ColumnPool,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
@@ -79,11 +80,8 @@ impl<F: FieldExt> NoteChip<F> {
     ) -> Result<AssignedCell<F>, Error> {
         let note_version = self.assign_note_version(note, layouter)?;
 
-        let h_balance = hash(
-            &mut layouter.namespace(|| "balance"),
-            self.poseidon.clone(),
-            [note.account_balance.clone()],
-        )?;
+        let h_balance = BalancesChip::new(self.poseidon.clone(), self.advice_pool.clone())
+            .hash_balances(layouter, &note.account_balance)?;
 
         let input = [
             note_version,

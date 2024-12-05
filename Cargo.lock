@@ -598,6 +598,7 @@ dependencies = [
 [[package]]
 name = "halo2_poseidon"
 version = "0.2.0"
+source = "git+ssh://git@github.com/Cardinal-Cryptography/poseidon-gadget?rev=b7c6641#b7c6641ffa154ec2d44335c953a8964e36b95f12"
 dependencies = [
  "arrayvec",
  "bitvec",
