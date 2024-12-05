@@ -9,7 +9,7 @@ use halo2_proofs::{
 
 use crate::{gates::Gate, AssignedCell};
 
-/// Represents the relation: `summand_1 + summand_2 = sum`.
+/// Represents the relation: `a + b = c`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SumGate {
     advice: [Column<Advice>; 3],

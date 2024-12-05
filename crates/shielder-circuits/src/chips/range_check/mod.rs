@@ -4,7 +4,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    chips::range_check::running_sum::running_sum,
+    chips::{range_check::running_sum::running_sum, sum::SumChip},
     column_pool::ColumnPool,
     embed::Embed,
     gates::{range_check::RangeCheckGate, Gate},
@@ -16,7 +16,8 @@ mod running_sum;
 
 #[derive(Clone, Debug)]
 pub struct RangeCheckChip<const CHUNK_SIZE: usize> {
-    pub gate: RangeCheckGate<CHUNK_SIZE>,
+    pub range_gate: RangeCheckGate<CHUNK_SIZE>,
+    pub sum_chip: SumChip,
     pub advice_pool: ColumnPool<Advice>,
 }
 
@@ -31,6 +32,9 @@ impl<const CHUNK_SIZE: usize> RangeCheckChip<CHUNK_SIZE> {
         let running_sum_off_circuit = running_sum(value.value().copied(), CHUNK_SIZE, chunks);
         let running_sum_cells =
             running_sum_off_circuit.embed(layouter, &self.advice_pool, "running_sum")?;
-        self.gate.apply_in_new_region(layouter, running_sum_cells)
+        self.sum_chip
+            .constrain_equal(layouter, value, running_sum_cells[0].clone())?;
+        self.range_gate
+            .apply_in_new_region(layouter, running_sum_cells)
     }
 }

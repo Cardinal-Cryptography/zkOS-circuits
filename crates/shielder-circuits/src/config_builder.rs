@@ -119,18 +119,22 @@ impl<'cs, F: FieldExt, Sum> ConfigsBuilder<'cs, F, WithPoseidon<F>, Empty, Sum, 
     }
 }
 
-impl<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck>
-    ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, RangeCheck>
+impl<'cs, F: FieldExt, Poseidon, Merkle, RangeCheck>
+    ConfigsBuilder<'cs, F, Poseidon, Merkle, WithSum, RangeCheck>
 {
     pub fn range_check<const CHUNK_SIZE: usize>(
         mut self,
-    ) -> ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck<CHUNK_SIZE>> {
+    ) -> ConfigsBuilder<'cs, F, Poseidon, Merkle, WithSum, WithRangeCheck<CHUNK_SIZE>> {
         let advice = self.base_builder.advice_pool_with_capacity(1).get_any();
         let advice_pool = self.base_builder.advice_pool.clone();
         let system = &mut self.base_builder.system;
 
         let gate = RangeCheckGate::<CHUNK_SIZE>::create_gate(system, advice);
-        let range_check = RangeCheckChip { gate, advice_pool };
+        let range_check = RangeCheckChip {
+            range_gate: gate,
+            sum_chip: self.sum.0.clone(),
+            advice_pool,
+        };
 
         ConfigsBuilder {
             base_builder: self.base_builder,
