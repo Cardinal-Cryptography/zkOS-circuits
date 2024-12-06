@@ -10,7 +10,24 @@ use crate::{
     AssignedCell, FieldExt,
 };
 
-/// Chip that is able to calculate note hash
+pub mod off_circuit {
+    use crate::{poseidon::off_circuit::hash, FieldExt};
+
+    /// Hashes native balance together with placeholders for future token balances
+    pub fn balances_hash<F: FieldExt>(native_balance: F) -> F {
+        hash(&[
+            native_balance,
+            F::ZERO,
+            F::ZERO,
+            F::ZERO,
+            F::ZERO,
+            F::ZERO,
+            F::ZERO,
+        ])
+    }
+}
+
+/// Chip used to hash balances
 #[derive(Clone, Debug)]
 pub struct BalancesChip<F: FieldExt> {
     poseidon: PoseidonChip<F>,

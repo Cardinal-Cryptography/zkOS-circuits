@@ -28,7 +28,11 @@ pub struct Note<T> {
 }
 
 pub mod off_circuit {
-    use crate::{chips::note::Note, poseidon::off_circuit::hash, FieldExt};
+    use crate::{
+        chips::{balances::off_circuit::balances_hash, note::Note},
+        poseidon::off_circuit::hash,
+        FieldExt,
+    };
 
     pub fn note_hash<F: FieldExt>(note: &Note<F>) -> F {
         let input = [
@@ -36,7 +40,7 @@ pub mod off_circuit {
             note.id,
             note.nullifier,
             note.trapdoor,
-            hash(&[note.account_balance]),
+            balances_hash(note.account_balance),
         ];
 
         hash(&input)

@@ -17,7 +17,7 @@ criterion = { version = "0.5.1" }
 darling = { version = "0.20.10" }
 getrandom = { version = "0.2" }
 # https://github.com/Cardinal-Cryptography/poseidon2-gadget/tree/b7c6641ffa154ec2d44335c953a8964e36b95f12
-halo2_poseidon = { git = "ssh://git@github.com/Cardinal-Cryptography/poseidon-gadget", rev = "b7c6641" }
+halo2_poseidon = { git = "ssh://git@github.com/Cardinal-Cryptography/poseidon-gadget", rev = "e4e732c" }
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2", tag = "v0.3.0", default-features = false }
 human_bytes = { version = "0.4.3", default-features = false }
 itertools = { version = "0.13.0" }
