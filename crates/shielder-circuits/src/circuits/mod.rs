@@ -29,10 +29,10 @@ pub mod new_account;
 pub mod withdraw;
 
 pub mod marshall;
-
 #[cfg(test)]
 mod test_utils;
 
+pub mod utils;
 pub trait FieldExt: FromUniformBytes<64> + Ord + SerdeObject + PrimeFieldBits {}
 
 impl FieldExt for Fr {}

@@ -30,6 +30,9 @@ pub mod merkle_constants {
     pub const TOKEN_TREE_HEIGHT: usize = 5;
 }
 
+pub const POSEIDON_RATE: usize = 7;
+static_assertions::const_assert_eq!(POSEIDON_RATE + 1, merkle_constants::WIDTH);
+
 /// nonces that make up pow-anonymity are drawn randomly from [0...2^MAX_NONCE_BIT_LENGTH]
 pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
 
