@@ -71,7 +71,7 @@ impl<F: FieldExt> BalancesChip<F> {
         ];
 
         hash(
-            &mut layouter.namespace(|| "Note Hash"),
+            &mut layouter.namespace(|| "Balances Hash"),
             self.poseidon.clone(),
             hash_input,
         )
