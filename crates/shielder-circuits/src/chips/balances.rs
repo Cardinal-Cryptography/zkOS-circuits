@@ -5,17 +5,18 @@ use halo2_proofs::{
 
 use crate::{
     column_pool::ColumnPool,
-    consts::TOKEN_BALANCE_PLACEHOLDERS,
+    consts::POSEIDON_RATE,
     poseidon::circuit::{hash, PoseidonChip},
     AssignedCell, FieldExt,
 };
 
 pub mod off_circuit {
-    use crate::{poseidon::off_circuit::hash, FieldExt};
+    use super::{FieldExt, POSEIDON_RATE};
+    use crate::poseidon::off_circuit::hash;
 
     /// Hashes native balance together with placeholders for future token balances
     pub fn balances_hash<F: FieldExt>(native_balance: F) -> F {
-        hash(&[
+        hash::<F, POSEIDON_RATE>(&[
             native_balance,
             F::ZERO,
             F::ZERO,
@@ -60,7 +61,7 @@ impl<F: FieldExt> BalancesChip<F> {
         )?;
 
         // We currently support only the native token, however, we hash it with placeholders for future token balances
-        let hash_input: [AssignedCell<F>; 1 + TOKEN_BALANCE_PLACEHOLDERS] = [
+        let hash_input: [AssignedCell<F>; POSEIDON_RATE] = [
             native_balance.clone(),
             zero_cell.clone(),
             zero_cell.clone(),

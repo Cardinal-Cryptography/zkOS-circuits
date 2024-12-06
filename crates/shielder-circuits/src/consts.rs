@@ -35,7 +35,3 @@ static_assertions::const_assert_eq!(POSEIDON_RATE + 1, merkle_constants::WIDTH);
 
 /// nonces that make up pow-anonymity are drawn randomly from [0...2^MAX_NONCE_BIT_LENGTH]
 pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
-
-/// The number of placeholders in the note's account_balances that can be used for token balances in the future.
-pub const TOKEN_BALANCE_PLACEHOLDERS: usize = 6;
-static_assertions::const_assert_eq!(TOKEN_BALANCE_PLACEHOLDERS, merkle_constants::ARITY - 1);
