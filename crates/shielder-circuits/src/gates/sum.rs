@@ -9,7 +9,7 @@ use halo2_proofs::{
 
 use crate::{gates::Gate, AssignedCell};
 
-/// Represents the relation: `summand_1 + summand_2 = sum`.
+/// Represents the relation: `a + b = c`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SumGate {
     advice: [Column<Advice>; 3],
@@ -31,6 +31,8 @@ impl<F: Field> Gate<F> for SumGate {
     type Values = SumGateValues<F>;
     type Advices = [Column<Advice>; 3];
 
+    /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
+    /// `A[x] + B[x] = C[x]`, where `x` is the row where the gate is enabled.
     fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self {
         Self::ensure_unique_columns(&advice);
         let selector = cs.selector();

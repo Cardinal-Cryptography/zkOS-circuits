@@ -1,7 +1,7 @@
 use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use crate::{
-    chips::range_check::LookupRangeCheckChip,
+    chips::range_check::RangeCheckChip,
     consts::NONCE_RANGE_PROOF_NUM_WORDS,
     poseidon::circuit::{padded_hash, PoseidonChip},
     AssignedCell, FieldExt,
@@ -10,11 +10,11 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct IdHidingChip<F: FieldExt, const CHUNK_SIZE: usize> {
     pub poseidon: PoseidonChip<F>,
-    pub range_check: LookupRangeCheckChip<CHUNK_SIZE>,
+    pub range_check: RangeCheckChip<CHUNK_SIZE>,
 }
 
 impl<F: FieldExt, const CHUNK_SIZE: usize> IdHidingChip<F, CHUNK_SIZE> {
-    pub fn new(poseidon: PoseidonChip<F>, range_check: LookupRangeCheckChip<CHUNK_SIZE>) -> Self {
+    pub fn new(poseidon: PoseidonChip<F>, range_check: RangeCheckChip<CHUNK_SIZE>) -> Self {
         Self {
             poseidon,
             range_check,
@@ -30,9 +30,9 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> IdHidingChip<F, CHUNK_SIZE> {
         id: AssignedCell<F>,
         nonce: AssignedCell<F>,
     ) -> Result<AssignedCell<F>, Error> {
-        // Constrain `nonce` to be smaller than `2^{ RANGE_PROOF_CHUNK_SIZE * NONCE_RANGE_PROOF_NUM_WORDS}`.
-        self.range_check.copy_check(
-            layouter.namespace(|| "Range Check for nonce"),
+        // Constrain `nonce` to be smaller than `2^{CHUNK_SIZE * NONCE_RANGE_PROOF_NUM_WORDS}`.
+        self.range_check.constrain_value(
+            &mut layouter.namespace(|| "Range Check for nonce"),
             nonce.clone(),
             NONCE_RANGE_PROOF_NUM_WORDS,
         )?;

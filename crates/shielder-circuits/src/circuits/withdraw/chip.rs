@@ -7,7 +7,7 @@ use crate::{
     chips::{
         id_hiding::IdHidingChip,
         note::{Note, NoteChip},
-        range_check::LookupRangeCheckChip,
+        range_check::RangeCheckChip,
         sum::SumChip,
     },
     circuits::{
@@ -35,7 +35,7 @@ pub struct WithdrawChip<F: FieldExt, const CHUNK_SIZE: usize> {
     pub public_inputs: InstanceWrapper<WithdrawInstance>,
     pub poseidon: PoseidonChip<F>,
     pub merkle: MerkleChip<F>,
-    pub range_check: LookupRangeCheckChip<CHUNK_SIZE>,
+    pub range_check: RangeCheckChip<CHUNK_SIZE>,
     pub sum_chip: SumChip,
 }
 
@@ -105,9 +105,10 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
         intermediate_values: &IntermediateValues<AssignedCell<F>>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
-        let new_balance = intermediate_values.account_new_balance.clone();
-        self.range_check.copy_check(
-            layouter.namespace(|| "Range Check"),
+        let new_balance = intermediate_values.new_account_balance.clone();
+
+        self.range_check.constrain_value(
+            &mut layouter.namespace(|| "Range Check"),
             new_balance.clone(),
             RANGE_PROOF_NUM_WORDS,
         )?;

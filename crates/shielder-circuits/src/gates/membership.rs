@@ -31,6 +31,11 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
     type Values = MembershipGateValues<F, N>;
     type Advices = (Column<Advice>, [Column<Advice>; N]);
 
+    /// The gate operates on a single advice column `needle` and `N` advice columns `haystack`. It
+    /// enforces that:
+    ///
+    /// `(needle[x] - haystack_1[x]) · … · (needle[x] - haystack_N[x]) = 0`, where `x` is the row
+    /// where the gate is enabled.
     fn create_gate(
         cs: &mut ConstraintSystem<F>,
         (needle_advice, haystack_advice): Self::Advices,

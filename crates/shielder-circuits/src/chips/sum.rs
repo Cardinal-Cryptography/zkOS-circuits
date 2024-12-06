@@ -49,6 +49,21 @@ impl SumChip {
         self.gate.apply_in_new_region(layouter, gate_input)
     }
 
+    /// Constrain cells to satisfy the equation `left_sock = right_sock`.
+    pub fn constrain_equal<F: Field>(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        left_sock: AssignedCell<F>,
+        right_sock: AssignedCell<F>,
+    ) -> Result<(), Error> {
+        let gate_input = SumGateValues {
+            summand_1: left_sock,
+            summand_2: self.zero(layouter)?,
+            sum: right_sock,
+        };
+        self.gate.apply_in_new_region(layouter, gate_input)
+    }
+
     fn zero<F: Field>(&self, layouter: &mut impl Layouter<F>) -> Result<AssignedCell<F>, Error> {
         layouter.assign_region(
             || "zero",
