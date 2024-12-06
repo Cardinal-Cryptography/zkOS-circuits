@@ -1,4 +1,5 @@
-use crate::{consts::POSEIDON_RATE, poseidon::off_circuit::hash, FieldExt};
+pub use crate::poseidon::off_circuit::hash;
+use crate::{consts::POSEIDON_RATE, FieldExt};
 
 const RANGE_BOUND: usize = POSEIDON_RATE + 1;
 
