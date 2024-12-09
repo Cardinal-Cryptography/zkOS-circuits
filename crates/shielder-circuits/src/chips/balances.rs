@@ -43,6 +43,8 @@ impl<F: FieldExt> BalancesChip<F> {
         }
     }
 
+    /// Returns a single cell constrained to be the hash of the given native balance
+    /// together with placeholders for future token balances (zeros are appended to hash input)
     pub fn hash_balances(
         &self,
         layouter: &mut impl Layouter<F>,

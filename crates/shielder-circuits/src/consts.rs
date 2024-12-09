@@ -30,6 +30,7 @@ pub mod merkle_constants {
     pub const TOKEN_TREE_HEIGHT: usize = 5;
 }
 
+/// Number of field elements that can be hashed in a single Poseidon permutation.
 pub const POSEIDON_RATE: usize = 7;
 static_assertions::const_assert_eq!(POSEIDON_RATE + 1, merkle_constants::WIDTH);
 
