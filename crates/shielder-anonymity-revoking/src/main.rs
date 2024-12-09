@@ -11,7 +11,7 @@ use shielder_circuits::poseidon::off_circuit::padded_hash;
 const MAX_NONCE: usize = 65536;
 const CHUNK_SIZE: usize = 1000;
 
-/// Utility for unmasking a shielder user by id for the prototype system. You will
+/// Utility for unmasking a shielder user by id_hash for the prototype system. You will
 /// need access to the postgres database for the shielder indexer
 /// (this one https://github.com/Cardinal-Cryptography/zkOS-indexer). Output tables
 /// are also written to deposit_native.csv and withdraw_native.csv.
@@ -21,7 +21,7 @@ const CHUNK_SIZE: usize = 1000;
 struct Options {
     /// Id to unmask
     #[clap(short, long)]
-    id: String,
+    id_hash: String,
 
     /// Postgres host to connect to
     #[clap(short, long)]
@@ -44,13 +44,13 @@ struct Options {
     database: String,
 }
 
-fn hashed_ids(id: Fr) -> Vec<Fr> {
-    let mut salt = Fr::zero();
+fn hashed_ids(id_hash: Fr) -> Vec<Fr> {
+    let mut nonce = Fr::zero();
     let mut result = Vec::new();
     let start = std::time::Instant::now();
 
     for i in 0..MAX_NONCE {
-        if i % 1000 == 0 {
+        if i % 1000 == 0 && i > 0 {
             println!(
                 "hashes: {:?}/{:?}, time: {:?}, hashes per second: {:?}",
                 i,
@@ -60,9 +60,9 @@ fn hashed_ids(id: Fr) -> Vec<Fr> {
             );
         }
 
-        let hash = padded_hash(&[id, salt]);
+        let hash = padded_hash(&[id_hash, nonce]);
         result.push(hash);
-        salt += Fr::one();
+        nonce += Fr::one();
     }
 
     result
@@ -83,18 +83,19 @@ fn main() -> Result<(), Error> {
     });
 
     let mut conn = Client::connect(connection_string.expose_secret(), NoTls)?;
-    let id_hiding = Fr::from_str_vartime(&options.id).ok_or(anyhow::anyhow!("Invalid id"))?;
+    let id_hiding =
+        Fr::from_str_vartime(&options.id_hash).ok_or(anyhow::anyhow!("Invalid id_hash"))?;
 
     println!("Computing possible hashed ids...");
     let hashed_ids = hashed_ids(id_hiding);
 
     let mut deposit_native = Table::new();
-    let fields_deposit_native = "id, id_hiding, amount, new_note, new_note_index";
+    let fields_deposit_native = "id_hiding, amount, new_note, new_note_index";
     deposit_native.add_row(fields_deposit_native.split(", ").map(Cell::new).collect());
 
     let mut withdraw_native = Table::new();
     let fields_withdraw_native =
-        "id, id_hiding, amount, \"to\", new_note, new_note_index, relayer_address, fee";
+        "id_hiding, amount, \"to\", new_note, new_note_index, relayer_address, fee";
     withdraw_native.add_row(fields_withdraw_native.split(", ").map(Cell::new).collect());
     println!("Fetching data from database...");
 
