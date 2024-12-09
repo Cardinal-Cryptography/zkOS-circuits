@@ -6,7 +6,7 @@ use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField};
 use postgres::{Client, NoTls, SimpleQueryMessage};
 use prettytable::{Cell, Table};
 use secrecy::{ExposeSecret, SecretBox};
-use shielder_circuits::poseidon::off_circuit::padded_hash;
+use shielder_circuits::poseidon::off_circuit::hash as poseidon_hash;
 
 const MAX_NONCE: usize = 65536;
 const CHUNK_SIZE: usize = 1000;
@@ -60,7 +60,7 @@ fn id_hidings(id_hash: Fr) -> Vec<Fr> {
             );
         }
 
-        let hash = padded_hash(&[id_hash, nonce]);
+        let hash = poseidon_hash(&[id_hash, nonce]);
         result.push(hash);
         nonce += Fr::one();
     }
