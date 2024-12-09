@@ -1,0 +1,14 @@
+[package]
+name = "shielder-anonymity-revoking"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+halo2_proofs = { workspace = true }
+postgres = { workspace = true }
+prettytable-rs = { workspace = true }
+secrecy = { workspace = true }
+shielder-circuits = { workspace = true, features = ["multithreading"] }
