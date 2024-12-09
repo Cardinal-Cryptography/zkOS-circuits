@@ -44,7 +44,7 @@ struct Options {
     database: String,
 }
 
-fn hashed_ids(id_hash: Fr) -> Vec<Fr> {
+fn id_hidings(id_hash: Fr) -> Vec<Fr> {
     let mut nonce = Fr::zero();
     let mut result = Vec::new();
     let start = std::time::Instant::now();
@@ -83,11 +83,11 @@ fn main() -> Result<(), Error> {
     });
 
     let mut conn = Client::connect(connection_string.expose_secret(), NoTls)?;
-    let id_hiding =
+    let id_hash =
         Fr::from_str_vartime(&options.id_hash).ok_or(anyhow::anyhow!("Invalid id_hash"))?;
 
-    println!("Computing possible hashed ids...");
-    let hashed_ids = hashed_ids(id_hiding);
+    println!("Computing possible id_hiding for {:?}...", id_hash);
+    let id_hidings = id_hidings(id_hash);
 
     let mut deposit_native = Table::new();
     let fields_deposit_native = "id_hiding, amount, new_note, new_note_index";
@@ -99,7 +99,7 @@ fn main() -> Result<(), Error> {
     withdraw_native.add_row(fields_withdraw_native.split(", ").map(Cell::new).collect());
     println!("Fetching data from database...");
 
-    for chunk in hashed_ids.chunks(CHUNK_SIZE) {
+    for chunk in id_hidings.chunks(CHUNK_SIZE) {
         let chunk = chunk
             .iter()
             .map(|id| format!("{:?}", id))
