@@ -12,7 +12,6 @@ use crate::{
     merkle::generate_example_path_with_given_leaf,
     note_hash,
     poseidon::off_circuit::hash,
-    utils::padded_hash,
     version::NOTE_VERSION,
     withdraw::{circuit::WithdrawCircuit, WithdrawInstance},
     FieldExt, Note, ProverKnowledge, PublicInputProvider,
@@ -127,9 +126,9 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> PublicInputProvider<WithdrawInstance,
 {
     fn compute_public_input(&self, instance_id: WithdrawInstance) -> F {
         match instance_id {
-            WithdrawInstance::IdHiding => padded_hash(&[padded_hash(&[self.id]), self.nonce]),
+            WithdrawInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
             WithdrawInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
-            WithdrawInstance::HashedOldNullifier => padded_hash(&[self.nullifier_old]),
+            WithdrawInstance::HashedOldNullifier => hash(&[self.nullifier_old]),
             WithdrawInstance::HashedNewNote => note_hash(&Note {
                 version: NOTE_VERSION,
                 id: self.id,

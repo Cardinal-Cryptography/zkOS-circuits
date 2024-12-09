@@ -3,7 +3,7 @@ use halo2_proofs::{circuit::Layouter, plonk::Error};
 use crate::{
     chips::range_check::RangeCheckChip,
     consts::NONCE_RANGE_PROOF_NUM_WORDS,
-    poseidon::circuit::{padded_hash, PoseidonChip},
+    poseidon::circuit::{hash, PoseidonChip},
     AssignedCell, FieldExt,
 };
 
@@ -37,7 +37,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> IdHidingChip<F, CHUNK_SIZE> {
             NONCE_RANGE_PROOF_NUM_WORDS,
         )?;
 
-        let h_id = padded_hash(layouter, self.poseidon.clone(), &[&id])?;
-        padded_hash(layouter, self.poseidon.clone(), &[&h_id, &nonce])
+        let h_id = hash(layouter, self.poseidon.clone(), [id])?;
+        hash(layouter, self.poseidon.clone(), [h_id, nonce])
     }
 }

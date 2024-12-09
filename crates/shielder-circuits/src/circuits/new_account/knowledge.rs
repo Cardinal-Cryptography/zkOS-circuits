@@ -6,7 +6,7 @@ use crate::{
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
-    utils::padded_hash,
+    poseidon::off_circuit::hash,
     version::NOTE_VERSION,
     FieldExt, Note, ProverKnowledge, PublicInputProvider,
 };
@@ -57,7 +57,7 @@ impl<F: FieldExt> PublicInputProvider<NewAccountInstance, F> for NewAccountProve
                 trapdoor: self.trapdoor,
                 account_balance: self.initial_deposit,
             }),
-            NewAccountInstance::HashedId => padded_hash(&[self.id]),
+            NewAccountInstance::HashedId => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,
         }
     }
