@@ -13,7 +13,6 @@ use crate::{
     merkle::generate_example_path_with_given_leaf,
     note_hash,
     poseidon::off_circuit::hash,
-    utils::padded_hash,
     version::NOTE_VERSION,
     FieldExt, Note, ProverKnowledge, PublicInputProvider,
 };
@@ -113,9 +112,9 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> PublicInputProvider<DepositInstance, 
 {
     fn compute_public_input(&self, instance_id: DepositInstance) -> F {
         match instance_id {
-            DepositInstance::IdHiding => padded_hash(&[padded_hash(&[self.id]), self.nonce]),
+            DepositInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
             DepositInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
-            DepositInstance::HashedOldNullifier => padded_hash(&[self.nullifier_old]),
+            DepositInstance::HashedOldNullifier => hash(&[self.nullifier_old]),
             DepositInstance::HashedNewNote => note_hash(&Note {
                 version: NOTE_VERSION,
                 id: self.id,

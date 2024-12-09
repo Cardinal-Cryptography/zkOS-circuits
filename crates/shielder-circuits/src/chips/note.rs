@@ -4,8 +4,9 @@ use halo2_proofs::{
 };
 
 use crate::{
+    chips::balances::BalancesChip,
     column_pool::ColumnPool,
-    poseidon::circuit::{padded_hash, PoseidonChip},
+    poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
     AssignedCell, FieldExt,
 };
@@ -27,7 +28,11 @@ pub struct Note<T> {
 }
 
 pub mod off_circuit {
-    use crate::{chips::note::Note, poseidon::off_circuit::padded_hash, FieldExt};
+    use crate::{
+        chips::{balances::off_circuit::balances_hash, note::Note},
+        poseidon::off_circuit::hash,
+        FieldExt,
+    };
 
     pub fn note_hash<F: FieldExt>(note: &Note<F>) -> F {
         let input = [
@@ -35,10 +40,10 @@ pub mod off_circuit {
             note.id,
             note.nullifier,
             note.trapdoor,
-            padded_hash(&[note.account_balance]),
+            balances_hash(note.account_balance),
         ];
 
-        padded_hash(&input)
+        hash(&input)
     }
 }
 
@@ -79,24 +84,21 @@ impl<F: FieldExt> NoteChip<F> {
     ) -> Result<AssignedCell<F>, Error> {
         let note_version = self.assign_note_version(note, layouter)?;
 
-        let h_balance = padded_hash(
-            &mut layouter.namespace(|| "balance"),
-            self.poseidon.clone(),
-            &[&note.account_balance],
-        )?;
+        let h_balance = BalancesChip::new(self.poseidon.clone(), self.advice_pool.clone())
+            .hash_balances(layouter, &note.account_balance)?;
 
         let input = [
-            &note_version,
-            &note.id,
-            &note.nullifier,
-            &note.trapdoor,
-            &h_balance,
+            note_version,
+            note.id.clone(),
+            note.nullifier.clone(),
+            note.trapdoor.clone(),
+            h_balance,
         ];
 
-        padded_hash(
+        hash(
             &mut layouter.namespace(|| "Note Hash"),
             self.poseidon.clone(),
-            &input,
+            input,
         )
     }
 }

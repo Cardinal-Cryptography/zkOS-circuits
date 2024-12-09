@@ -18,7 +18,7 @@ use crate::{
     column_pool::ColumnPool,
     consts::RANGE_PROOF_NUM_WORDS,
     instance_wrapper::InstanceWrapper,
-    poseidon::circuit::{padded_hash, PoseidonChip},
+    poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
     version::NOTE_VERSION,
     withdraw::{
@@ -71,10 +71,10 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
         knowledge: &WithdrawProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
-        let hashed_old_nullifier = padded_hash(
+        let hashed_old_nullifier = hash(
             &mut layouter.namespace(|| "Old nullifier Hash"),
             self.poseidon.clone(),
-            &[&knowledge.nullifier_old],
+            [knowledge.nullifier_old.clone()],
         )?;
         todo.check_off(HashedOldNullifierIsCorrect)?;
 
