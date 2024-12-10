@@ -1,4 +1,5 @@
 use std::{env, fs::File};
+
 use anyhow::Result;
 use clap::Args;
 use halo2_proofs::halo2curves::bn256::Fr;
@@ -32,19 +33,7 @@ pub struct DbConfig {
 }
 
 pub fn run(id_hidings: &[Fr], config: DbConfig) -> Result<()> {
-    let connection_string = SecretBox::init_with(|| {
-        let password = config.password.unwrap_or_else(|| {
-            env::var("POSTGRES_PASSWORD")
-                .expect("Provide password by -p or POSTGRES_PASSWORD environment variable")
-        });
-
-        format!(
-            "host={} port={} user={} dbname={} password={}",
-            config.host, config.port, config.user, config.database, password
-        )
-    });
-
-    let mut conn = Client::connect(connection_string.expose_secret(), NoTls)?;
+    let mut conn = create_connection(config)?;
 
     let mut deposit_native = Table::new();
     let fields_deposit_native = "id_hiding, amount, new_note, new_note_index";
@@ -54,43 +43,29 @@ pub fn run(id_hidings: &[Fr], config: DbConfig) -> Result<()> {
     let fields_withdraw_native =
         "id_hiding, amount, \"to\", new_note, new_note_index, relayer_address, fee";
     withdraw_native.add_row(fields_withdraw_native.split(", ").map(Cell::new).collect());
-    println!("Fetching data from database...");
 
+    println!("Fetching data from database...");
     for chunk in id_hidings.chunks(CHUNK_SIZE) {
         let chunk = chunk
             .iter()
             .map(|id| format!("{:?}", id))
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
+            .join(", ");
 
-        let chunk = chunk.join(", ");
-
-        let query = format!(
-            "SELECT {fields_deposit_native} FROM deposit_native WHERE id_hiding IN ({chunk})"
-        );
-        let res = conn.simple_query(&query)?;
-        for msg in res {
-            if let SimpleQueryMessage::Row(row) = msg {
-                deposit_native.add_row(
-                    (0..row.len())
-                        .map(|f| Cell::new(row.get(f).unwrap()))
-                        .collect(),
-                );
-            }
-        }
-
-        let query = format!(
-            "SELECT {fields_withdraw_native} FROM withdraw_native WHERE id_hiding IN ({chunk})"
-        );
-        let res = conn.simple_query(&query)?;
-        for msg in res {
-            if let SimpleQueryMessage::Row(row) = msg {
-                withdraw_native.add_row(
-                    (0..row.len())
-                        .map(|f| Cell::new(row.get(f).unwrap()))
-                        .collect(),
-                );
-            }
-        }
+        handle_relation(
+            &mut conn,
+            &mut deposit_native,
+            &chunk,
+            "deposit_native",
+            fields_deposit_native,
+        )?;
+        handle_relation(
+            &mut conn,
+            &mut withdraw_native,
+            &chunk,
+            "withdraw_native",
+            fields_withdraw_native,
+        )?;
     }
 
     println!("\n\nDEPOSIT_NATIVE\n\n");
@@ -106,3 +81,38 @@ pub fn run(id_hidings: &[Fr], config: DbConfig) -> Result<()> {
     Ok(())
 }
 
+fn create_connection(config: DbConfig) -> Result<Client> {
+    let connection_string = SecretBox::init_with(|| {
+        let password = config.password.unwrap_or_else(|| {
+            env::var("POSTGRES_PASSWORD")
+                .expect("Provide password by -p or POSTGRES_PASSWORD environment variable")
+        });
+
+        format!(
+            "host={} port={} user={} dbname={} password={}",
+            config.host, config.port, config.user, config.database, password
+        )
+    });
+
+    Ok(Client::connect(connection_string.expose_secret(), NoTls)?)
+}
+
+fn handle_relation(
+    conn: &mut Client,
+    aggregation: &mut Table,
+    chunk: &String,
+    table_name: &'static str,
+    table_fields: &str,
+) -> Result<()> {
+    let query = format!("SELECT {table_fields} FROM {table_name} WHERE id_hiding IN ({chunk})");
+    for msg in conn.simple_query(&query)? {
+        if let SimpleQueryMessage::Row(row) = msg {
+            aggregation.add_row(
+                (0..row.len())
+                    .map(|f| Cell::new(row.get(f).unwrap()))
+                    .collect(),
+            );
+        }
+    }
+    Ok(())
+}
