@@ -7,42 +7,13 @@ use postgres::{Client, NoTls, SimpleQueryMessage};
 use prettytable::{Cell, Table};
 use secrecy::{ExposeSecret, SecretBox};
 use shielder_circuits::poseidon::off_circuit::hash as poseidon_hash;
+use crate::cli::CLI;
+
+mod cli;
+mod db;
 
 const MAX_NONCE: usize = 65536;
 const CHUNK_SIZE: usize = 1000;
-
-/// Utility for unmasking a shielder user by id_hash for the prototype system. You will
-/// need access to the postgres database for the shielder indexer
-/// (this one https://github.com/Cardinal-Cryptography/zkOS-indexer). Output tables
-/// are also written to deposit_native.csv and withdraw_native.csv.
-///
-/// Remember to run/compile with --release, otherwise hashing is very slow.
-#[derive(Parser, Debug)]
-struct Options {
-    /// Id to unmask
-    #[clap(short, long)]
-    id_hash: String,
-
-    /// Postgres host to connect to
-    #[clap(short, long)]
-    host: String,
-
-    /// Postgres port to connect to
-    #[clap(short, long, default_value_t = 5432)]
-    port: u16,
-
-    /// Postgres user to connect as
-    #[clap(short, long)]
-    user: String,
-
-    /// Postgres password to connect with - uses POSTGRES_PASSWORD environment variable if not provided
-    #[clap(short, long, default_value = None)]
-    password: Option<String>,
-
-    /// Database to connect to (assumed to be an indexer database)
-    #[clap(short, long, default_value = "zkos")]
-    database: String,
-}
 
 fn id_hidings(id_hash: Fr) -> Vec<Fr> {
     let mut nonce = Fr::zero();
@@ -69,7 +40,7 @@ fn id_hidings(id_hash: Fr) -> Vec<Fr> {
 }
 
 fn main() -> Result<(), Error> {
-    let options = Options::parse();
+    let options = CLI::parse();
     let connection_string = SecretBox::init_with(|| {
         let password = options.password.unwrap_or_else(|| {
             env::var("POSTGRES_PASSWORD")
