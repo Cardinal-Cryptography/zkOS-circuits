@@ -1,4 +1,5 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
+use crate::db::DbConfig;
 
 /// Utility for unmasking a shielder user by id_hash for the prototype system. You will
 /// need access to the postgres database for the shielder indexer
@@ -12,23 +13,12 @@ pub struct CLI {
     #[clap(short, long)]
     pub id_hash: String,
 
-    /// Postgres host to connect to
-    #[clap(short, long)]
-    pub host: String,
+    /// What source of data should be used.
+    #[command(subcommand)]
+    pub source: DataSource,
+}
 
-    /// Postgres port to connect to
-    #[clap(short, long, default_value_t = 5432)]
-    pub port: u16,
-
-    /// Postgres user to connect as
-    #[clap(short, long)]
-    pub user: String,
-
-    /// Postgres password to connect with - uses POSTGRES_PASSWORD environment variable if not provided
-    #[clap(short, long, default_value = None)]
-    pub password: Option<String>,
-
-    /// Database to connect to (assumed to be an indexer database)
-    #[clap(short, long, default_value = "zkos")]
-    pub database: String,
+#[derive(Subcommand, Debug)]
+pub enum DataSource {
+    DB(DbConfig),
 }
