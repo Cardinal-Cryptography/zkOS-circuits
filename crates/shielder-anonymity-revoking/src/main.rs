@@ -5,9 +5,9 @@ use shielder_circuits::poseidon::off_circuit::hash as poseidon_hash;
 
 use crate::cli::{DataSource, CLI};
 
+mod chain;
 mod cli;
 mod db;
-mod chain;
 
 const MAX_NONCE: usize = 65536;
 const CHUNK_SIZE: usize = 1000;
@@ -36,7 +36,8 @@ fn id_hidings(id_hash: Fr) -> Vec<Fr> {
     result
 }
 
-fn main() -> Result<()> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<()> {
     let cli = CLI::parse();
     let id_hash = Fr::from_str_vartime(&cli.id_hash).ok_or(anyhow!("Invalid id_hash"))?;
 
@@ -45,5 +46,6 @@ fn main() -> Result<()> {
 
     match cli.source {
         DataSource::DB(db_config) => db::run(&id_hidings, db_config),
+        DataSource::Chain(chain_config) => chain::run(&id_hidings, chain_config).await,
     }
 }

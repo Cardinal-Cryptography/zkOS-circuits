@@ -10,7 +10,7 @@ pub struct ChainConfig {
     node: String,
 }
 
-pub fn run(id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
-    let _provider = create_simple_provider(&config.node)?;
+pub async fn run(_id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
+    let _provider = create_simple_provider(&config.node);
     todo!()
 }
