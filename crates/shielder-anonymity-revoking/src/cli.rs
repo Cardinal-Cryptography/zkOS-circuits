@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use crate::chain::ChainConfig;
 use crate::db::DbConfig;
 
 /// Utility for unmasking a shielder user by id_hash for the prototype system. You will
@@ -21,4 +22,5 @@ pub struct CLI {
 #[derive(Subcommand, Debug)]
 pub enum DataSource {
     DB(DbConfig),
+    Chain(ChainConfig)
 }

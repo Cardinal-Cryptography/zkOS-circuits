@@ -7,6 +7,7 @@ use crate::cli::{DataSource, CLI};
 
 mod cli;
 mod db;
+mod chain;
 
 const MAX_NONCE: usize = 65536;
 const CHUNK_SIZE: usize = 1000;

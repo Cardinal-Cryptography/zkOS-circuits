@@ -41,7 +41,7 @@ syn = { version = "2.0.79" }
 
 # Main branch for the 10 XII 24: https://github.com/Cardinal-Cryptography/zkOS-monorepo/tree/a280f97d2d02a2ee59cd76a5783dd7be16f57947
 # Should be changed for a release tag once it's established.
-shielder-rust-sdk = { git = "https://github.com/Cardinal-Cryptography/zkOS-monorepo", rev = "a280f97" }
+shielder-rust-sdk = { git = "ssh://git@github.com/Cardinal-Cryptography/zkOS-monorepo", rev = "a280f97" }
 
 # Local dependencies
 macros = { path = "crates/macros" }

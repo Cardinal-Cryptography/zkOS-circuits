@@ -12,3 +12,4 @@ postgres = { workspace = true }
 prettytable-rs = { workspace = true }
 secrecy = { workspace = true }
 shielder-circuits = { workspace = true, features = ["multithreading"] }
+shielder-rust-sdk = { workspace = true, features = ["contract"] }
