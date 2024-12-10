@@ -3,7 +3,7 @@ use clap::Parser;
 use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField};
 use shielder_circuits::poseidon::off_circuit::hash as poseidon_hash;
 
-use crate::cli::{DataSource, CLI};
+use crate::cli::{Cli, DataSource};
 
 mod chain;
 mod cli;
@@ -38,7 +38,7 @@ fn id_hidings(id_hash: Fr) -> Vec<Fr> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    let cli = CLI::parse();
+    let cli = Cli::parse();
     let id_hash = Fr::from_str_vartime(&cli.id_hash).ok_or(anyhow!("Invalid id_hash"))?;
 
     println!("Computing possible id_hiding for {:?}...", id_hash);

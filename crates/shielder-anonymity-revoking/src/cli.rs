@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
-use crate::chain::ChainConfig;
-use crate::db::DbConfig;
+
+use crate::{chain::ChainConfig, db::DbConfig};
 
 /// Utility for unmasking a shielder user by id_hash for the prototype system. You will
 /// need access to the postgres database for the shielder indexer
@@ -9,7 +9,7 @@ use crate::db::DbConfig;
 ///
 /// Remember to run/compile with --release, otherwise hashing is very slow.
 #[derive(Parser, Debug)]
-pub struct CLI {
+pub struct Cli {
     /// Id to unmask
     #[clap(short, long)]
     pub id_hash: String,
@@ -22,5 +22,5 @@ pub struct CLI {
 #[derive(Subcommand, Debug)]
 pub enum DataSource {
     DB(DbConfig),
-    Chain(ChainConfig)
+    Chain(ChainConfig),
 }
