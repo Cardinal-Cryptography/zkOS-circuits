@@ -2,7 +2,7 @@
 name = "shielder-circuits"
 version = "0.1.0"
 edition = "2021"
-license = "GPL-3.0-only"
+license.workspace = true
 
 [lib]
 bench = false # allows passing arguments through to criterion
