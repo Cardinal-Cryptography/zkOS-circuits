@@ -20,7 +20,7 @@ jobs:
       - name: Prepare Rust env
         uses: ./.github/actions/prepare-rust-env
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.ZKOS_GH_TOKEN }}
 
       - name: Ensure formatting is correct
         run: cargo +nightly fmt --all --check
