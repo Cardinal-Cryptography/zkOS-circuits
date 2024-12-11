@@ -1,0 +1,4 @@
+NOTICE
+
+The `transcript` crate is copied from https://github.com/privacy-scaling-explorations/halo2-solidity-verifier ,
+which is licensed under the MIT license.

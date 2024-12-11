@@ -7,7 +7,7 @@ members = ["crates/*"]
 edition = "2021"
 authors = ["Cardinal"]
 homepage = "https://alephzero.org"
-license = "Apache-2.0"
+license = "GPL-3.0-only WITH Classpath-exception-2.0"
 categories = ["cryptography"]
 repository = "https://github.com/Cardinal-Cryptography/zkOS"
 
