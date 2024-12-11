@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  rust-checks-and-unit-tests:
+  main:
     name: Run lints and tests
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -20,7 +20,7 @@ jobs:
       - name: Prepare Rust env
         uses: ./.github/actions/prepare-rust-env
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: Ensure formatting is correct
         run: cargo +nightly fmt --all --check

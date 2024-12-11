@@ -14,7 +14,6 @@ repository = "https://github.com/Cardinal-Cryptography/zkOS"
 [workspace.dependencies]
 anyhow = "1.0.94"
 clap = { version = "4.5.22", features = ["derive"] }
-console_error_panic_hook = { version = "0.1.7" }
 criterion = { version = "0.5.1" }
 darling = { version = "0.20.10" }
 # https://github.com/Cardinal-Cryptography/poseidon2-gadget/tree/ce317a65e0f1148ce9220a7f3281ef0f27544fb4
@@ -32,12 +31,18 @@ rand_core = { version = "0.6.4" }
 rayon = { version = "1.8" }
 ruint = { version = "1" }
 secrecy = "0.10.3"
-sha2 = { version = "0.10.8" }
 sha3 = { version = "0.10" }
 static_assertions = { version = "1.1.0" }
 strum = { version = "0.26.3" }
 strum_macros = { version = "0.26.3" }
 syn = { version = "2.0.79" }
+tokio = { version = "1.42.0" }
+
+# CC dependencies
+
+# Main branch for the 10 XII 24: https://github.com/Cardinal-Cryptography/zkOS-monorepo/tree/a280f97d2d02a2ee59cd76a5783dd7be16f57947
+# Should be changed for a release tag once it's established.
+shielder-rust-sdk = { git = "ssh://git@github.com/Cardinal-Cryptography/zkOS-monorepo", rev = "a280f97" }
 
 # Local dependencies
 macros = { path = "crates/macros" }
