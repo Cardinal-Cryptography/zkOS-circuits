@@ -9,7 +9,7 @@ mod chain;
 mod cli;
 mod db;
 
-const MAX_NONCE: usize = 65536;
+const MAX_NONCE: usize = 1000;
 const CHUNK_SIZE: usize = 1000;
 
 /// Generate all id hidings that are seeded with `id_hash`, i.e., `hash(id_hash, nonce)`, for all

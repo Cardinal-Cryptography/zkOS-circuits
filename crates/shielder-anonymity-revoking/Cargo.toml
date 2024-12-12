@@ -5,6 +5,9 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
+alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-sol-types = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 halo2_proofs = { workspace = true }
