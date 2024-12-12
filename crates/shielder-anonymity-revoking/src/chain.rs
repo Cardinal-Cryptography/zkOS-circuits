@@ -14,6 +14,7 @@ use shielder_rust_sdk::{
             DepositNative, NewAccountNative, ShielderContractEvents, WithdrawNative,
         },
     },
+    conversion::u256_to_field,
 };
 
 /// Eth node support querying for events only in windows of up to 10K blocks.
@@ -37,8 +38,8 @@ pub async fn run(id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
     let provider = create_simple_provider(&config.node).await?;
     let current_height = provider.get_block_number().await?;
 
-    // let mut deposits = vec![];
-    // let mut withdrawals = vec![];
+    let mut deposits = vec![];
+    let mut withdrawals = vec![];
 
     for block_number in (0..=current_height).step_by(SCAN_BATCH_SPAN) {
         let last_batch_block = min(block_number + SCAN_BATCH_SPAN as u64 - 1, current_height);
@@ -61,7 +62,29 @@ pub async fn run(id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
                 raw_logs_len - filtered_logs.len()
             );
         }
+
+        for event in filtered_logs {
+            match event {
+                ShielderContractEvents::DepositNative(event) => {
+                    if id_hidings.contains(&u256_to_field(event.idHiding)) {
+                        deposits.push(event);
+                    }
+                }
+                ShielderContractEvents::WithdrawNative(event) => {
+                    if id_hidings.contains(&u256_to_field(event.idHiding)) {
+                        withdrawals.push(event);
+                    }
+                }
+                _ => {}
+            }
+        }
     }
+
+    println!(
+        "Found {} deposits and {} withdrawals",
+        deposits.len(),
+        withdrawals.len()
+    );
 
     Ok(())
 }
