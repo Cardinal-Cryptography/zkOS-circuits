@@ -6,6 +6,7 @@ use alloy_sol_types::{Error, SolEvent};
 use anyhow::Result;
 use clap::Args;
 use halo2_proofs::halo2curves::bn256::Fr;
+use prettytable::Cell;
 use shielder_rust_sdk::{
     alloy_primitives::Address,
     contract::{
@@ -16,6 +17,8 @@ use shielder_rust_sdk::{
     },
     conversion::u256_to_field,
 };
+
+use crate::csv::{deposit_table, save_deposit_table, save_withdraw_table, withdraw_table};
 
 /// Eth node support querying for events only in windows of up to 10K blocks.
 const SCAN_BATCH_SPAN: usize = 10_000;
@@ -38,8 +41,8 @@ pub async fn run(id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
     let provider = create_simple_provider(&config.node).await?;
     let current_height = provider.get_block_number().await?;
 
-    let mut deposits = vec![];
-    let mut withdrawals = vec![];
+    let mut deposits = deposit_table();
+    let mut withdrawals = withdraw_table();
 
     for block_number in (0..=current_height).step_by(SCAN_BATCH_SPAN) {
         let last_batch_block = min(block_number + SCAN_BATCH_SPAN as u64 - 1, current_height);
@@ -67,12 +70,33 @@ pub async fn run(id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
             match event {
                 ShielderContractEvents::DepositNative(event) => {
                     if id_hidings.contains(&u256_to_field(event.idHiding)) {
-                        deposits.push(event);
+                        deposits.add_row(
+                            [
+                                Cell::new(&event.idHiding.to_string()),
+                                Cell::new(&event.amount.to_string()),
+                                Cell::new(&event.newNote.to_string()),
+                                Cell::new(&event.newNoteIndex.to_string()),
+                            ]
+                            .into_iter()
+                            .collect(),
+                        );
                     }
                 }
                 ShielderContractEvents::WithdrawNative(event) => {
                     if id_hidings.contains(&u256_to_field(event.idHiding)) {
-                        withdrawals.push(event);
+                        withdrawals.add_row(
+                            [
+                                Cell::new(&event.idHiding.to_string()),
+                                Cell::new(&event.amount.to_string()),
+                                Cell::new(&event.withdrawAddress.to_string()),
+                                Cell::new(&event.newNote.to_string()),
+                                Cell::new(&event.newNoteIndex.to_string()),
+                                Cell::new(&event.relayerAddress.to_string()),
+                                Cell::new(&event.fee.to_string()),
+                            ]
+                            .into_iter()
+                            .collect(),
+                        );
                     }
                 }
                 _ => {}
@@ -85,6 +109,9 @@ pub async fn run(id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
         deposits.len(),
         withdrawals.len()
     );
+
+    save_deposit_table(deposits);
+    save_withdraw_table(withdrawals);
 
     Ok(())
 }
