@@ -1,4 +1,4 @@
-use std::{env, fs::File};
+use std::env;
 
 use anyhow::Result;
 use clap::Args;
@@ -7,7 +7,13 @@ use postgres::{Client, NoTls, SimpleQueryMessage};
 use prettytable::{Cell, Table};
 use secrecy::{ExposeSecret, SecretBox};
 
-use crate::CHUNK_SIZE;
+use crate::{
+    csv::{
+        deposit_field_names, deposit_table, save_deposit_table, save_withdraw_table,
+        withdraw_field_names, withdraw_table,
+    },
+    CHUNK_SIZE,
+};
 
 #[derive(Args, Debug)]
 pub struct DbConfig {
@@ -35,14 +41,8 @@ pub struct DbConfig {
 pub fn run(id_hidings: &[Fr], config: DbConfig) -> Result<()> {
     let mut conn = create_connection(config)?;
 
-    let mut deposit_native = Table::new();
-    let fields_deposit_native = "id_hiding, amount, new_note, new_note_index";
-    deposit_native.add_row(fields_deposit_native.split(", ").map(Cell::new).collect());
-
-    let mut withdraw_native = Table::new();
-    let fields_withdraw_native =
-        "id_hiding, amount, \"to\", new_note, new_note_index, relayer_address, fee";
-    withdraw_native.add_row(fields_withdraw_native.split(", ").map(Cell::new).collect());
+    let mut deposit_native = deposit_table();
+    let mut withdraw_native = withdraw_table();
 
     println!("Fetching data from database...");
     for chunk in id_hidings.chunks(CHUNK_SIZE) {
@@ -57,26 +57,19 @@ pub fn run(id_hidings: &[Fr], config: DbConfig) -> Result<()> {
             &mut deposit_native,
             &chunk,
             "deposit_native",
-            fields_deposit_native,
+            deposit_field_names(),
         )?;
         handle_relation(
             &mut conn,
             &mut withdraw_native,
             &chunk,
             "withdraw_native",
-            fields_withdraw_native,
+            withdraw_field_names(),
         )?;
     }
 
-    println!("\n\nDEPOSIT_NATIVE\n\n");
-    deposit_native.printstd();
-    let out = File::create("deposit_native.csv")?;
-    deposit_native.to_csv(out)?;
-
-    println!("\n\nWITHDRAW_NATIVE\n\n");
-    withdraw_native.printstd();
-    let out = File::create("withdraw_native.csv")?;
-    withdraw_native.to_csv(out)?;
+    save_deposit_table(deposit_native);
+    save_withdraw_table(withdraw_native);
 
     Ok(())
 }

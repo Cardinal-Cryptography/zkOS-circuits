@@ -7,6 +7,7 @@ use crate::cli::{Cli, DataSource};
 
 mod chain;
 mod cli;
+mod csv;
 mod db;
 
 const MAX_NONCE: usize = 65536;
