@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField};
-use shielder_circuits::poseidon::off_circuit::hash as poseidon_hash;
 use rayon::prelude::*;
+use shielder_circuits::poseidon::off_circuit::hash as poseidon_hash;
 
 use crate::cli::{Cli, DataSource};
 
