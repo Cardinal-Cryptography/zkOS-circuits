@@ -23,8 +23,7 @@ fn id_hidings(id_hash: Fr) -> Vec<Fr> {
         .into_par_iter()
         .map(|i| {
             let nonce = Fr::from(i as u64);
-            let hash = poseidon_hash(&[id_hash, nonce]);
-            hash
+            poseidon_hash(&[id_hash, nonce])
         })
         .collect();
 
