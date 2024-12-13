@@ -13,6 +13,7 @@ clap = { workspace = true }
 halo2_proofs = { workspace = true }
 postgres = { workspace = true }
 prettytable-rs = { workspace = true }
+rayon ={ workspace = true}
 secrecy = { workspace = true }
 shielder-circuits = { workspace = true, features = ["multithreading"] }
 shielder-rust-sdk = { workspace = true, features = ["contract"] }
