@@ -27,7 +27,6 @@ fn id_hidings(id_hash: Fr) -> Vec<Fr> {
         })
         .collect();
 
-    // You could print statistics after completion:
     let duration = start.elapsed();
     println!(
         "Completed hashing {} nonces in {:?} (~{:.2} hashes/sec)",
