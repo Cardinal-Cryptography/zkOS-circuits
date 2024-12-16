@@ -106,8 +106,8 @@ pub async fn run(id_hidings: &[Fr], config: ChainConfig) -> Result<()> {
 
     println!(
         "Found {} deposits and {} withdrawals",
-        deposits.len(),
-        withdrawals.len()
+        deposits.len() - 1,
+        withdrawals.len() - 1
     );
 
     save_deposit_table(deposits);
