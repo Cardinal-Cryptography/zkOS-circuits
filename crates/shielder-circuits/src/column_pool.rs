@@ -21,6 +21,11 @@ impl<C: ColumnType> ColumnPool<C> {
             access_counter: RefCell::new(Vec::new()),
         }
     }
+
+    fn add_column(&mut self, column: Column<C>) {
+        self.pool.push(column);
+        self.access_counter.borrow_mut().push(0);
+    }
 }
 
 impl ColumnPool<Advice> {
@@ -30,8 +35,7 @@ impl ColumnPool<Advice> {
         for _ in self.len()..capacity {
             let column = cs.advice_column();
             cs.enable_equality(column);
-            self.pool.push(column);
-            self.access_counter.borrow_mut().push(0);
+            self.add_column(column);
         }
     }
 }
@@ -43,8 +47,7 @@ impl ColumnPool<Fixed> {
         for _ in self.len()..capacity {
             let column = cs.fixed_column();
             cs.enable_constant(column);
-            self.pool.push(column);
-            self.access_counter.borrow_mut().push(0);
+            self.add_column(column);
         }
     }
 }
