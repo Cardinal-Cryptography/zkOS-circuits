@@ -57,11 +57,13 @@ impl<C: ColumnType> ColumnPool<C> {
     ///
     /// The index is not guaranteed (some inner load balancing might be applied).
     pub fn get_any(&self) -> Column<C> {
-        let idx = *self
+        let idx = self
             .access_counter
             .borrow()
             .iter()
-            .min()
+            .enumerate()
+            .min_by_key(|&(_, count)| count)
+            .map(|(idx, _)| idx)
             .expect("empty pool");
         self.get(idx)
     }
