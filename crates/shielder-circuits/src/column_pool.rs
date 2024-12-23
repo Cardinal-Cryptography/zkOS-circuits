@@ -1,4 +1,4 @@
-use alloc::{vec, vec::Vec};
+use alloc::vec::Vec;
 use core::cell::Cell;
 
 use halo2_proofs::{
@@ -12,8 +12,8 @@ pub struct ColumnPool<C: ColumnType> {
     last_accessed_at: Cell<usize>,
 }
 
-impl ColumnPool<Advice> {
-    /// Create a new empty advice pool.
+impl<C: ColumnType> ColumnPool<C> {
+    /// Create a new empty pool.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
@@ -21,7 +21,9 @@ impl ColumnPool<Advice> {
             last_accessed_at: Cell::new(0),
         }
     }
+}
 
+impl ColumnPool<Advice> {
     /// Ensure that there are at least `capacity` advice columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable equality for each of them.
     pub fn ensure_capacity<F: Field>(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
@@ -34,22 +36,13 @@ impl ColumnPool<Advice> {
 }
 
 impl ColumnPool<Fixed> {
-    /// Create a new fixed pool. It will contain 1 column for advice constraining constants.
-    pub fn new<F: Field>(cs: &mut ConstraintSystem<F>) -> Self {
-        let pool = vec![cs.fixed_column()];
-        cs.enable_constant(pool[0]);
-        Self {
-            pool,
-            last_accessed_at: Cell::new(0),
-        }
-    }
-
     /// Ensure that there are at least `capacity` fixed columns in the constraint system `cs`,
-    /// registering new ones if necessary. This count doesn't include the constant column.
+    /// registering new ones if necessary. Enable storing constants in each of them.
     pub fn ensure_capacity<F: Field>(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
-        for i in (self.len() - 1)..capacity {
+        for _ in self.len()..capacity {
             let column = cs.fixed_column();
-            self.pool.insert(i, column); // keep the constant column at the end
+            cs.enable_constant(column);
+            self.pool.push(column);
         }
     }
 }

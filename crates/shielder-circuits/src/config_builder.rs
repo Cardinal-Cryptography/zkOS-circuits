@@ -195,7 +195,7 @@ impl<'cs, F: FieldExt> BaseBuilder<'cs, F> {
     pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
         Self {
             advice_pool: ColumnPool::<Advice>::new(),
-            fixed_pool: ColumnPool::<Fixed>::new(system),
+            fixed_pool: ColumnPool::<Fixed>::new(),
             system,
         }
     }
