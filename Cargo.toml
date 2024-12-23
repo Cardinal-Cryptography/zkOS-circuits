@@ -9,11 +9,11 @@ authors = ["Cardinal"]
 homepage = "https://alephzero.org"
 license = "GPL-3.0-only WITH Classpath-exception-2.0"
 categories = ["cryptography"]
-repository = "https://github.com/Cardinal-Cryptography/zkOS"
+repository = "https://github.com/Cardinal-Cryptography/zkOS-circuits"
 
 [workspace.dependencies]
-alloy-provider = { version = "0.4.2" }
-alloy-rpc-types = { version = "0.4.2" }
+alloy-provider = { version = "0.8.3" }
+alloy-rpc-types = { version = "0.8.3" }
 alloy-sol-types = { version = "0.8.5" }
 anyhow = "1.0.94"
 clap = { version = "4.5.22", features = ["derive"] }
@@ -43,9 +43,7 @@ tokio = { version = "1.42.0" }
 
 # CC dependencies
 
-# Main branch for the 10 XII 24: https://github.com/Cardinal-Cryptography/zkOS-monorepo/tree/a280f97d2d02a2ee59cd76a5783dd7be16f57947
-# Should be changed for a release tag once it's established.
-shielder-rust-sdk = { git = "ssh://git@github.com/Cardinal-Cryptography/zkOS-monorepo", rev = "a280f97" }
+shielder-rust-sdk = { git = "https://github.com/Cardinal-Cryptography/zkOS-monorepo", tag = "v0.1.0" }
 
 # Local dependencies
 macros = { path = "crates/macros" }
