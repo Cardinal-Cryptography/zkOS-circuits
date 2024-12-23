@@ -153,8 +153,6 @@ mod tests {
                 );
 
             // Build the old note.
-            pk.nullifier_old = Fr::random(rng);
-            pk.trapdoor_old = Fr::random(rng);
             let h_note_old = note_hash(&Note {
                 version: NOTE_VERSION,
                 id: pk.id,
@@ -169,12 +167,9 @@ mod tests {
             pk.path = path;
 
             // Build the new account state.
-            let deposit_value = Fr::ONE;
-            let account_balance_new = pk.account_old_balance + deposit_value;
+            let account_balance_new = pk.account_old_balance + pk.deposit_value;
 
             // Build the new note.
-            pk.nullifier_new = Fr::random(rng);
-            pk.trapdoor_new = Fr::random(rng);
             let h_note_new = note_hash(&Note {
                 version: NOTE_VERSION,
                 id: pk.id,
@@ -188,7 +183,7 @@ mod tests {
                 MerkleRoot => merkle_root,
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
-                DepositValue => deposit_value,
+                DepositValue => pk.deposit_value,
             };
 
             assert_eq!(
