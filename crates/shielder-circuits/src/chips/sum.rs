@@ -34,21 +34,6 @@ impl SumChip {
         self.gate.apply_in_new_region(layouter, gate_input)
     }
 
-    /// Constrain cells to satisfy the equation `value + negation = 0`.
-    pub fn constrain_negation<F: Field>(
-        &self,
-        layouter: &mut impl Layouter<F>,
-        value: AssignedCell<F>,
-        negation: AssignedCell<F>,
-    ) -> Result<(), Error> {
-        let gate_input = SumGateValues {
-            summand_1: value,
-            summand_2: negation,
-            sum: self.zero(layouter)?,
-        };
-        self.gate.apply_in_new_region(layouter, gate_input)
-    }
-
     /// Constrain cells to satisfy the equation `left_sock = right_sock`.
     pub fn constrain_equal<F: Field>(
         &self,
