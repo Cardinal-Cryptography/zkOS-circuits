@@ -1,5 +1,5 @@
 use alloc::{vec, vec::Vec};
-use core::cell::Cell;
+use core::cell::RefCell;
 
 use halo2_proofs::{
     arithmetic::Field,
@@ -9,7 +9,7 @@ use halo2_proofs::{
 #[derive(Clone, Debug)]
 pub struct ColumnPool<C: ColumnType> {
     pool: Vec<Column<C>>,
-    last_accessed_at: Cell<usize>,
+    access_counter: RefCell<Vec<usize>>,
 }
 
 impl ColumnPool<Advice> {
@@ -18,7 +18,7 @@ impl ColumnPool<Advice> {
     pub fn new() -> Self {
         Self {
             pool: Vec::new(),
-            last_accessed_at: Cell::new(0),
+            access_counter: RefCell::new(Vec::new()),
         }
     }
 
@@ -29,6 +29,7 @@ impl ColumnPool<Advice> {
             let column = cs.advice_column();
             cs.enable_equality(column);
             self.pool.push(column);
+            self.access_counter.borrow_mut().push(0);
         }
     }
 }
@@ -40,7 +41,7 @@ impl ColumnPool<Fixed> {
         cs.enable_constant(pool[0]);
         Self {
             pool,
-            last_accessed_at: Cell::new(0),
+            access_counter: RefCell::new(Vec::new()),
         }
     }
 
@@ -50,6 +51,7 @@ impl ColumnPool<Fixed> {
         for i in (self.len() - 1)..capacity {
             let column = cs.fixed_column();
             self.pool.insert(i, column); // keep the constant column at the end
+            self.access_counter.borrow_mut().push(0);
         }
     }
 }
@@ -59,13 +61,12 @@ impl<C: ColumnType> ColumnPool<C> {
     ///
     /// The index is not guaranteed (some inner load balancing might be applied).
     pub fn get_any(&self) -> Column<C> {
-        let next = (self.last_accessed_at.get() + 1) % self.len();
-        self.last_accessed_at.set(next);
-        self.pool[next]
+        self.pool[0]
     }
 
     /// Get the column at the specified index.
     pub fn get(&self, index: usize) -> Column<C> {
+        self.access_counter.borrow_mut()[index] += 1;
         self.pool[index]
     }
 
@@ -76,6 +77,9 @@ impl<C: ColumnType> ColumnPool<C> {
 
     /// Get an array of columns from the pool.
     pub fn get_array<const N: usize>(&self) -> [Column<C>; N] {
+        for i in 0..N {
+            self.access_counter.borrow_mut()[i] += 1;
+        }
         self.pool[..N].try_into().unwrap()
     }
 }
