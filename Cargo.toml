@@ -43,7 +43,8 @@ tokio = { version = "1.42.0" }
 
 # CC dependencies
 
-shielder-rust-sdk = { git = "https://github.com/Cardinal-Cryptography/zkOS-monorepo", tag = "v0.1.0" }
+# https://github.com/Cardinal-Cryptography/zkOS-monorepo/tree/1988b8bce2ac8631ce86e81ef9b426e17d50e39b
+shielder-rust-sdk = { git = "https://github.com/Cardinal-Cryptography/zkOS-monorepo", rev = "1988b8b" }
 
 # Local dependencies
 macros = { path = "crates/macros" }
