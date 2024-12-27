@@ -37,14 +37,13 @@ impl<const CHUNK_SIZE: usize> RangeCheckChip<CHUNK_SIZE> {
         }
     }
 
-    /// Constrains the value to be less than `2^(CHUNK_SIZE * chunks)`.
-    pub fn constrain_value<F: FieldExt>(
+    /// Constrains the value to be less than `2^(CHUNK_SIZE * CHUNKS)`.
+    pub fn constrain_value<const CHUNKS: usize, F: FieldExt>(
         &self,
         layouter: &mut impl Layouter<F>,
         value: AssignedCell<F>,
-        chunks: usize,
     ) -> Result<(), Error> {
-        let running_sum_off_circuit = running_sum(value.value().copied(), CHUNK_SIZE, chunks);
+        let running_sum_off_circuit = running_sum(value.value().copied(), CHUNK_SIZE, CHUNKS);
         let running_sum_cells =
             running_sum_off_circuit.embed(layouter, &self.advice_pool, "running_sum")?;
         self.sum_chip
