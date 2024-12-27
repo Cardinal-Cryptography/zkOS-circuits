@@ -2,17 +2,18 @@ use halo2_proofs::{
     circuit::Layouter,
     plonk::{Advice, Error},
 };
-
+use gate::RangeCheckGate;
 use crate::{
     chips::{range_check::running_sum::running_sum, sum::SumChip},
     column_pool::ColumnPool,
     embed::Embed,
-    gates::{range_check::RangeCheckGate, Gate},
+    gates::Gate,
     AssignedCell, FieldExt,
 };
 
 mod bits;
 mod running_sum;
+mod gate;
 
 #[derive(Clone, Debug)]
 pub struct RangeCheckChip<const CHUNK_SIZE: usize> {

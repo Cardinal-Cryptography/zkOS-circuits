@@ -4,12 +4,13 @@ use crate::{
     chips::{range_check::RangeCheckChip, sum::SumChip},
     column_pool::ColumnPool,
     consts::merkle_constants::{ARITY, WIDTH},
-    gates::{membership::MembershipGate, range_check::RangeCheckGate, sum::SumGate, Gate},
+    gates::{membership::MembershipGate, sum::SumGate, Gate},
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
     poseidon::{circuit::PoseidonChip, spec::PoseidonSpec},
     FieldExt,
 };
+use crate::chips::range_check::gate::RangeCheckGate;
 
 pub struct Empty;
 pub struct With<T>(T);

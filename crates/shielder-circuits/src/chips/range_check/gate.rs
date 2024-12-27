@@ -8,8 +8,7 @@ use halo2_proofs::{
 
 use crate::{gates::Gate, range_table::RangeTable, AssignedCell, FieldExt};
 
-/// Represents inequality: `base - shifted * 2^CHUNK_SIZE < 2^CHUNK_SIZE`. Useful for range checks
-/// using the running sum technique.
+/// Represents inequality: `base - shifted * 2^CHUNK_SIZE < 2^CHUNK_SIZE`.
 #[derive(Clone, Debug)]
 pub struct RangeCheckGate<const CHUNK_SIZE: usize> {
     advice: Column<Advice>,
