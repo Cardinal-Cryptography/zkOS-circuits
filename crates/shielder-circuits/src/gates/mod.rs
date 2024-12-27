@@ -6,7 +6,6 @@ use halo2_proofs::{
 use crate::Field;
 
 pub mod membership;
-pub mod range_check;
 pub mod sum;
 
 /// `Gate` expresses a concept of a gadget in a circuit that:
