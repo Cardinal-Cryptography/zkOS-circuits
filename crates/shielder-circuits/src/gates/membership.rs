@@ -63,7 +63,7 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
     fn apply_in_new_region(
         &self,
         layouter: &mut impl Layouter<F>,
-        mut input: Self::Values,
+        input: Self::Values,
     ) -> Result<(), Error> {
         layouter.assign_region(
             || GATE_NAME,
@@ -77,7 +77,7 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
                     ADVICE_OFFSET,
                 )?;
 
-                for (i, hay) in input.haystack.iter_mut().enumerate() {
+                for (i, hay) in input.haystack.iter().enumerate() {
                     hay.copy_advice(
                         || alloc::format!("haystack_{i}"),
                         &mut region,

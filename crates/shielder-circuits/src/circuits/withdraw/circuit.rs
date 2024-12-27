@@ -77,7 +77,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> Circuit<F> for WithdrawCircuit<F, CHU
 
 #[cfg(test)]
 mod tests {
-    use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField};
+    use halo2_proofs::halo2curves::bn256::Fr;
     use rand_core::OsRng;
 
     use crate::{
@@ -90,7 +90,7 @@ mod tests {
             },
             withdraw::knowledge::WithdrawProverKnowledge,
         },
-        consts::{MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK, RANGE_PROOF_CHUNK_SIZE},
+        consts::RANGE_PROOF_CHUNK_SIZE,
         generate_keys_with_min_k, generate_proof, generate_setup_params, note_hash,
         poseidon::off_circuit::hash,
         version::NOTE_VERSION,
@@ -157,9 +157,6 @@ mod tests {
                 );
 
             // Build the old note.
-            pk.nullifier_old = F::random(rng);
-            pk.trapdoor_old = F::random(rng);
-            pk.account_old_balance = F::from_u128(MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK);
             let h_note_old = note_hash(&Note {
                 version: NOTE_VERSION,
                 id: pk.id,
@@ -174,12 +171,9 @@ mod tests {
             pk.path = path;
 
             // Build the new account state.
-            let value = F::ONE;
-            let account_balance_new = pk.account_old_balance - value;
+            let account_balance_new = pk.account_old_balance - pk.withdrawal_value;
 
             // Build the new note.
-            pk.nullifier_new = F::random(rng);
-            pk.trapdoor_new = F::random(rng);
             let h_note_new = note_hash(&Note {
                 version: NOTE_VERSION,
                 id: pk.id,
@@ -193,7 +187,7 @@ mod tests {
                 MerkleRoot => merkle_root,
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
-                WithdrawalValue => value,
+                WithdrawalValue => pk.withdrawal_value,
                 Commitment => pk.commitment,
             };
 
