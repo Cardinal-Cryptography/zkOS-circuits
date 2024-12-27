@@ -107,10 +107,11 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
     ) -> Result<(), Error> {
         let new_balance = intermediate_values.new_account_balance.clone();
 
-        self.range_check.constrain_value::<RANGE_PROOF_NUM_WORDS, _>(
-            &mut layouter.namespace(|| "Range Check"),
-            new_balance.clone(),
-        )?;
+        self.range_check
+            .constrain_value::<RANGE_PROOF_NUM_WORDS, _>(
+                &mut layouter.namespace(|| "Range Check"),
+                new_balance.clone(),
+            )?;
         todo.check_off(NewBalanceIsInRange)?;
 
         self.sum_chip.constrain_sum(

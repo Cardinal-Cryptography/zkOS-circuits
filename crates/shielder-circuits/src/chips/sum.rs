@@ -49,6 +49,16 @@ impl SumChip {
         self.gate.apply_in_new_region(layouter, gate_input)
     }
 
+    /// Constrain cell to satisfy the equation `zero = 0`.
+    pub fn constrain_zero<F: Field>(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        zero: AssignedCell<F>,
+    ) -> Result<(), Error> {
+        let true_zero = self.zero(layouter)?;
+        self.constrain_equal(layouter, zero, true_zero)
+    }
+
     fn zero<F: Field>(&self, layouter: &mut impl Layouter<F>) -> Result<AssignedCell<F>, Error> {
         layouter.assign_region(
             || "zero",

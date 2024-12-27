@@ -31,10 +31,11 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> IdHidingChip<F, CHUNK_SIZE> {
         nonce: AssignedCell<F>,
     ) -> Result<AssignedCell<F>, Error> {
         // Constrain `nonce` to be smaller than `2^{CHUNK_SIZE * NONCE_RANGE_PROOF_NUM_WORDS}`.
-        self.range_check.constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS, _>(
-            &mut layouter.namespace(|| "Range Check for nonce"),
-            nonce.clone(),
-        )?;
+        self.range_check
+            .constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS, _>(
+                &mut layouter.namespace(|| "Range Check for nonce"),
+                nonce.clone(),
+            )?;
 
         let h_id = hash(layouter, self.poseidon.clone(), [id])?;
         hash(layouter, self.poseidon.clone(), [h_id, nonce])

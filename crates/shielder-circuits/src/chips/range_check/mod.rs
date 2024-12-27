@@ -43,13 +43,33 @@ impl<const CHUNK_SIZE: usize> RangeCheckChip<CHUNK_SIZE> {
         layouter: &mut impl Layouter<F>,
         value: AssignedCell<F>,
     ) -> Result<(), Error> {
+        // PROVER STEPS:
+        // 1. Represent `value` as a running sum (compute it outside of the circuit).
         let running_sum_off_circuit = running_sum(value.value().copied(), CHUNK_SIZE, CHUNKS);
+        // 2. Embed the running sum into the circuit.
         let running_sum_cells =
             running_sum_off_circuit.embed(layouter, &self.advice_pool, "running_sum")?;
+
+        // VERIFIER CHECKS:
+        // 1. Ensure that the running sum has proper length (off-circuit sanity check).
+        assert_eq!(running_sum_off_circuit.len(), CHUNKS + 1);
+        // 2. Ensure that the first sum is exactly `value`.
         self.sum_chip
             .constrain_equal(layouter, value, running_sum_cells[0].clone())?;
+        // 3. Ensure that the last sum is zero.
+        self.sum_chip
+            .constrain_zero(layouter, running_sum_cells[CHUNKS].clone())?;
+        // 4. Ensure that the running sum is correctly computed.
+        for i in 0..CHUNKS {
+            self.range_gate.apply_in_new_region(
+                layouter,
+                (
+                    running_sum_cells[i].clone(),
+                    running_sum_cells[i + 1].clone(),
+                ),
+            )?;
+        }
+
         Ok(())
-        // self.range_gate
-        //     .apply_in_new_region(layouter, running_sum_cells)
     }
 }
