@@ -1,7 +1,7 @@
-use alloc::{format, vec, vec::Vec};
+use alloc::vec;
 
 use halo2_proofs::{
-    circuit::{Layouter, Region},
+    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };

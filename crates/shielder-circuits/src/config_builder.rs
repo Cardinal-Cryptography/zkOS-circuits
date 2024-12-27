@@ -10,7 +10,6 @@ use crate::{
     poseidon::{circuit::PoseidonChip, spec::PoseidonSpec},
     FieldExt,
 };
-use crate::chips::range_check::gate::RangeCheckGate;
 
 pub struct Empty;
 pub struct With<T>(T);
@@ -126,16 +125,11 @@ impl<'cs, F: FieldExt, Poseidon, Merkle, RangeCheck>
     pub fn range_check<const CHUNK_SIZE: usize>(
         mut self,
     ) -> ConfigsBuilder<'cs, F, Poseidon, Merkle, WithSum, WithRangeCheck<CHUNK_SIZE>> {
-        let advice = self.base_builder.advice_pool_with_capacity(1).get_any();
-        let advice_pool = self.base_builder.advice_pool.clone();
         let system = &mut self.base_builder.system;
+        self.base_builder.advice_pool.ensure_capacity(system, 1);
+        let advice_pool = self.base_builder.advice_pool.clone();
 
-        let gate = RangeCheckGate::<CHUNK_SIZE>::create_gate(system, advice);
-        let range_check = RangeCheckChip {
-            range_gate: gate,
-            sum_chip: self.sum.0.clone(),
-            advice_pool,
-        };
+        let range_check = RangeCheckChip::new(system, advice_pool.clone(), self.sum.0.clone());
 
         ConfigsBuilder {
             base_builder: self.base_builder,
