@@ -18,7 +18,7 @@ use crate::{
 #[derive(Args, Debug)]
 pub struct DbConfig {
     /// Postgres host to connect to
-    #[clap(short, long)]
+    #[clap(short = 'H', long)]
     host: String,
 
     /// Postgres port to connect to
@@ -30,7 +30,7 @@ pub struct DbConfig {
     user: String,
 
     /// Postgres password to connect with - uses POSTGRES_PASSWORD environment variable if not provided
-    #[clap(short, long, default_value = None)]
+    #[clap(short = 'W', long, default_value = None)]
     password: Option<String>,
 
     /// Database to connect to (assumed to be an indexer database)
