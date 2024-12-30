@@ -1,10 +1,10 @@
 ---
-name: 'Prepare Rust environment'
+name: "Prepare Rust environment"
 description: >
   Installs Rust toolchain, authenticates with SSH (in order to access Github private repos)
 inputs:
   ssh-private-key:
-    description: 'SSH private key to authenticate with'
+    description: "SSH private key to authenticate with"
     required: true
 runs:
   using: composite

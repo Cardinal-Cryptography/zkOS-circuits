@@ -10,7 +10,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   check-vars-and-secrets:
     name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
@@ -25,4 +24,9 @@ jobs:
     name: Measure circuits
     needs: [rust-crates-checks]
     uses: ./.github/workflows/_measure-circuits.yml
+    secrets: inherit
+
+  test-anonymity-revoking:
+    name: Test anonymity revoking
+    uses: ./.github/workflows/_test-anonymity-revoking.yml
     secrets: inherit
