@@ -1,15 +1,15 @@
 # You can
 #
-# $ln -s <zkOS-monorepo path on your system> zkOS-monorepo to test this
+# $ln -s <zkOS-monorepo path on your system> zkOS-monorepo
 #
-# script locally.
+# to test this script locally. Remember to run from the root of the repo!
 
-set -eu
+set -euo pipefail
 
-cd zkOS-monorepo || exit 1
+pushd zkOS-monorepo || exit 1
 
 SCENARIO_OUTPUT=/tmp/full_scenario_output.txt
-TERM=xterm KEEP_NODE=true BUILD=docker ./tooling-e2e-tests/full_scenario.sh > $SCENARIO_OUTPUT
+NO_FORMATTING=true KEEP_NODE=true BUILD=docker ./tooling-e2e-tests/full_scenario.sh > $SCENARIO_OUTPUT
 
 NODE_ADDRESS=`cat $SCENARIO_OUTPUT | grep -oP "(?<=Node address: ).*" | xargs | head -n 1`
 CONTRACT_ADDRESS=`cat $SCENARIO_OUTPUT | grep -oP "(?<=Contract address: ).*" | xargs | head -n 1`
@@ -27,12 +27,13 @@ if [[ -z "$EXPECTED_WITHDRAW" ]]; then
   exit 1
 fi
 
-cd ../crates/shielder-anonymity-revoking || exit 1
+popd
+pushd crates/shielder-anonymity-revoking || exit 1
 
 cargo run --release -- \
   --id-hash "$ID_HASH" \
   chain \
-  --node http://localhost:8545 \
+  --node "$NODE_ADDRESS" \
   --contract-address "$CONTRACT_ADDRESS"
 
 if [[ $(< deposit_native.csv) != *"$EXPECTED_DEPOSIT"* ]]; then
@@ -44,5 +45,9 @@ if [[ $(< withdraw_native.csv) != *"$EXPECTED_WITHDRAW"* ]]; then
   echo "Expected withdraw not found in revoking output"
   exit 1
 fi
+
+popd
+pushd zkOS-monorepo || exit 1
+make stop-anvil
 
 echo "Anonymity revoking test passed"
