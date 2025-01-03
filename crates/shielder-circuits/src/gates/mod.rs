@@ -2,11 +2,15 @@ use halo2_proofs::{
     circuit::Layouter,
     plonk::{ConstraintSystem, Error},
 };
+#[cfg(test)]
+use {crate::column_pool::ColumnPool, halo2_proofs::plonk::Advice};
 
 use crate::Field;
 
 pub mod membership;
 pub mod sum;
+#[cfg(test)]
+mod tests;
 
 /// `Gate` expresses a concept of a gadget in a circuit that:
 ///   1. Takes in some values (assigned cells).
@@ -29,4 +33,14 @@ pub trait Gate<F: Field>: Sized {
         layouter: &mut impl Layouter<F>,
         input: Self::Input,
     ) -> Result<(), Error>;
+
+    /// Organize the advices in a way that the gate expects them to be passed during creation.
+    ///
+    /// This should be used only in tests. In production, it shouldn't be a gate responsibility to
+    /// govern advice columns.
+    #[cfg(test)]
+    fn organize_advices(
+        pool: &mut ColumnPool<Advice>,
+        cs: &mut ConstraintSystem<F>,
+    ) -> Self::Advices;
 }

@@ -17,10 +17,10 @@ pub struct SumGate {
 }
 
 #[derive(Clone, Debug)]
-pub struct SumGateInput<F: Field> {
-    pub summand_1: AssignedCell<F>,
-    pub summand_2: AssignedCell<F>,
-    pub sum: AssignedCell<F>,
+pub struct SumGateInput<T> {
+    pub summand_1: T,
+    pub summand_2: T,
+    pub sum: T,
 }
 
 const SELECTOR_OFFSET: usize = 0;
@@ -28,7 +28,7 @@ const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Sum gate";
 
 impl<F: Field> Gate<F> for SumGate {
-    type Input = SumGateInput<F>;
+    type Input = SumGateInput<AssignedCell<F>>;
     type Advices = [Column<Advice>; 3];
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
@@ -72,11 +72,38 @@ impl<F: Field> Gate<F> for SumGate {
             },
         )
     }
+
+    #[cfg(test)]
+    fn organize_advices(
+        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        cs: &mut ConstraintSystem<F>,
+    ) -> Self::Advices {
+        pool.ensure_capacity(cs, 3);
+        pool.get_array()
+    }
 }
 
 impl SumGate {
     fn ensure_unique_columns(advice: &[Column<Advice>; 3]) {
         let set = BTreeSet::from_iter(advice.map(|column| column.index()));
         assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::halo2curves::bn256::Fr;
+
+    use crate::{embed::Embed, gates::sum::SumGateInput};
+
+    #[test]
+    fn simple_addition_passes() {
+        let input = SumGateInput {
+            summand_1: Fr::from(1),
+            summand_2: Fr::from(2),
+            sum: Fr::from(3),
+        };
+
+        // let mut circuit = OneGateCircuit::new();
     }
 }

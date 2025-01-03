@@ -90,6 +90,17 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
             },
         )
     }
+
+    #[cfg(test)]
+    fn organize_advices(
+        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        cs: &mut ConstraintSystem<F>,
+    ) -> Self::Advices {
+        pool.ensure_capacity(cs, N + 1);
+        let haystack_advice = pool.get_array();
+        let needle_advice = pool.get(N);
+        (needle_advice, haystack_advice)
+    }
 }
 
 impl<const N: usize> MembershipGate<N> {
