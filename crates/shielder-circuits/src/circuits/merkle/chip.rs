@@ -10,7 +10,7 @@ use crate::{
     column_pool::ColumnPool,
     consts::merkle_constants::ARITY,
     gates::{
-        membership::{MembershipGate, MembershipGateValues},
+        membership::{MembershipGate, MembershipGateInput},
         Gate,
     },
     instance_wrapper::InstanceWrapper,
@@ -44,7 +44,7 @@ impl<F: FieldExt> MerkleChip<F> {
             // 1. Check if the new level contains the current root.
             self.membership_gate.apply_in_new_region(
                 layouter,
-                MembershipGateValues {
+                MembershipGateInput {
                     needle: current_root,
                     haystack: level.clone(),
                 },

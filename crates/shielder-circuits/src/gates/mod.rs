@@ -13,8 +13,8 @@ pub mod sum;
 ///   2. Within a dedicated region, constrained-copies the inputs to the region, enables a selector
 ///      and applies some constraints.
 pub trait Gate<F: Field>: Sized {
-    /// The type that represents the values structure that the gate operates on.
-    type Values;
+    /// Represents the value structure that the gate operates on.
+    type Input;
     /// How the gate expects advice columns to be passed to it during creation.
     type Advices;
 
@@ -27,6 +27,6 @@ pub trait Gate<F: Field>: Sized {
     fn apply_in_new_region(
         &self,
         layouter: &mut impl Layouter<F>,
-        input: Self::Values,
+        input: Self::Input,
     ) -> Result<(), Error>;
 }
