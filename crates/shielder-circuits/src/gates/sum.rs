@@ -94,7 +94,7 @@ impl SumGate {
 mod tests {
     use halo2_proofs::halo2curves::bn256::Fr;
 
-    use crate::{embed::Embed, gates::sum::SumGateInput};
+    use crate::{gates::sum::SumGateInput};
 
     #[test]
     fn simple_addition_passes() {
