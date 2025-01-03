@@ -6,6 +6,8 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
+#[cfg(test)]
+use {crate::embed::Embed, crate::F, macros::embeddable};
 
 use crate::{gates::Gate, AssignedCell};
 
@@ -16,7 +18,15 @@ pub struct SumGate {
     selector: Selector,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(
+    test,
+    embeddable(
+        receiver = "SumGateInput<F>",
+        impl_generics = "",
+        embedded = "SumGateInput<crate::AssignedCell<F>>"
+    )
+)]
 pub struct SumGateInput<T> {
     pub summand_1: T,
     pub summand_2: T,
@@ -92,9 +102,14 @@ impl SumGate {
 
 #[cfg(test)]
 mod tests {
-    use halo2_proofs::halo2curves::bn256::Fr;
+    use std::vec;
 
-    use crate::{gates::sum::SumGateInput};
+    use halo2_proofs::{dev::MockProver, halo2curves::bn256::Fr};
+
+    use crate::gates::{
+        sum::{SumGate, SumGateInput},
+        tests::OneGateCircuit,
+    };
 
     #[test]
     fn simple_addition_passes() {
@@ -104,6 +119,10 @@ mod tests {
             sum: Fr::from(3),
         };
 
-        // let mut circuit = OneGateCircuit::new();
+        let circuit = OneGateCircuit::<SumGate, _>::new(input);
+        MockProver::run(3, &circuit, vec![])
+            .expect("Mock prover should run")
+            .verify()
+            .expect("Verification should pass");
     }
 }

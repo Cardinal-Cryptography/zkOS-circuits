@@ -21,8 +21,8 @@ impl<Gate, Input> OneGateCircuit<Gate, Input> {
     }
 }
 
-impl<F: Field, G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default> Circuit<F>
-    for OneGateCircuit<G, Input>
+impl<F: Field, G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default>
+    Circuit<F> for OneGateCircuit<G, Input>
 {
     type Config = (ColumnPool<Advice>, G);
     type FloorPlanner = V1;
