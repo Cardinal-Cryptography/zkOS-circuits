@@ -24,11 +24,11 @@ use crate::{
 /// and some do not appear as inputs at all, but are just intermediate advice values.
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "DepositProverKnowledge<Value<F>, CHUNK_SIZE>",
-    impl_generics = "<F: FieldExt, const CHUNK_SIZE: usize>",
-    embedded = "DepositProverKnowledge<crate::AssignedCell<F>, CHUNK_SIZE>"
+    receiver = "DepositProverKnowledge<Value<F>>",
+    impl_generics = "<F: FieldExt>",
+    embedded = "DepositProverKnowledge<crate::AssignedCell<F>>"
 )]
-pub struct DepositProverKnowledge<F, const CHUNK_SIZE: usize> {
+pub struct DepositProverKnowledge<F> {
     // Old note
     pub id: F,
     pub nullifier_old: F,
@@ -48,7 +48,7 @@ pub struct DepositProverKnowledge<F, const CHUNK_SIZE: usize> {
     pub deposit_value: F,
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> DepositProverKnowledge<Value<F>, CHUNK_SIZE> {
+impl<F: FieldExt> DepositProverKnowledge<Value<F>> {
     pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
         IntermediateValues {
             account_new_balance: self.account_old_balance + self.deposit_value,
@@ -56,10 +56,8 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> DepositProverKnowledge<Value<F>, CHUN
     }
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> ProverKnowledge<F>
-    for DepositProverKnowledge<F, CHUNK_SIZE>
-{
-    type Circuit = DepositCircuit<F, CHUNK_SIZE>;
+impl<F: FieldExt> ProverKnowledge<F> for DepositProverKnowledge<F> {
+    type Circuit = DepositCircuit<F>;
     type PublicInput = DepositInstance;
 
     /// Creates a random example with correct inputs. All values are random except for the deposit
@@ -107,9 +105,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> ProverKnowledge<F>
     }
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> PublicInputProvider<DepositInstance, F>
-    for DepositProverKnowledge<F, CHUNK_SIZE>
-{
+impl<F: FieldExt> PublicInputProvider<DepositInstance, F> for DepositProverKnowledge<F> {
     fn compute_public_input(&self, instance_id: DepositInstance) -> F {
         match instance_id {
             DepositInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),

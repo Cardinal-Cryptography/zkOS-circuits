@@ -8,7 +8,7 @@ use shielder_circuits::{
         deposit::DepositProverKnowledge, merkle::MerkleProverKnowledge,
         new_account::NewAccountProverKnowledge, withdraw::WithdrawProverKnowledge, Params,
     },
-    consts::{merkle_constants::NOTE_TREE_HEIGHT, RANGE_PROOF_CHUNK_SIZE},
+    consts::merkle_constants::NOTE_TREE_HEIGHT,
     generate_keys_with_min_k, generate_proof, generate_setup_params, ProverKnowledge, F, G1, MAX_K,
     SERDE_FORMAT,
 };
@@ -53,7 +53,7 @@ fn measure_circuit<PK: ProverKnowledge<F>>(circuit_name: &str) {
 
 fn main() {
     measure_circuit::<NewAccountProverKnowledge<F>>("New account");
-    measure_circuit::<DepositProverKnowledge<F, RANGE_PROOF_CHUNK_SIZE>>("Deposit");
-    measure_circuit::<WithdrawProverKnowledge<F, RANGE_PROOF_CHUNK_SIZE>>("Withdraw");
+    measure_circuit::<DepositProverKnowledge<F>>("Deposit");
+    measure_circuit::<WithdrawProverKnowledge<F>>("Withdraw");
     measure_circuit::<MerkleProverKnowledge<NOTE_TREE_HEIGHT, F>>("Merkle");
 }

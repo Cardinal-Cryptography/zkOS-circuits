@@ -29,20 +29,20 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct DepositChip<F: FieldExt, const CHUNK_SIZE: usize> {
+pub struct DepositChip<F: FieldExt> {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip<F>,
-    pub range_check: RangeCheckChip<CHUNK_SIZE>,
+    pub range_check: RangeCheckChip,
     pub merkle: MerkleChip<F>,
     pub sum: SumChip,
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> DepositChip<F, CHUNK_SIZE> {
+impl<F: FieldExt> DepositChip<F> {
     pub fn check_old_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let old_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
@@ -67,7 +67,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> DepositChip<F, CHUNK_SIZE> {
     pub fn check_old_nullifier(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
@@ -85,7 +85,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> DepositChip<F, CHUNK_SIZE> {
     pub fn check_id_hiding(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
@@ -102,7 +102,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> DepositChip<F, CHUNK_SIZE> {
     pub fn check_new_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
         intermediate_values: &IntermediateValues<AssignedCell<F>>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {

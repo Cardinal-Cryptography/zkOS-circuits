@@ -30,20 +30,20 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct WithdrawChip<F: FieldExt, const CHUNK_SIZE: usize> {
+pub struct WithdrawChip<F: FieldExt> {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<WithdrawInstance>,
     pub poseidon: PoseidonChip<F>,
     pub merkle: MerkleChip<F>,
-    pub range_check: RangeCheckChip<CHUNK_SIZE>,
+    pub range_check: RangeCheckChip,
     pub sum_chip: SumChip,
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
+impl<F: FieldExt> WithdrawChip<F> {
     pub fn check_old_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let old_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
@@ -68,7 +68,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
     pub fn check_old_nullifier(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
@@ -86,7 +86,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
     pub fn check_id_hiding(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
@@ -101,7 +101,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
     pub fn check_new_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
         intermediate_values: &IntermediateValues<AssignedCell<F>>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
@@ -148,7 +148,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawChip<F, CHUNK_SIZE> {
     pub fn check_commitment(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>, CHUNK_SIZE>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         self.public_inputs

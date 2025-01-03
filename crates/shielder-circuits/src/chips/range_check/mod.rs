@@ -7,6 +7,7 @@ use halo2_proofs::{
 use crate::{
     chips::{range_check::running_sum::running_sum, sum::SumChip},
     column_pool::ColumnPool,
+    consts::RANGE_PROOF_CHUNK_SIZE,
     embed::Embed,
     gates::Gate,
     AssignedCell, FieldExt,
@@ -17,13 +18,13 @@ mod gate;
 mod running_sum;
 
 #[derive(Clone, Debug)]
-pub struct RangeCheckChip<const CHUNK_SIZE: usize> {
-    range_gate: RangeCheckGate<CHUNK_SIZE>,
+pub struct RangeCheckChip {
+    range_gate: RangeCheckGate,
     sum_chip: SumChip,
     advice_pool: ColumnPool<Advice>,
 }
 
-impl<const CHUNK_SIZE: usize> RangeCheckChip<CHUNK_SIZE> {
+impl RangeCheckChip {
     pub fn new<F: FieldExt>(
         system: &mut ConstraintSystem<F>,
         advice_pool: ColumnPool<Advice>,
@@ -45,7 +46,8 @@ impl<const CHUNK_SIZE: usize> RangeCheckChip<CHUNK_SIZE> {
     ) -> Result<(), Error> {
         // PROVER STEPS:
         // 1. Represent `value` as a running sum (compute it outside of the circuit).
-        let running_sum_off_circuit = running_sum(value.value().copied(), CHUNK_SIZE, CHUNKS);
+        let running_sum_off_circuit =
+            running_sum(value.value().copied(), RANGE_PROOF_CHUNK_SIZE, CHUNKS);
         // 2. Embed the running sum into the circuit.
         let running_sum_cells =
             running_sum_off_circuit.embed(layouter, &self.advice_pool, "running_sum")?;

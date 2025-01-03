@@ -16,12 +16,10 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct DepositCircuit<F, const CHUNK_SIZE: usize>(
-    pub DepositProverKnowledge<Value<F>, CHUNK_SIZE>,
-);
+pub struct DepositCircuit<F>(pub DepositProverKnowledge<Value<F>>);
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> Circuit<F> for DepositCircuit<F, CHUNK_SIZE> {
-    type Config = DepositChip<F, CHUNK_SIZE>;
+impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
+    type Config = DepositChip<F>;
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -89,7 +87,6 @@ mod tests {
                 PublicInputProviderExt,
             },
         },
-        consts::RANGE_PROOF_CHUNK_SIZE,
         deposit::{DepositInstance, DepositInstance::*},
         note_hash,
         poseidon::off_circuit::hash,
@@ -99,13 +96,12 @@ mod tests {
 
     #[test]
     fn passes_if_inputs_correct() {
-        run_full_pipeline::<DepositProverKnowledge<Fr, RANGE_PROOF_CHUNK_SIZE>>();
+        run_full_pipeline::<DepositProverKnowledge<Fr>>();
     }
 
     #[test]
     fn fails_if_merkle_proof_uses_wrong_note() {
-        let mut pk =
-            DepositProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(&mut OsRng);
+        let mut pk = DepositProverKnowledge::random_correct_example(&mut OsRng);
 
         let (merkle_root, path) =
             generate_example_path_with_given_leaf(Fr::random(&mut OsRng), &mut OsRng);
@@ -119,8 +115,7 @@ mod tests {
 
     #[test]
     fn fails_if_incorrect_h_nullifier_is_published() {
-        let pk =
-            DepositProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(&mut OsRng);
+        let pk = DepositProverKnowledge::random_correct_example(&mut OsRng);
         let pub_input = pk.with_substitution(HashedOldNullifier, |hash| hash + Fr::ONE);
 
         assert!(
@@ -130,8 +125,7 @@ mod tests {
 
     #[test]
     fn fails_if_h_note_new_is_not_the_hash_of_appropriate_witnesses() {
-        let pk =
-            DepositProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(&mut OsRng);
+        let pk = DepositProverKnowledge::random_correct_example(&mut OsRng);
         let pub_input = pk.with_substitution(HashedNewNote, |hash| hash + Fr::ONE);
 
         assert!(
@@ -147,10 +141,7 @@ mod tests {
         // witnesses and expect verification success. If we just did the former, it would be easy
         // to introduce a bug to this test and the test would pass without checking anything.
         for (modification, verify_is_expected_to_pass) in [(Fr::ONE, false), (Fr::ZERO, true)] {
-            let mut pk =
-                DepositProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(
-                    &mut rng,
-                );
+            let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
 
             // Build the old note.
             let h_note_old = note_hash(&Note {

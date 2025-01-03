@@ -6,14 +6,16 @@ use halo2_proofs::{
     poly::Rotation,
 };
 
-use crate::{gates::Gate, range_table::RangeTable, AssignedCell, FieldExt};
+use crate::{
+    consts::RANGE_PROOF_CHUNK_SIZE, gates::Gate, range_table::RangeTable, AssignedCell, FieldExt,
+};
 
-/// Represents inequality: `base - shifted * 2^CHUNK_SIZE < 2^CHUNK_SIZE`.
+/// Represents inequality: `base - shifted * 2^RANGE_PROOF_CHUNK_SIZE < 2^RANGE_PROOF_CHUNK_SIZE`.
 #[derive(Clone, Debug)]
-pub struct RangeCheckGate<const CHUNK_SIZE: usize> {
+pub struct RangeCheckGate {
     advice: Column<Advice>,
     selector: Selector,
-    table: RangeTable<CHUNK_SIZE>,
+    table: RangeTable<{ RANGE_PROOF_CHUNK_SIZE }>,
 }
 
 /// The values that are required to construct a range check gate. Pair `(base, shifted)` is expected
@@ -24,7 +26,7 @@ const GATE_NAME: &str = "Range check gate";
 const BASE_OFFSET: usize = 0;
 const SHIFTED_OFFSET: usize = 1;
 
-impl<const CHUNK_SIZE: usize, F: FieldExt> Gate<F> for RangeCheckGate<CHUNK_SIZE> {
+impl<F: FieldExt> Gate<F> for RangeCheckGate {
     type Input = RangeCheckGateInput<F>;
     type Advices = Column<Advice>;
 
@@ -51,7 +53,7 @@ impl<const CHUNK_SIZE: usize, F: FieldExt> Gate<F> for RangeCheckGate<CHUNK_SIZE
             //
             // Therefore, we recover the chunk as:
             //  - chunk = base - shifted * SCALE
-            let scale = Expression::Constant(F::from(1 << CHUNK_SIZE));
+            let scale = Expression::Constant(F::from(1 << RANGE_PROOF_CHUNK_SIZE));
             let chunk = base - shifted * scale;
 
             vec![(selector * chunk, table.column())]

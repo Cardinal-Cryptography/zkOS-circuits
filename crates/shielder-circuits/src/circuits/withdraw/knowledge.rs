@@ -19,11 +19,11 @@ use crate::{
 
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "WithdrawProverKnowledge<Value<F>, CHUNK_SIZE>",
-    impl_generics = "<F: FieldExt, const CHUNK_SIZE: usize>",
-    embedded = "WithdrawProverKnowledge<crate::AssignedCell<F>, CHUNK_SIZE>"
+    receiver = "WithdrawProverKnowledge<Value<F>>",
+    impl_generics = "<F: FieldExt>",
+    embedded = "WithdrawProverKnowledge<crate::AssignedCell<F>>"
 )]
-pub struct WithdrawProverKnowledge<F, const CHUNK_SIZE: usize> {
+pub struct WithdrawProverKnowledge<F> {
     pub withdrawal_value: F,
 
     // Additional public parameters that need to be included in proof
@@ -46,7 +46,7 @@ pub struct WithdrawProverKnowledge<F, const CHUNK_SIZE: usize> {
     pub nonce: F,
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawProverKnowledge<Value<F>, CHUNK_SIZE> {
+impl<F: FieldExt> WithdrawProverKnowledge<Value<F>> {
     pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
         IntermediateValues {
             new_account_balance: self.account_old_balance - self.withdrawal_value,
@@ -54,10 +54,8 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> WithdrawProverKnowledge<Value<F>, CHU
     }
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> ProverKnowledge<F>
-    for WithdrawProverKnowledge<F, CHUNK_SIZE>
-{
-    type Circuit = WithdrawCircuit<F, CHUNK_SIZE>;
+impl<F: FieldExt> ProverKnowledge<F> for WithdrawProverKnowledge<F> {
+    type Circuit = WithdrawCircuit<F>;
     type PublicInput = WithdrawInstance;
 
     /// TODO: Refactor this test. Having `MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK` as the only
@@ -121,9 +119,7 @@ impl<F: FieldExt, const CHUNK_SIZE: usize> ProverKnowledge<F>
     }
 }
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> PublicInputProvider<WithdrawInstance, F>
-    for WithdrawProverKnowledge<F, CHUNK_SIZE>
-{
+impl<F: FieldExt> PublicInputProvider<WithdrawInstance, F> for WithdrawProverKnowledge<F> {
     fn compute_public_input(&self, instance_id: WithdrawInstance) -> F {
         match instance_id {
             WithdrawInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
