@@ -113,7 +113,7 @@ mod tests {
     };
 
     use crate::gates::{
-        sum::{SumGate, SumGateInput, GATE_NAME},
+        sum::{SumGate, SumGateInput},
         test_utils::OneGateCircuit,
     };
 
