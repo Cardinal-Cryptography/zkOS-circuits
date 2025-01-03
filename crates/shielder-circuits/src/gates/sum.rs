@@ -143,17 +143,17 @@ mod tests {
 
     #[test]
     fn zeros_passes() {
-        verify(input(0, 0, 0)).expect("Verification should pass");
+        assert!(verify(input(0, 0, 0)).is_ok());
     }
 
     #[test]
     fn simple_addition_passes() {
-        verify(input(1, 2, 3)).expect("Verification should pass");
+        assert!(verify(input(1, 2, 3)).is_ok());
     }
 
     #[test]
     fn negation_passes() {
-        verify(input(5, Fr::from(5).neg(), 0)).expect("Verification should pass");
+        assert!(verify(input(5, Fr::from(5).neg(), 0)).is_ok());
     }
 
     #[test]
