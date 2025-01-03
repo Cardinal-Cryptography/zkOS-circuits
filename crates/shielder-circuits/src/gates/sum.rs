@@ -84,7 +84,7 @@ impl<F: Field> Gate<F> for SumGate {
     }
 
     #[cfg(test)]
-    fn organize_advices(
+    fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {

@@ -51,7 +51,7 @@ impl<F: Field, G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::In
     /// we create the gate instance.
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
         let mut advice_pool = ColumnPool::<Advice>::new();
-        let advice = G::organize_advices(&mut advice_pool, meta);
+        let advice = G::organize_advice_columns(&mut advice_pool, meta);
         (advice_pool, G::create_gate(meta, advice))
     }
 

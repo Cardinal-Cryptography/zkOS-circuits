@@ -82,7 +82,7 @@ impl<const CHUNK_SIZE: usize, F: FieldExt> Gate<F> for RangeCheckGate<CHUNK_SIZE
     }
 
     #[cfg(test)]
-    fn organize_advices(
+    fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {

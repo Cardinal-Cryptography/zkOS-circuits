@@ -39,7 +39,7 @@ pub trait Gate<F: Field>: Sized {
     /// This should be used only in tests. In production, it shouldn't be a gate responsibility to
     /// govern advice columns.
     #[cfg(test)]
-    fn organize_advices(
+    fn organize_advice_columns(
         pool: &mut ColumnPool<Advice>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices;

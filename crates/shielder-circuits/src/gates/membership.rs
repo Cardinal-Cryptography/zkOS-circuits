@@ -92,7 +92,7 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
     }
 
     #[cfg(test)]
-    fn organize_advices(
+    fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {
