@@ -10,7 +10,7 @@ use crate::Field;
 pub mod membership;
 pub mod sum;
 #[cfg(test)]
-mod tests;
+mod test_utils;
 
 /// `Gate` expresses a concept of a gadget in a circuit that:
 ///   1. Takes in some values (assigned cells).

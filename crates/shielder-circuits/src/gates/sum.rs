@@ -114,7 +114,7 @@ mod tests {
 
     use crate::gates::{
         sum::{SumGate, SumGateInput, GATE_NAME},
-        tests::OneGateCircuit,
+        test_utils::OneGateCircuit,
     };
 
     fn input(
