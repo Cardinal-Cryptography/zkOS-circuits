@@ -104,12 +104,23 @@ impl SumGate {
 mod tests {
     use std::vec;
 
-    use halo2_proofs::{dev::MockProver, halo2curves::bn256::Fr};
+    use halo2_proofs::{
+        dev::{
+            metadata::{Constraint, Gate},
+            MockProver, VerifyFailure,
+        },
+        halo2curves::bn256::Fr,
+    };
 
     use crate::gates::{
-        sum::{SumGate, SumGateInput},
+        sum::{SumGate, SumGateInput, GATE_NAME},
         tests::OneGateCircuit,
     };
+
+    fn failed_constraint() -> Constraint {
+        // We have only one constraint in the circuit, so all indices are 0.
+        Constraint::from((Gate::from((0, GATE_NAME)), 0, ""))
+    }
 
     #[test]
     fn simple_addition_passes() {
@@ -124,5 +135,28 @@ mod tests {
             .expect("Mock prover should run")
             .verify()
             .expect("Verification should pass");
+    }
+
+    #[test]
+    fn incorrect_sum_fails() {
+        let input = SumGateInput {
+            summand_1: Fr::from(2),
+            summand_2: Fr::from(2),
+            sum: Fr::from(3),
+        };
+
+        let circuit = OneGateCircuit::<SumGate, _>::new(input);
+        let errors = MockProver::run(3, &circuit, vec![])
+            .expect("Mock prover should run")
+            .verify()
+            .expect_err("Verification should fail");
+
+        assert_eq!(errors.len(), 1);
+        match &errors[0] {
+            VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
+                assert_eq!(constraint, &failed_constraint())
+            }
+            _ => panic!("Unexpected error"),
+        };
     }
 }
