@@ -7,15 +7,24 @@ use halo2_proofs::{
 
 use crate::{column_pool::ColumnPool, embed::Embed, gates::Gate, Field};
 
-pub struct OneGateCircuit<const ADVICE_COUNT: usize, Gate, Input> {
+pub struct OneGateCircuit<Gate, Input> {
     input: Input,
     _marker: PhantomData<Gate>,
 }
 
-impl<const ADVICE_COUNT: usize, F: Field, G: Gate<F>, Input: Embed<F> + Default> Circuit<F>
-    for OneGateCircuit<ADVICE_COUNT, G, Input>
+impl<Gate, Input> OneGateCircuit<Gate, Input> {
+    pub fn new(input: Input) -> Self {
+        Self {
+            input,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<F: Field, G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default> Circuit<F>
+    for OneGateCircuit<G, Input>
 {
-    type Config = ColumnPool<Advice>;
+    type Config = (ColumnPool<Advice>, G);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -27,14 +36,16 @@ impl<const ADVICE_COUNT: usize, F: Field, G: Gate<F>, Input: Embed<F> + Default>
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
         let mut advice_pool = ColumnPool::<Advice>::new();
-        advice_pool.ensure_capacity(meta, ADVICE_COUNT);
         let advice = G::organize_advices(&mut advice_pool, meta);
-        G::create_gate(meta, advice);
-        advice_pool
+        (advice_pool, G::create_gate(meta, advice))
     }
 
-    fn synthesize(&self, config: Self::Config, mut layouter: impl Layouter<F>) -> Result<(), Error> {
-        self.input.embed(&mut layouter, &config, "input")?;
-        Ok(())
+    fn synthesize(
+        &self,
+        (advice_pool, gate): (ColumnPool<Advice>, G),
+        mut layouter: impl Layouter<F>,
+    ) -> Result<(), Error> {
+        let embedded_input = self.input.embed(&mut layouter, &advice_pool, "input")?;
+        gate.apply_in_new_region(&mut layouter, embedded_input)
     }
 }
