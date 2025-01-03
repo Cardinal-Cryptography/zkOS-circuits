@@ -2,9 +2,10 @@ use alloc::{format, string::String, vec, vec::Vec};
 
 use halo2_proofs::{
     circuit::{Layouter, Value},
+    halo2curves::bn256::Fr,
     plonk::{Advice, Error},
 };
-use halo2_proofs::halo2curves::bn256::Fr;
+
 use crate::{column_pool::ColumnPool, AssignedCell, Field};
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
