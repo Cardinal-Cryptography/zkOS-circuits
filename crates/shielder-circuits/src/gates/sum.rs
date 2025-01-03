@@ -102,7 +102,7 @@ impl SumGate {
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
+    use std::{prelude::rust_2015::Vec, vec};
 
     use halo2_proofs::{
         dev::{
@@ -117,39 +117,48 @@ mod tests {
         tests::OneGateCircuit,
     };
 
+    fn input(
+        summand_1: impl Into<Fr>,
+        summand_2: impl Into<Fr>,
+        sum: impl Into<Fr>,
+    ) -> SumGateInput<Fr> {
+        SumGateInput {
+            summand_1: summand_1.into(),
+            summand_2: summand_2.into(),
+            sum: sum.into(),
+        }
+    }
+
     fn failed_constraint() -> Constraint {
         // We have only one constraint in the circuit, so all indices are 0.
         Constraint::from((Gate::from((0, GATE_NAME)), 0, ""))
     }
 
-    #[test]
-    fn simple_addition_passes() {
-        let input = SumGateInput {
-            summand_1: Fr::from(1),
-            summand_2: Fr::from(2),
-            sum: Fr::from(3),
-        };
-
+    fn verify(input: SumGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<SumGate, _>::new(input);
         MockProver::run(3, &circuit, vec![])
             .expect("Mock prover should run")
             .verify()
-            .expect("Verification should pass");
+    }
+
+    #[test]
+    fn zeros_passes() {
+        verify(input(0, 0, 0)).expect("Verification should pass");
+    }
+
+    #[test]
+    fn simple_addition_passes() {
+        verify(input(1, 2, 3)).expect("Verification should pass");
+    }
+
+    #[test]
+    fn negation_passes() {
+        verify(input(5, Fr::from(5).neg(), 0)).expect("Verification should pass");
     }
 
     #[test]
     fn incorrect_sum_fails() {
-        let input = SumGateInput {
-            summand_1: Fr::from(2),
-            summand_2: Fr::from(2),
-            sum: Fr::from(3),
-        };
-
-        let circuit = OneGateCircuit::<SumGate, _>::new(input);
-        let errors = MockProver::run(3, &circuit, vec![])
-            .expect("Mock prover should run")
-            .verify()
-            .expect_err("Verification should fail");
+        let errors = verify(input(2, 2, 3)).expect_err("Verification should fail");
 
         assert_eq!(errors.len(), 1);
         match &errors[0] {
