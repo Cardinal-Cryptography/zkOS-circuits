@@ -102,7 +102,7 @@ impl SumGate {
 
 #[cfg(test)]
 mod tests {
-    use std::{prelude::rust_2015::Vec, vec};
+    use std::{vec, vec::Vec};
 
     use halo2_proofs::{
         dev::{
@@ -131,7 +131,7 @@ mod tests {
 
     fn failed_constraint() -> Constraint {
         // We have only one constraint in the circuit, so all indices are 0.
-        Constraint::from((Gate::from((0, GATE_NAME)), 0, ""))
+        Constraint::from((Gate::from((0, "Sum gate")), 0, ""))
     }
 
     fn verify(input: SumGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
