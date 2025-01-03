@@ -6,6 +6,8 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
+#[cfg(test)]
+use {crate::embed::Embed, crate::F, macros::embeddable};
 
 use crate::{gates::Gate, AssignedCell};
 
@@ -16,11 +18,19 @@ pub struct SumGate {
     selector: Selector,
 }
 
-#[derive(Clone, Debug)]
-pub struct SumGateInput<F: Field> {
-    pub summand_1: AssignedCell<F>,
-    pub summand_2: AssignedCell<F>,
-    pub sum: AssignedCell<F>,
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(
+    test,
+    embeddable(
+        receiver = "SumGateInput<F>",
+        impl_generics = "",
+        embedded = "SumGateInput<crate::AssignedCell<F>>"
+    )
+)]
+pub struct SumGateInput<T> {
+    pub summand_1: T,
+    pub summand_2: T,
+    pub sum: T,
 }
 
 const SELECTOR_OFFSET: usize = 0;
@@ -28,7 +38,7 @@ const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Sum gate";
 
 impl<F: Field> Gate<F> for SumGate {
-    type Input = SumGateInput<F>;
+    type Input = SumGateInput<AssignedCell<F>>;
     type Advices = [Column<Advice>; 3];
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
@@ -72,11 +82,90 @@ impl<F: Field> Gate<F> for SumGate {
             },
         )
     }
+
+    #[cfg(test)]
+    fn organize_advice_columns(
+        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        cs: &mut ConstraintSystem<F>,
+    ) -> Self::Advices {
+        pool.ensure_capacity(cs, 3);
+        pool.get_array()
+    }
 }
 
 impl SumGate {
     fn ensure_unique_columns(advice: &[Column<Advice>; 3]) {
         let set = BTreeSet::from_iter(advice.map(|column| column.index()));
         assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{vec, vec::Vec};
+
+    use halo2_proofs::{
+        dev::{
+            metadata::{Constraint, Gate},
+            MockProver, VerifyFailure,
+        },
+        halo2curves::bn256::Fr,
+    };
+
+    use crate::gates::{
+        sum::{SumGate, SumGateInput},
+        test_utils::OneGateCircuit,
+    };
+
+    fn input(
+        summand_1: impl Into<Fr>,
+        summand_2: impl Into<Fr>,
+        sum: impl Into<Fr>,
+    ) -> SumGateInput<Fr> {
+        SumGateInput {
+            summand_1: summand_1.into(),
+            summand_2: summand_2.into(),
+            sum: sum.into(),
+        }
+    }
+
+    fn failed_constraint() -> Constraint {
+        // We have only one constraint in the circuit, so all indices are 0.
+        Constraint::from((Gate::from((0, "Sum gate")), 0, ""))
+    }
+
+    fn verify(input: SumGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = OneGateCircuit::<SumGate, _>::new(input);
+        MockProver::run(3, &circuit, vec![])
+            .expect("Mock prover should run")
+            .verify()
+    }
+
+    #[test]
+    fn zeros_passes() {
+        assert!(verify(input(0, 0, 0)).is_ok());
+    }
+
+    #[test]
+    fn simple_addition_passes() {
+        assert!(verify(input(1, 2, 3)).is_ok());
+    }
+
+    #[test]
+    fn negation_passes() {
+        assert!(verify(input(5, Fr::from(5).neg(), 0)).is_ok());
+    }
+
+    #[test]
+    fn incorrect_sum_fails() {
+        let errors = verify(input(2, 2, 3)).expect_err("Verification should fail");
+
+        assert_eq!(errors.len(), 1);
+        match &errors[0] {
+            VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
+                assert_eq!(constraint, &failed_constraint())
+            }
+            _ => panic!("Unexpected error"),
+        };
     }
 }

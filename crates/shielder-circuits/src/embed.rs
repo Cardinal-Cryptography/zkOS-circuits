@@ -2,6 +2,7 @@ use alloc::{format, string::String, vec, vec::Vec};
 
 use halo2_proofs::{
     circuit::{Layouter, Value},
+    halo2curves::bn256::Fr,
     plonk::{Advice, Error},
 };
 
@@ -19,6 +20,20 @@ pub trait Embed<F: Field> {
         advice_pool: &ColumnPool<Advice>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error>;
+}
+
+impl Embed<Fr> for Fr {
+    type Embedded = AssignedCell<Fr>;
+
+    fn embed(
+        &self,
+        layouter: &mut impl Layouter<Fr>,
+        advice_pool: &ColumnPool<Advice>,
+        annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, Error> {
+        let value = Value::known(*self);
+        value.embed(layouter, advice_pool, annotation)
+    }
 }
 
 impl<F: Field, E: Embed<F>> Embed<F> for &E {
