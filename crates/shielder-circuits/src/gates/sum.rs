@@ -17,7 +17,7 @@ pub struct SumGate {
 }
 
 #[derive(Clone, Debug)]
-pub struct SumGateValues<F: Field> {
+pub struct SumGateInput<F: Field> {
     pub summand_1: AssignedCell<F>,
     pub summand_2: AssignedCell<F>,
     pub sum: AssignedCell<F>,
@@ -28,7 +28,7 @@ const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Sum gate";
 
 impl<F: Field> Gate<F> for SumGate {
-    type Values = SumGateValues<F>;
+    type Input = SumGateInput<F>;
     type Advices = [Column<Advice>; 3];
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
@@ -50,7 +50,7 @@ impl<F: Field> Gate<F> for SumGate {
     fn apply_in_new_region(
         &self,
         layouter: &mut impl Layouter<F>,
-        input: Self::Values,
+        input: Self::Input,
     ) -> Result<(), Error> {
         layouter.assign_region(
             || GATE_NAME,

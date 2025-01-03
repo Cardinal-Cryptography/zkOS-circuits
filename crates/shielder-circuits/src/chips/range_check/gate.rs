@@ -18,14 +18,14 @@ pub struct RangeCheckGate<const CHUNK_SIZE: usize> {
 
 /// The values that are required to construct a range check gate. Pair `(base, shifted)` is expected
 /// to satisfy the inequality: `base - shifted * 2^CHUNK_SIZE < 2^CHUNK_SIZE`.
-pub type RangeCheckGateValues<F> = (AssignedCell<F>, AssignedCell<F>);
+pub type RangeCheckGateInput<F> = (AssignedCell<F>, AssignedCell<F>);
 
 const GATE_NAME: &str = "Range check gate";
 const BASE_OFFSET: usize = 0;
 const SHIFTED_OFFSET: usize = 1;
 
 impl<const CHUNK_SIZE: usize, F: FieldExt> Gate<F> for RangeCheckGate<CHUNK_SIZE> {
-    type Values = RangeCheckGateValues<F>;
+    type Input = RangeCheckGateInput<F>;
     type Advices = Column<Advice>;
 
     /// The gate operates on a single advice column `A` and a table `T`. It enforces that:

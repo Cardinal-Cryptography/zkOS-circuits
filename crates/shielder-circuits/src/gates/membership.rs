@@ -18,7 +18,7 @@ pub struct MembershipGate<const N: usize> {
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipGateValues<F: Field, const N: usize> {
+pub struct MembershipGateInput<F: Field, const N: usize> {
     pub needle: AssignedCell<F>,
     pub haystack: [AssignedCell<F>; N],
 }
@@ -28,7 +28,7 @@ const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Membership gate";
 
 impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
-    type Values = MembershipGateValues<F, N>;
+    type Input = MembershipGateInput<F, N>;
     type Advices = (Column<Advice>, [Column<Advice>; N]);
 
     /// The gate operates on a single advice column `needle` and `N` advice columns `haystack`. It
@@ -63,7 +63,7 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
     fn apply_in_new_region(
         &self,
         layouter: &mut impl Layouter<F>,
-        input: Self::Values,
+        input: Self::Input,
     ) -> Result<(), Error> {
         layouter.assign_region(
             || GATE_NAME,

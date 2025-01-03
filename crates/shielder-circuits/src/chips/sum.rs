@@ -5,7 +5,7 @@ use halo2_proofs::{
 
 use crate::{
     gates::{
-        sum::{SumGate, SumGateValues},
+        sum::{SumGate, SumGateInput},
         Gate,
     },
     AssignedCell, Field,
@@ -26,7 +26,7 @@ impl SumChip {
         summand_2: AssignedCell<F>,
         sum: AssignedCell<F>,
     ) -> Result<(), Error> {
-        let gate_input = SumGateValues {
+        let gate_input = SumGateInput {
             summand_1,
             summand_2,
             sum,
@@ -41,7 +41,7 @@ impl SumChip {
         left_sock: AssignedCell<F>,
         right_sock: AssignedCell<F>,
     ) -> Result<(), Error> {
-        let gate_input = SumGateValues {
+        let gate_input = SumGateInput {
             summand_1: left_sock,
             summand_2: self.zero(layouter)?,
             sum: right_sock,
