@@ -69,18 +69,21 @@ impl<F: FieldExt> MacChip<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
+    use std::{prelude::rust_2015::Vec, vec};
 
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
+        dev::{MockProver, VerifyFailure},
+        halo2curves::bn256::Fr,
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
     use crate::{
-        chips::mac::{off_circuit, MacChip, MacInput},
+        chips::mac::{off_circuit, Mac, MacChip, MacInput},
         column_pool::ColumnPool,
         config_builder::ConfigsBuilder,
         embed::Embed,
+        gates::sum::{SumGate, SumGateInput},
         run_mock_prover, F,
     };
 
@@ -125,6 +128,16 @@ mod tests {
         }
     }
 
+    fn verify(input: MacInput<F>, expected_mac: Mac<F>) -> Result<(), Vec<VerifyFailure>> {
+        MockProver::run(
+            6,
+            &MacCircuit(input),
+            vec![vec![expected_mac.r, expected_mac.commitment]],
+        )
+        .expect("Mock prover should run successfully")
+        .verify()
+    }
+
     #[test]
     fn correct_input_passes() {
         let input = MacInput {
@@ -133,6 +146,9 @@ mod tests {
         };
         let mac = off_circuit::mac(&input);
 
-        run_mock_prover(6, &MacCircuit(input), vec![mac.r, mac.commitment]);
+        assert!(verify(input, mac).is_ok());
     }
+
+    #[test]
+    fn incorrect_mac_fails() {}
 }
