@@ -6,10 +6,7 @@ use shielder_circuits::{
         deposit::DepositProverKnowledge, merkle::MerkleProverKnowledge,
         new_account::NewAccountProverKnowledge, withdraw::WithdrawProverKnowledge,
     },
-    consts::{
-        merkle_constants::{ARITY, NOTE_TREE_HEIGHT, WIDTH},
-        RANGE_PROOF_CHUNK_SIZE,
-    },
+    consts::merkle_constants::{ARITY, NOTE_TREE_HEIGHT, WIDTH},
     generate_keys_with_min_k, generate_proof, generate_setup_params, verify, CircuitCost,
     ProverKnowledge, MAX_K,
 };
@@ -110,7 +107,7 @@ criterion_group! {
 }
 
 pub fn bench_deposit(c: &mut Criterion) {
-    bench_circuit::<DepositProverKnowledge<Fr, RANGE_PROOF_CHUNK_SIZE>>(c, "NoteDepositCircuit")
+    bench_circuit::<DepositProverKnowledge<Fr>>(c, "NoteDepositCircuit")
 }
 
 criterion_group! {
@@ -130,7 +127,7 @@ criterion_group! {
 }
 
 pub fn bench_withdraw(c: &mut Criterion) {
-    bench_circuit::<WithdrawProverKnowledge<Fr, RANGE_PROOF_CHUNK_SIZE>>(c, "NoteWithdrawCircuit")
+    bench_circuit::<WithdrawProverKnowledge<Fr>>(c, "NoteWithdrawCircuit")
 }
 
 criterion_group! {

@@ -14,12 +14,10 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct WithdrawCircuit<F, const CHUNK_SIZE: usize>(
-    pub WithdrawProverKnowledge<Value<F>, CHUNK_SIZE>,
-);
+pub struct WithdrawCircuit<F>(pub WithdrawProverKnowledge<Value<F>>);
 
-impl<F: FieldExt, const CHUNK_SIZE: usize> Circuit<F> for WithdrawCircuit<F, CHUNK_SIZE> {
-    type Config = WithdrawChip<F, CHUNK_SIZE>;
+impl<F: FieldExt> Circuit<F> for WithdrawCircuit<F> {
+    type Config = WithdrawChip<F>;
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -90,7 +88,6 @@ mod tests {
             },
             withdraw::knowledge::WithdrawProverKnowledge,
         },
-        consts::RANGE_PROOF_CHUNK_SIZE,
         generate_keys_with_min_k, generate_proof, generate_setup_params, note_hash,
         poseidon::off_circuit::hash,
         version::NOTE_VERSION,
@@ -100,14 +97,12 @@ mod tests {
 
     #[test]
     fn passes_if_inputs_correct() {
-        run_full_pipeline::<WithdrawProverKnowledge<F, RANGE_PROOF_CHUNK_SIZE>>();
+        run_full_pipeline::<WithdrawProverKnowledge<F>>();
     }
 
     #[test]
     fn fails_if_merkle_proof_uses_wrong_note() {
-        let mut pk = WithdrawProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(
-            &mut OsRng,
-        );
+        let mut pk = WithdrawProverKnowledge::random_correct_example(&mut OsRng);
 
         let (merkle_root, path) =
             generate_example_path_with_given_leaf(Fr::random(&mut OsRng), &mut OsRng);
@@ -121,9 +116,7 @@ mod tests {
 
     #[test]
     fn fails_if_incorrect_h_nullifier_is_published() {
-        let pk = WithdrawProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(
-            &mut OsRng,
-        );
+        let pk = WithdrawProverKnowledge::random_correct_example(&mut OsRng);
         let pub_input = pk.with_substitution(HashedOldNullifier, |hash| hash + Fr::ONE);
 
         assert!(
@@ -133,9 +126,7 @@ mod tests {
 
     #[test]
     fn fails_if_h_note_new_is_not_the_hash_of_appropriate_witnesses() {
-        let pk = WithdrawProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(
-            &mut OsRng,
-        );
+        let pk = WithdrawProverKnowledge::random_correct_example(&mut OsRng);
         let pub_input = pk.with_substitution(HashedNewNote, |hash| hash + Fr::ONE);
 
         assert!(
@@ -151,10 +142,7 @@ mod tests {
         // witnesses and expect verification success. If we just did the former, it would be easy
         // to introduce a bug to this test and the test would pass without checking anything.
         for (modification, verify_is_expected_to_pass) in [(F::ONE, false), (F::ZERO, true)] {
-            let mut pk =
-                WithdrawProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(
-                    &mut rng,
-                );
+            let mut pk = WithdrawProverKnowledge::random_correct_example(&mut rng);
 
             // Build the old note.
             let h_note_old = note_hash(&Note {
@@ -204,9 +192,7 @@ mod tests {
 
     #[test]
     fn fails_if_commitment_provided_during_verify_is_not_one_provided_during_proof() {
-        let pk = WithdrawProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(
-            &mut OsRng,
-        );
+        let pk = WithdrawProverKnowledge::random_correct_example(&mut OsRng);
 
         let prove_public_input = pk.serialize_public_input();
         assert!(expect_prover_success_and_run_verification(
@@ -229,16 +215,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn fails_if_new_balance_overflowed() {
-        let mut pk = WithdrawProverKnowledge::<_, RANGE_PROOF_CHUNK_SIZE>::random_correct_example(
-            &mut OsRng,
-        );
+        let mut pk = WithdrawProverKnowledge::random_correct_example(&mut OsRng);
 
         // `F::-1` should fail the range check.
         pk.withdrawal_value = -F::ONE;
 
         let params = generate_setup_params(MAX_K, &mut OsRng);
-        let (params, _, key, _) =
-            generate_keys_with_min_k::<WithdrawCircuit<_, RANGE_PROOF_CHUNK_SIZE>>(params).unwrap();
+        let (params, _, key, _) = generate_keys_with_min_k::<WithdrawCircuit<F>>(params).unwrap();
         generate_proof(
             &params,
             &key,
