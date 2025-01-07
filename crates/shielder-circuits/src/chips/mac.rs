@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// Input for MAC calculation.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct MacInput<T> {
     pub key: T,
     pub r: T,
@@ -49,7 +49,7 @@ impl<F: FieldExt> MacChip<F> {
     }
 
     /// Calculate the MAC as `(r, H(r, key))`.
-    pub fn note(
+    pub fn mac(
         &self,
         layouter: &mut impl Layouter<F>,
         input: &MacInput<AssignedCell<F>>,
@@ -64,5 +64,75 @@ impl<F: FieldExt> MacChip<F> {
             r: input.r.clone(),
             commitment,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::vec;
+
+    use halo2_proofs::{
+        circuit::{floor_planner::V1, Layouter},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+    };
+
+    use crate::{
+        chips::mac::{off_circuit, MacChip, MacInput},
+        column_pool::ColumnPool,
+        config_builder::ConfigsBuilder,
+        embed::Embed,
+        run_mock_prover, F,
+    };
+
+    #[derive(Clone, Debug, Default)]
+    struct MacCircuit(MacInput<F>);
+
+    impl Circuit<F> for MacCircuit {
+        type Config = (ColumnPool<Advice>, MacChip<F>, Column<Instance>);
+        type FloorPlanner = V1;
+
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
+
+        fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+            // Enable public input.
+            let instance = meta.instance_column();
+            meta.enable_equality(instance);
+            // Register Poseidon.
+            let (pool, poseidon) = ConfigsBuilder::new(meta).poseidon().resolve_poseidon();
+            // Create MAC chip.
+            let mac = MacChip::new(poseidon);
+
+            (pool, mac, instance)
+        }
+
+        fn synthesize(
+            &self,
+            (pool, mac_chip, instance): Self::Config,
+            mut layouter: impl Layouter<F>,
+        ) -> Result<(), Error> {
+            // 1. Embed key and r.
+            let key = self.0.key.embed(&mut layouter, &pool, "key")?;
+            let r = self.0.r.embed(&mut layouter, &pool, "r")?;
+
+            // 2. Calculate MAC.
+            let mac = mac_chip.mac(&mut layouter, &MacInput { key, r })?;
+
+            // 3. Compare MAC with public input.
+            layouter.constrain_instance(mac.r.cell(), instance, 0)?;
+            layouter.constrain_instance(mac.commitment.cell(), instance, 1)
+        }
+    }
+
+    #[test]
+    fn correct_input_passes() {
+        let input = MacInput {
+            key: F::from(41),
+            r: F::from(43),
+        };
+        let mac = off_circuit::mac(&input);
+
+        run_mock_prover(6, &MacCircuit(input), vec![mac.r, mac.commitment]);
     }
 }
