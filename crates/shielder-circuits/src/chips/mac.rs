@@ -69,12 +69,15 @@ impl<F: FieldExt> MacChip<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::{prelude::rust_2015::Vec, vec};
+    use std::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
-        dev::{MockProver, VerifyFailure},
-        halo2curves::bn256::Fr,
+        dev::MockProver,
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
@@ -83,8 +86,7 @@ mod tests {
         column_pool::ColumnPool,
         config_builder::ConfigsBuilder,
         embed::Embed,
-        gates::sum::{SumGate, SumGateInput},
-        run_mock_prover, F,
+        F,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -128,7 +130,14 @@ mod tests {
         }
     }
 
-    fn verify(input: MacInput<F>, expected_mac: Mac<F>) -> Result<(), Vec<VerifyFailure>> {
+    fn input(key: impl Into<F>, r: impl Into<F>) -> MacInput<F> {
+        MacInput {
+            key: key.into(),
+            r: r.into(),
+        }
+    }
+
+    fn verify(input: MacInput<F>, expected_mac: Mac<F>) -> Result<(), Vec<String>> {
         MockProver::run(
             6,
             &MacCircuit(input),
@@ -136,19 +145,54 @@ mod tests {
         )
         .expect("Mock prover should run successfully")
         .verify()
+        .map_err(|errors| {
+            errors
+                .into_iter()
+                .map(|failure| failure.to_string())
+                .collect()
+        })
     }
 
     #[test]
     fn correct_input_passes() {
-        let input = MacInput {
-            key: F::from(41),
-            r: F::from(43),
-        };
+        let input = input(41, 42);
         let mac = off_circuit::mac(&input);
 
         assert!(verify(input, mac).is_ok());
     }
 
     #[test]
-    fn incorrect_mac_fails() {}
+    fn incorrect_mac_fails() {
+        let expected_mac = off_circuit::mac(&input(1, 42));
+        let input = input(41, 42);
+
+        let mut errors = verify(input, expected_mac)
+            .expect_err("Verification should fail")
+            .into_iter();
+
+        assert!(errors
+            .any(|error| error
+                .contains("Equality constraint not satisfied by cell (Column('Instance'")));
+        assert!(errors
+            .any(|error| error
+                .contains("Equality constraint not satisfied by cell (Column('Advice'")));
+    }
+
+    #[test]
+    fn incorrect_r_fails() {
+        let mut expected_mac = off_circuit::mac(&input(41, 42));
+        expected_mac.r += F::one();
+        let input = input(41, 42);
+
+        let mut errors = verify(input, expected_mac)
+            .expect_err("Verification should fail")
+            .into_iter();
+
+        assert!(errors
+            .any(|error| error
+                .contains("Equality constraint not satisfied by cell (Column('Instance'")));
+        assert!(errors
+            .any(|error| error
+                .contains("Equality constraint not satisfied by cell (Column('Advice'")));
+    }
 }
