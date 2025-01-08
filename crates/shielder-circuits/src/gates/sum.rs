@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeSet, vec};
+use alloc::vec;
 
 use halo2_proofs::{
     arithmetic::Field,
@@ -9,7 +9,10 @@ use halo2_proofs::{
 #[cfg(test)]
 use {crate::embed::Embed, crate::F, macros::embeddable};
 
-use crate::{gates::Gate, AssignedCell};
+use crate::{
+    gates::{ensure_unique_columns, Gate},
+    AssignedCell,
+};
 
 /// Represents the relation: `a + b = c`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -91,11 +94,6 @@ impl<F: Field> Gate<F> for SumGate {
         pool.ensure_capacity(cs, 3);
         pool.get_array()
     }
-}
-
-fn ensure_unique_columns(advice: &[Column<Advice>; 3]) {
-    let set = BTreeSet::from_iter(advice.map(|column| column.index()));
-    assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
 }
 
 #[cfg(test)]
