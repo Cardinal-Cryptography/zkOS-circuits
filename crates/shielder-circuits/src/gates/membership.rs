@@ -1,4 +1,5 @@
-use alloc::collections::BTreeSet;
+use alloc::vec::Vec;
+use core::iter::once;
 
 use halo2_proofs::{
     arithmetic::Field,
@@ -7,6 +8,7 @@ use halo2_proofs::{
     poly::Rotation,
 };
 
+use super::utils::expect_unique_columns;
 use crate::{gates::Gate, AssignedCell};
 
 /// Represents the relation: `(needle - haystack_1) · … · (needle - haystack_N) = 0`.
@@ -40,7 +42,15 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
         cs: &mut ConstraintSystem<F>,
         (needle_advice, haystack_advice): Self::Advices,
     ) -> Self {
-        Self::ensure_unique_columns(&(needle_advice, haystack_advice));
+        let advice_columns = haystack_advice
+            .iter()
+            .cloned()
+            .chain(once(needle_advice))
+            .collect::<Vec<_>>();
+        expect_unique_columns(
+            &advice_columns,
+            "Needle and haystack columns must be unique",
+        );
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -100,20 +110,5 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
         let haystack_advice = pool.get_array();
         let needle_advice = pool.get(N);
         (needle_advice, haystack_advice)
-    }
-}
-
-impl<const N: usize> MembershipGate<N> {
-    fn ensure_unique_columns(
-        (needle_advice, haystack_advice): &(Column<Advice>, [Column<Advice>; N]),
-    ) {
-        let mut set = BTreeSet::from_iter(haystack_advice.iter().map(|column| column.index()));
-        set.insert(needle_advice.index());
-
-        assert_eq!(
-            set.len(),
-            N + 1,
-            "Needle and haystack columns must be unique"
-        );
     }
 }

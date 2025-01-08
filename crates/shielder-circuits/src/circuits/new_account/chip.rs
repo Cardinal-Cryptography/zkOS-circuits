@@ -4,12 +4,13 @@ use halo2_proofs::{
 };
 
 use crate::{
-    chips::note::{Note, NoteChip},
+    chips::note::{balances_from_native_balance, Note, NoteChip},
     circuits::{new_account::knowledge::NewAccountProverKnowledge, FieldExt},
     column_pool::ColumnPool,
     instance_wrapper::InstanceWrapper,
     new_account::{
-        NewAccountConstraints, NewAccountConstraints::*, NewAccountInstance, NewAccountInstance::*,
+        NewAccountConstraints::{self, *},
+        NewAccountInstance::{self, *},
     },
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
@@ -42,6 +43,12 @@ impl<F: FieldExt> NewAccountChip<F> {
         let h_id = hash(layouter, self.poseidon.clone(), [knowledge.id.clone()])?;
         todo.check_off(HashedIdIsCorrect)?;
 
+        let balances = balances_from_native_balance(
+            knowledge.initial_deposit.clone(),
+            layouter,
+            &self.advice_pool,
+        )?;
+
         let note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
             layouter,
             &Note {
@@ -49,7 +56,7 @@ impl<F: FieldExt> NewAccountChip<F> {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier.clone(),
                 trapdoor: knowledge.trapdoor.clone(),
-                account_balance: knowledge.initial_deposit.clone(),
+                balances,
             },
         )?;
         todo.check_off(IdIsIncludedInTheNote)?;

@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeSet, vec};
+use alloc::vec;
 
 use halo2_proofs::{
     arithmetic::Field,
@@ -9,7 +9,10 @@ use halo2_proofs::{
 #[cfg(test)]
 use {crate::embed::Embed, crate::F, macros::embeddable};
 
-use crate::{gates::Gate, AssignedCell};
+use crate::{
+    gates::{utils::expect_unique_columns, Gate},
+    AssignedCell,
+};
 
 /// Represents the relation: `a + b = c`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -44,7 +47,7 @@ impl<F: Field> Gate<F> for SumGate {
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
     /// `A[x] + B[x] = C[x]`, where `x` is the row where the gate is enabled.
     fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self {
-        Self::ensure_unique_columns(&advice);
+        expect_unique_columns(&advice, "Advice columns must be unique");
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -90,13 +93,6 @@ impl<F: Field> Gate<F> for SumGate {
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 3);
         pool.get_array()
-    }
-}
-
-impl SumGate {
-    fn ensure_unique_columns(advice: &[Column<Advice>; 3]) {
-        let set = BTreeSet::from_iter(advice.map(|column| column.index()));
-        assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
     }
 }
 

@@ -34,5 +34,11 @@ pub mod merkle_constants {
 pub const POSEIDON_RATE: usize = 7;
 static_assertions::const_assert_eq!(POSEIDON_RATE + 1, merkle_constants::WIDTH);
 
-/// nonces that make up pow-anonymity are drawn randomly from [0...2^MAX_NONCE_BIT_LENGTH]
+/// Nonces that make up pow-anonymity are drawn randomly from [0...2^MAX_NONCE_BIT_LENGTH].
 pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
+
+// Number of tokens supported via shortlist, including AZERO.
+// *Not* required to be a multiple of `POSEIDON_RATE - 1`.
+// Currently we do not support hashing of balance tuples longer than `POSEIDON_RATE - 1`.
+pub const NUM_TOKENS: usize = 5;
+static_assertions::const_assert!(NUM_TOKENS < POSEIDON_RATE);

@@ -6,7 +6,7 @@ use halo2_proofs::{
 use crate::{
     chips::{
         id_hiding::IdHidingChip,
-        note::{Note, NoteChip},
+        note::{balances_from_native_balance, Note, NoteChip},
         range_check::RangeCheckChip,
         sum::SumChip,
     },
@@ -22,8 +22,7 @@ use crate::{
     todo::Todo,
     version::NOTE_VERSION,
     withdraw::{
-        WithdrawConstraints,
-        WithdrawConstraints::*,
+        WithdrawConstraints::{self, *},
         WithdrawInstance::{self, *},
     },
     AssignedCell,
@@ -46,6 +45,12 @@ impl<F: FieldExt> WithdrawChip<F> {
         knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
+        let balances = balances_from_native_balance(
+            knowledge.account_old_balance.clone(),
+            layouter,
+            &self.advice_pool,
+        )?;
+
         let old_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
             layouter,
             &Note {
@@ -53,7 +58,7 @@ impl<F: FieldExt> WithdrawChip<F> {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_old.clone(),
                 trapdoor: knowledge.trapdoor_old.clone(),
-                account_balance: knowledge.account_old_balance.clone(),
+                balances,
             },
         )?;
         todo.check_off(OldNullifierIsIncludedInTheOldNote)?;
@@ -128,6 +133,8 @@ impl<F: FieldExt> WithdrawChip<F> {
         )?;
         todo.check_off(WithdrawalValueInstanceIsConstrainedToAdvice)?;
 
+        let balances = balances_from_native_balance(new_balance, layouter, &self.advice_pool)?;
+
         let new_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
             layouter,
             &Note {
@@ -135,7 +142,7 @@ impl<F: FieldExt> WithdrawChip<F> {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_new.clone(),
                 trapdoor: knowledge.trapdoor_new.clone(),
-                account_balance: new_balance,
+                balances,
             },
         )?;
         todo.check_off(HashedNewNoteIsCorrect)?;

@@ -30,13 +30,14 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
+            .balances_increase()
             .sum()
             .poseidon()
             .merkle(public_inputs.narrow())
             .range_check();
 
         let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
-        let (_, sum) = configs_builder.resolve_sum_chip();
+        let (_, balances_increase) = configs_builder.resolve_balances_increase_chip();
 
         DepositChip {
             advice_pool,
@@ -44,7 +45,7 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
             poseidon,
             merkle,
             range_check: configs_builder.resolve_range_check(),
-            sum,
+            balances_increase,
         }
     }
 
@@ -69,6 +70,7 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_new_note(&mut layouter, &knowledge, &intermediate, &mut todo)?;
         main_chip.check_id_hiding(&mut layouter, &knowledge, &mut todo)?;
+        main_chip.check_token_index(&mut layouter, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }
@@ -76,9 +78,14 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
 #[cfg(test)]
 mod tests {
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
+    use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;
 
     use crate::{
+        chips::{
+            balances_increase::off_circuit::increase_balances,
+            token_index::off_circuit::index_from_indicators,
+        },
         circuits::{
             deposit::knowledge::DepositProverKnowledge,
             merkle::generate_example_path_with_given_leaf,
@@ -87,7 +94,7 @@ mod tests {
                 PublicInputProviderExt,
             },
         },
-        deposit::{DepositInstance, DepositInstance::*},
+        deposit::DepositInstance::{self, *},
         note_hash,
         poseidon::off_circuit::hash,
         version::NOTE_VERSION,
@@ -149,7 +156,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_old,
                 trapdoor: pk.trapdoor_old,
-                account_balance: pk.account_old_balance,
+                balances: pk.balances_old,
             }) + modification /* Modification here! */;
             let h_nullifier_old = hash(&[pk.nullifier_old]);
 
@@ -158,7 +165,8 @@ mod tests {
             pk.path = path;
 
             // Build the new account state.
-            let account_balance_new = pk.account_old_balance + pk.deposit_value;
+            let balances_new =
+                increase_balances(&pk.balances_old, &pk.token_indicators, pk.deposit_value);
 
             // Build the new note.
             let h_note_new = note_hash(&Note {
@@ -166,7 +174,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_new,
                 trapdoor: pk.trapdoor_new,
-                account_balance: account_balance_new,
+                balances: balances_new,
             });
 
             let pub_input = |instance: DepositInstance| match instance {
@@ -175,6 +183,7 @@ mod tests {
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
                 DepositValue => pk.deposit_value,
+                TokenIndex => index_from_indicators(&pk.token_indicators),
             };
 
             assert_eq!(
@@ -186,6 +195,37 @@ mod tests {
                 verify_is_expected_to_pass
             );
         }
+    }
+    #[test]
+    fn passes_if_deposited_nonnative_token() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
+
+        pk.token_indicators = [0, 1, 0, 0, 0].map(Fr::from);
+        let pub_input = pk.serialize_public_input();
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_ok()
+        );
+
+        // Manually verify the new note hash used in the circuit.
+        let mut hash_input = [Fr::ZERO; 7];
+        for i in 0..5 {
+            hash_input[i] = pk.balances_old[i];
+        }
+        hash_input[1] += pk.deposit_value;
+        let new_balances_hash = hash(&hash_input);
+        let new_note_hash = hash(&[
+            Fr::ZERO, // Note version.
+            pk.id,
+            pk.nullifier_new,
+            pk.trapdoor_new,
+            new_balances_hash,
+        ]);
+        assert_eq!(new_note_hash, pub_input[3]);
+
+        // Verify the token index.
+        assert_eq!(Fr::ONE, pub_input[5]);
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.
