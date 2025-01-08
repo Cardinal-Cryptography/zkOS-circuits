@@ -47,7 +47,7 @@ pub trait Gate<F: Field>: Sized {
     ) -> Self::Advices;
 }
 
-fn ensure_unique_columns(advice: &[Column<Advice>; 3]) {
-    let set = BTreeSet::from_iter(advice.map(|column| column.index()));
+fn ensure_unique_columns(advice: &[Column<Advice>]) {
+    let set = BTreeSet::from_iter(advice.iter().map(|column| column.index()));
     assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
 }
