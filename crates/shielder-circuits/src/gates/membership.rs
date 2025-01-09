@@ -105,3 +105,38 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
         (needle_advice, haystack_advice)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
+
+    use super::MembershipGate;
+    use crate::gates::Gate;
+
+    #[test]
+    fn gate_creation_with_proper_columns_passes() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice = (cs.advice_column(), [cs.advice_column(), cs.advice_column()]);
+        MembershipGate::<2>::create_gate(&mut cs, advice);
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn needle_column_belongs_to_haystack_fails() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let col_1 = cs.advice_column();
+        let col_2 = cs.advice_column();
+        let improper_advice = (col_1, [col_1, col_2]);
+        MembershipGate::<2>::create_gate(&mut cs, improper_advice);
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn haystack_does_not_have_distinct_columns_fails() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let col_1 = cs.advice_column();
+        let col_2 = cs.advice_column();
+        let improper_advice = (col_1, [col_2, col_2]);
+        MembershipGate::<2>::create_gate(&mut cs, improper_advice);
+    }
+}
