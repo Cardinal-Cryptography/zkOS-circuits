@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeSet, vec};
+use alloc::vec;
 
 use halo2_proofs::{
     arithmetic::Field,
@@ -9,7 +9,10 @@ use halo2_proofs::{
 #[cfg(test)]
 use {crate::embed::Embed, crate::F, macros::embeddable};
 
-use crate::{gates::Gate, AssignedCell};
+use crate::{
+    gates::{ensure_unique_columns, Gate},
+    AssignedCell,
+};
 
 /// Represents the relation: `a + b = c`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -44,7 +47,7 @@ impl<F: Field> Gate<F> for SumGate {
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
     /// `A[x] + B[x] = C[x]`, where `x` is the row where the gate is enabled.
     fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self {
-        Self::ensure_unique_columns(&advice);
+        ensure_unique_columns(&advice);
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -93,13 +96,6 @@ impl<F: Field> Gate<F> for SumGate {
     }
 }
 
-impl SumGate {
-    fn ensure_unique_columns(advice: &[Column<Advice>; 3]) {
-        let set = BTreeSet::from_iter(advice.map(|column| column.index()));
-        assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::{vec, vec::Vec};
@@ -110,11 +106,13 @@ mod tests {
             MockProver, VerifyFailure,
         },
         halo2curves::bn256::Fr,
+        plonk::ConstraintSystem,
     };
 
     use crate::gates::{
         sum::{SumGate, SumGateInput},
         test_utils::OneGateCircuit,
+        Gate as _,
     };
 
     fn input(
@@ -139,6 +137,21 @@ mod tests {
         MockProver::run(3, &circuit, vec![])
             .expect("Mock prover should run")
             .verify()
+    }
+
+    #[test]
+    fn gate_creation_with_proper_columns_passes() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
+        SumGate::create_gate(&mut cs, advice);
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn gate_creation_with_not_distinct_columns_fails() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice_column = cs.advice_column();
+        SumGate::create_gate(&mut cs, [advice_column; 3]);
     }
 
     #[test]
