@@ -6,6 +6,8 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
+#[cfg(test)]
+use {crate::embed::Embed, crate::F, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
@@ -21,9 +23,17 @@ pub struct MembershipGate<const N: usize> {
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipGateInput<F: Field, const N: usize> {
-    pub needle: AssignedCell<F>,
-    pub haystack: [AssignedCell<F>; N],
+#[cfg_attr(
+    test,
+    embeddable(
+        receiver = "MembershipGateInput<F, N>",
+        impl_generics = "<const N: usize>",
+        embedded = "MembershipGateInput<AssignedCell<F>, N>"
+    )
+)]
+pub struct MembershipGateInput<T, const N: usize> {
+    pub needle: T,
+    pub haystack: [T; N],
 }
 
 const SELECTOR_OFFSET: usize = 0;
@@ -31,7 +41,7 @@ const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Membership gate";
 
 impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
-    type Input = MembershipGateInput<F, N>;
+    type Input = MembershipGateInput<AssignedCell<F>, N>;
     type Advices = (Column<Advice>, [Column<Advice>; N]);
 
     /// The gate operates on a single advice column `needle` and `N` advice columns `haystack`. It

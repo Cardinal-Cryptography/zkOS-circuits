@@ -27,7 +27,7 @@ pub struct SumGate {
     embeddable(
         receiver = "SumGateInput<F>",
         impl_generics = "",
-        embedded = "SumGateInput<crate::AssignedCell<F>>"
+        embedded = "SumGateInput<AssignedCell<F>>"
     )
 )]
 pub struct SumGateInput<T> {
