@@ -1,10 +1,12 @@
+use alloc::collections::BTreeSet;
+
 use halo2_proofs::{
     circuit::Layouter,
-    plonk::{ConstraintSystem, Error},
+    plonk::{Advice, Column, ConstraintSystem, Error},
 };
-#[cfg(test)]
-use {crate::column_pool::ColumnPool, halo2_proofs::plonk::Advice};
 
+#[cfg(test)]
+use crate::column_pool::ColumnPool;
 use crate::Field;
 
 pub mod balance_increase;
@@ -46,4 +48,9 @@ pub trait Gate<F: Field>: Sized {
         pool: &mut ColumnPool<Advice>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices;
+}
+
+fn ensure_unique_columns(advice: &[Column<Advice>]) {
+    let set = BTreeSet::from_iter(advice.iter().map(|column| column.index()));
+    assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
 }

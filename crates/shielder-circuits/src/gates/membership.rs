@@ -1,5 +1,7 @@
 use alloc::vec::Vec;
 use core::iter::once;
+use alloc::collections::BTreeSet;
+use alloc::vec;
 
 use halo2_proofs::{
     arithmetic::Field,
@@ -10,6 +12,11 @@ use halo2_proofs::{
 
 use super::utils::expect_unique_columns;
 use crate::{gates::Gate, AssignedCell};
+use crate::{gates::Gate, AssignedCell};
+use crate::{
+    gates::{ensure_unique_columns, Gate},
+    AssignedCell,
+};
 
 /// Represents the relation: `(needle - haystack_1) · … · (needle - haystack_N) = 0`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -42,15 +49,7 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
         cs: &mut ConstraintSystem<F>,
         (needle_advice, haystack_advice): Self::Advices,
     ) -> Self {
-        let advice_columns = haystack_advice
-            .iter()
-            .cloned()
-            .chain(once(needle_advice))
-            .collect::<Vec<_>>();
-        expect_unique_columns(
-            &advice_columns,
-            "Needle and haystack columns must be unique",
-        );
+        ensure_unique_columns(&[haystack_advice.to_vec(), vec![needle_advice]].concat());
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -110,5 +109,40 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
         let haystack_advice = pool.get_array();
         let needle_advice = pool.get(N);
         (needle_advice, haystack_advice)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
+
+    use super::MembershipGate;
+    use crate::gates::Gate;
+
+    #[test]
+    fn gate_creation_with_proper_columns_passes() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice = (cs.advice_column(), [cs.advice_column(), cs.advice_column()]);
+        MembershipGate::<2>::create_gate(&mut cs, advice);
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn needle_column_belongs_to_haystack_fails() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let col_1 = cs.advice_column();
+        let col_2 = cs.advice_column();
+        let improper_advice = (col_1, [col_1, col_2]);
+        MembershipGate::<2>::create_gate(&mut cs, improper_advice);
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn haystack_does_not_have_distinct_columns_fails() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let col_1 = cs.advice_column();
+        let col_2 = cs.advice_column();
+        let improper_advice = (col_1, [col_2, col_2]);
+        MembershipGate::<2>::create_gate(&mut cs, improper_advice);
     }
 }
