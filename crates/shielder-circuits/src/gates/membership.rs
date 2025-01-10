@@ -170,4 +170,11 @@ mod tests {
     fn simple_case_passes() {
         assert!(verify::<MembershipGate<2>, _>(input(1, [2, 1])).is_ok());
     }
+
+    #[test]
+    fn needle_is_not_in_haystack_fails() {
+        let err = verify::<MembershipGate<2>, _>(input(1, [2, 3])).expect_err("Should fail");
+        assert_eq!(err.len(), 1);
+        assert!(err[0].contains("Constraint 0 in gate 0 ('Membership gate') is not satisfied"));
+    }
 }
