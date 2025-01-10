@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{rc::Rc, vec::Vec};
 use core::cell::RefCell;
 
 use halo2_proofs::plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed};
@@ -7,8 +7,8 @@ use crate::F;
 
 #[derive(Clone, Debug)]
 pub struct ColumnPool<C: ColumnType> {
-    pool: Vec<Column<C>>,
-    access_counter: RefCell<Vec<usize>>,
+    pool: Rc<RefCell<Vec<Column<C>>>>,
+    access_counter: Rc<RefCell<Vec<usize>>>,
 }
 
 impl<C: ColumnType> ColumnPool<C> {
@@ -16,13 +16,13 @@ impl<C: ColumnType> ColumnPool<C> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            pool: Vec::new(),
-            access_counter: RefCell::new(Vec::new()),
+            pool: Rc::new(RefCell::new(Vec::new())),
+            access_counter: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
     fn add_column(&mut self, column: Column<C>) {
-        self.pool.push(column);
+        self.pool.borrow_mut().push(column);
         self.access_counter.borrow_mut().push(0);
     }
 }
@@ -70,12 +70,12 @@ impl<C: ColumnType> ColumnPool<C> {
     /// Get the column at the specified index.
     pub fn get(&self, index: usize) -> Column<C> {
         self.access_counter.borrow_mut()[index] += 1;
-        self.pool[index]
+        self.pool.borrow()[index]
     }
 
     /// Get the number of columns in the pool.
     pub fn len(&self) -> usize {
-        self.pool.len()
+        self.pool.borrow().len()
     }
 
     /// Get an array of columns from the pool.
@@ -83,6 +83,6 @@ impl<C: ColumnType> ColumnPool<C> {
         for i in 0..N {
             self.access_counter.borrow_mut()[i] += 1;
         }
-        self.pool[..N].try_into().unwrap()
+        self.pool.borrow()[..N].try_into().unwrap()
     }
 }
