@@ -13,7 +13,7 @@ use crate::{
         token_index::TokenIndexChip,
     },
     circuits::{
-        deposit::knowledge::{DepositProverKnowledge, IntermediateValues},
+        deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
         FieldExt,
     },
@@ -37,6 +37,7 @@ pub struct DepositChip<F: FieldExt> {
     pub range_check: RangeCheckChip,
     pub merkle: MerkleChip<F>,
     pub balances_increase: BalancesIncreaseChip,
+    pub token_index: TokenIndexChip<F>,
 }
 
 impl<F: FieldExt> DepositChip<F> {
@@ -104,20 +105,17 @@ impl<F: FieldExt> DepositChip<F> {
         &self,
         layouter: &mut impl Layouter<F>,
         knowledge: &DepositProverKnowledge<AssignedCell<F>>,
-        intermediate_values: &IntermediateValues<AssignedCell<F>>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         self.public_inputs
             .constrain_cells(layouter, [(knowledge.deposit_value.clone(), DepositValue)])?;
         todo.check_off(DepositValueInstanceIsConstrainedToAdvice)?;
 
-        // TODO: consider adding a check-off for this.
-        self.balances_increase.constrain_balances(
+        let balances_new = self.balances_increase.increase_balances(
             layouter,
             &knowledge.balances_old,
             &knowledge.token_indicators,
             &knowledge.deposit_value,
-            &intermediate_values.balances_new,
         )?;
         todo.check_off(DepositValueInstanceIsIncludedInTheNewNote)?;
 
@@ -128,7 +126,7 @@ impl<F: FieldExt> DepositChip<F> {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_new.clone(),
                 trapdoor: knowledge.trapdoor_new.clone(),
-                balances: intermediate_values.balances_new.clone(),
+                balances: balances_new,
             },
         )?;
         todo.check_off(HashedNewNoteIsCorrect)?;
@@ -142,14 +140,10 @@ impl<F: FieldExt> DepositChip<F> {
         &self,
         layouter: &mut impl Layouter<F>,
         knowledge: &DepositProverKnowledge<AssignedCell<F>>,
-        _todo: &mut Todo<DepositConstraints>,
+        todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
-        // TODO: Add a check-off for this.
-        let token_index_chip = TokenIndexChip::new(self.advice_pool.clone());
-        let token_index =
-            token_index_chip.index_from_indicators(layouter, &knowledge.token_indicators)?;
-        self.public_inputs
-            .constrain_cells(layouter, [(token_index, TokenIndex)])?;
+        self.token_index
+            .constrain_index(layouter, &knowledge.token_indicators, todo)?;
         Ok(())
     }
 }

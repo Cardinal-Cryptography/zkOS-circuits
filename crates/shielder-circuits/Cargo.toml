@@ -20,6 +20,7 @@ once_cell = { workspace = true }
 rand = { workspace = true, features = ["small_rng"] }
 rand_core = { workspace = true }
 rayon = { workspace = true, optional = true }
+regex = { workspace = true }
 static_assertions = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }

@@ -8,7 +8,7 @@ use rand_core::RngCore;
 use crate::{
     chips::{
         balances_increase::off_circuit::increase_balances,
-        token_index::off_circuit::{index_from_indicator_values, index_from_indicators},
+        token_index::off_circuit::index_from_indicators,
     },
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
@@ -56,19 +56,6 @@ pub struct DepositProverKnowledge<F> {
     pub nonce: F,
 
     pub deposit_value: F,
-}
-
-impl<F: FieldExt> DepositProverKnowledge<Value<F>> {
-    pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
-        IntermediateValues {
-            balances_new: increase_balances(
-                &self.balances_old,
-                &self.token_indicators,
-                self.deposit_value,
-            ),
-            token_index: index_from_indicator_values(&self.token_indicators),
-        }
-    }
 }
 
 impl<F: FieldExt> ProverKnowledge<F> for DepositProverKnowledge<F> {
@@ -144,18 +131,4 @@ impl<F: FieldExt> PublicInputProvider<DepositInstance, F> for DepositProverKnowl
             DepositInstance::TokenIndex => index_from_indicators(&self.token_indicators),
         }
     }
-}
-
-/// Stores values that are a result of intermediate computations.
-#[derive(Clone, Debug, Default)]
-#[embeddable(
-    receiver = "IntermediateValues<Value<F>>",
-    impl_generics = "<F: FieldExt>",
-    embedded = "IntermediateValues<crate::AssignedCell<F>>"
-)]
-pub struct IntermediateValues<F> {
-    /// Account balances after the deposit is made.
-    pub balances_new: [F; NUM_TOKENS],
-
-    pub token_index: F,
 }

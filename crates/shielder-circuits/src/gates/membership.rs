@@ -1,6 +1,3 @@
-use alloc::vec::Vec;
-use core::iter::once;
-use alloc::collections::BTreeSet;
 use alloc::vec;
 
 use halo2_proofs::{
@@ -10,9 +7,6 @@ use halo2_proofs::{
     poly::Rotation,
 };
 
-use super::utils::expect_unique_columns;
-use crate::{gates::Gate, AssignedCell};
-use crate::{gates::Gate, AssignedCell};
 use crate::{
     gates::{ensure_unique_columns, Gate},
     AssignedCell,

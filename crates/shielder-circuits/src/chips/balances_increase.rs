@@ -1,12 +1,19 @@
-use halo2_proofs::{arithmetic::Field, circuit::Layouter, plonk::Error};
+use alloc::{vec, vec::Vec};
+
+use halo2_proofs::{
+    circuit::Layouter,
+    plonk::{Advice, Error},
+};
 
 use crate::{
+    column_pool::ColumnPool,
     consts::NUM_TOKENS,
     gates::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
         Gate,
     },
-    AssignedCell,
+    utils::values_from_cell_array,
+    AssignedCell, FieldExt,
 };
 
 pub mod off_circuit {
@@ -32,22 +39,43 @@ pub mod off_circuit {
 #[derive(Clone, Debug)]
 pub struct BalancesIncreaseChip {
     pub gate: BalanceIncreaseGate,
+    pub advice_pool: ColumnPool<Advice>,
 }
 
 impl BalancesIncreaseChip {
-    pub fn new(gate: BalanceIncreaseGate) -> Self {
-        Self { gate }
+    pub fn new(gate: BalanceIncreaseGate, advice_pool: ColumnPool<Advice>) -> Self {
+        Self { gate, advice_pool }
     }
 
-    pub fn constrain_balances<F: Field>(
+    pub fn increase_balances<F: FieldExt>(
         &self,
         layouter: &mut impl Layouter<F>,
         balances_old: &[AssignedCell<F>; NUM_TOKENS],
         token_indicators: &[AssignedCell<F>; NUM_TOKENS],
         increase_value: &AssignedCell<F>,
-        balances_new: &[AssignedCell<F>; NUM_TOKENS],
-    ) -> Result<(), Error> {
+    ) -> Result<[AssignedCell<F>; NUM_TOKENS], Error> {
+        let balances_new_values = off_circuit::increase_balances(
+            &values_from_cell_array(balances_old),
+            &values_from_cell_array(token_indicators),
+            increase_value.value().cloned(),
+        );
+
+        let mut balances_new: Vec<AssignedCell<F>> = vec![];
+
         for i in 0..NUM_TOKENS {
+            let balance_new = layouter.assign_region(
+                || "balance_new",
+                |mut region| {
+                    region.assign_advice(
+                        || "balance_new",
+                        self.advice_pool.get_any(),
+                        0,
+                        || balances_new_values[i],
+                    )
+                },
+            )?;
+            balances_new.push(balance_new);
+
             let gate_input = BalanceIncreaseGateInput {
                 balance_old: balances_old[i].clone(),
                 increase_value: increase_value.clone(),
@@ -56,6 +84,6 @@ impl BalancesIncreaseChip {
             };
             self.gate.apply_in_new_region(layouter, gate_input)?;
         }
-        Ok(())
+        Ok(balances_new.try_into().expect(""))
     }
 }

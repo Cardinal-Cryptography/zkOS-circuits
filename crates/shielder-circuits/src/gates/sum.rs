@@ -10,11 +10,6 @@ use halo2_proofs::{
 use {crate::embed::Embed, crate::F, macros::embeddable};
 
 use crate::{
-    gates::{utils::expect_unique_columns, Gate},
-    AssignedCell,
-};
-use crate::{gates::Gate, AssignedCell};
-use crate::{
     gates::{ensure_unique_columns, Gate},
     AssignedCell,
 };
@@ -178,6 +173,8 @@ mod tests {
     fn incorrect_sum_fails() {
         let errors = verify(input(2, 2, 3)).expect_err("Verification should fail");
 
+        // TODO: use gates::test_utils::verify
+        // once https://github.com/Cardinal-Cryptography/zkOS-circuits/pull/28 is merged.
         assert_eq!(errors.len(), 1);
         match &errors[0] {
             VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {

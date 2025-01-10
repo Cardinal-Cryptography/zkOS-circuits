@@ -48,12 +48,13 @@ impl<'cs, F: FieldExt> ConfigsBuilder<'cs, F, Empty, Empty, Empty, Empty, Empty>
     pub fn balances_increase(
         mut self,
     ) -> ConfigsBuilder<'cs, F, Empty, Empty, WithBalancesIncrease, Empty, Empty> {
-        let advice_pool = self.base_builder.advice_pool_with_capacity(4);
+        let advice_pool = self.base_builder.advice_pool_with_capacity(4).clone();
         let gate_advice = advice_pool.get_array();
         let system = &mut self.base_builder.system;
 
         let balances_increase = BalancesIncreaseChip {
             gate: BalanceIncreaseGate::create_gate(system, gate_advice),
+            advice_pool,
         };
 
         ConfigsBuilder {

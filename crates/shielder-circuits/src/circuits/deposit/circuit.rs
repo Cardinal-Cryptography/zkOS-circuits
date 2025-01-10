@@ -4,6 +4,7 @@ use halo2_proofs::{
 };
 
 use crate::{
+    chips::token_index::TokenIndexChip,
     circuits::{
         deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
         FieldExt,
@@ -38,6 +39,7 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
 
         let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
         let (_, balances_increase) = configs_builder.resolve_balances_increase_chip();
+        let token_index = TokenIndexChip::new(advice_pool.clone(), public_inputs.narrow());
 
         DepositChip {
             advice_pool,
@@ -46,6 +48,7 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
             merkle,
             range_check: configs_builder.resolve_range_check(),
             balances_increase,
+            token_index,
         }
     }
 
@@ -60,15 +63,10 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
             &main_chip.advice_pool,
             "DepositProverKnowledge",
         )?;
-        let intermediate = self.0.compute_intermediate_values().embed(
-            &mut layouter,
-            &main_chip.advice_pool,
-            "DepositIntermediateValues",
-        )?;
 
         main_chip.check_old_note(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut layouter, &knowledge, &intermediate, &mut todo)?;
+        main_chip.check_new_note(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_id_hiding(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_token_index(&mut layouter, &knowledge, &mut todo)?;
         todo.assert_done()
@@ -77,6 +75,7 @@ impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
 
 #[cfg(test)]
 mod tests {
+
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;
@@ -90,8 +89,8 @@ mod tests {
             deposit::knowledge::DepositProverKnowledge,
             merkle::generate_example_path_with_given_leaf,
             test_utils::{
-                expect_prover_success_and_run_verification, run_full_pipeline,
-                PublicInputProviderExt,
+                expect_instance_permutation_failures, expect_prover_success_and_run_verification,
+                run_full_pipeline, PublicInputProviderExt,
             },
         },
         deposit::DepositInstance::{self, *},
@@ -201,7 +200,7 @@ mod tests {
         let mut rng = SmallRng::from_seed([42; 32]);
         let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
 
-        pk.token_indicators = [0, 1, 0, 0, 0].map(Fr::from);
+        pk.token_indicators = [0, 1, 0, 0, 0, 0].map(Fr::from);
         let pub_input = pk.serialize_public_input();
 
         assert!(
@@ -210,7 +209,7 @@ mod tests {
 
         // Manually verify the new note hash used in the circuit.
         let mut hash_input = [Fr::ZERO; 7];
-        for i in 0..5 {
+        for i in 0..6 {
             hash_input[i] = pk.balances_old[i];
         }
         hash_input[1] += pk.deposit_value;
@@ -226,6 +225,20 @@ mod tests {
 
         // Verify the token index.
         assert_eq!(Fr::ONE, pub_input[5]);
+    }
+
+    #[test]
+    fn fails_if_token_index_pub_input_incorrect() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let pk = DepositProverKnowledge::random_correct_example(&mut rng);
+
+        let mut pub_input = pk.serialize_public_input();
+        pub_input[5] += Fr::ONE;
+
+        let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
+            .expect_err("Verification must fail");
+
+        expect_instance_permutation_failures(&failures, "Token index", 5);
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.
