@@ -120,8 +120,8 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
 mod tests {
     use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
-    use super::MembershipGate;
-    use crate::gates::Gate;
+    use super::{MembershipGate, MembershipGateInput};
+    use crate::gates::{test_utils::verify, Gate};
 
     #[test]
     fn gate_creation_with_proper_columns_passes() {
@@ -148,5 +148,26 @@ mod tests {
         let col_2 = cs.advice_column();
         let improper_advice = (col_1, [col_2, col_2]);
         MembershipGate::<2>::create_gate(&mut cs, improper_advice);
+    }
+
+    fn input(needle: impl Into<Fr>, [h0, h1]: [impl Into<Fr>; 2]) -> MembershipGateInput<Fr, 2> {
+        MembershipGateInput {
+            needle: needle.into(),
+            haystack: [h0.into(), h1.into()],
+        }
+    }
+
+    impl Default for MembershipGateInput<Fr, 2> {
+        fn default() -> Self {
+            Self {
+                needle: Fr::default(),
+                haystack: [Fr::default(), Fr::default()],
+            }
+        }
+    }
+
+    #[test]
+    fn simple_case_passes() {
+        assert!(verify::<MembershipGate<2>, _>(input(1, [2, 1])).is_ok());
     }
 }

@@ -98,20 +98,11 @@ impl<F: Field> Gate<F> for SumGate {
 
 #[cfg(test)]
 mod tests {
-    use std::{vec, vec::Vec};
-
-    use halo2_proofs::{
-        dev::{
-            metadata::{Constraint, Gate},
-            MockProver, VerifyFailure,
-        },
-        halo2curves::bn256::Fr,
-        plonk::ConstraintSystem,
-    };
+    use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
     use crate::gates::{
         sum::{SumGate, SumGateInput},
-        test_utils::OneGateCircuit,
+        test_utils::verify,
         Gate as _,
     };
 
@@ -125,18 +116,6 @@ mod tests {
             summand_2: summand_2.into(),
             sum: sum.into(),
         }
-    }
-
-    fn failed_constraint() -> Constraint {
-        // We have only one constraint in the circuit, so all indices are 0.
-        Constraint::from((Gate::from((0, "Sum gate")), 0, ""))
-    }
-
-    fn verify(input: SumGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
-        let circuit = OneGateCircuit::<SumGate, _>::new(input);
-        MockProver::run(3, &circuit, vec![])
-            .expect("Mock prover should run")
-            .verify()
     }
 
     #[test]
@@ -156,29 +135,23 @@ mod tests {
 
     #[test]
     fn zeros_passes() {
-        assert!(verify(input(0, 0, 0)).is_ok());
+        assert!(verify::<SumGate, _>(input(0, 0, 0)).is_ok());
     }
 
     #[test]
     fn simple_addition_passes() {
-        assert!(verify(input(1, 2, 3)).is_ok());
+        assert!(verify::<SumGate, _>(input(1, 2, 3)).is_ok());
     }
 
     #[test]
     fn negation_passes() {
-        assert!(verify(input(5, Fr::from(5).neg(), 0)).is_ok());
+        assert!(verify::<SumGate, _>(input(5, Fr::from(5).neg(), 0)).is_ok());
     }
 
     #[test]
     fn incorrect_sum_fails() {
-        let errors = verify(input(2, 2, 3)).expect_err("Verification should fail");
-
+        let errors = verify::<SumGate, _>(input(2, 2, 3)).expect_err("Verification should fail");
         assert_eq!(errors.len(), 1);
-        match &errors[0] {
-            VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
-                assert_eq!(constraint, &failed_constraint())
-            }
-            _ => panic!("Unexpected error"),
-        };
+        assert!(errors[0].contains("Constraint 0 in gate 0 ('Sum gate') is not satisfied"));
     }
 }
