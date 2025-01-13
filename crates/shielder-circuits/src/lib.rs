@@ -17,6 +17,7 @@ pub mod poseidon;
 mod range_table;
 mod todo;
 mod version;
+pub mod grumpkin;
 
 use alloc::{fmt::Debug, vec::Vec};
 
