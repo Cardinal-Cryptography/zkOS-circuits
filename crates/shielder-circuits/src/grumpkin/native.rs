@@ -1,8 +1,3 @@
-use std::{
-    marker::PhantomData,
-    ops::{Add, Mul, Sub},
-};
-
 use halo2_proofs::{
     arithmetic::{CurveExt, Field},
     halo2curves::{bn256::Fr, grumpkin::G1},
@@ -10,72 +5,64 @@ use halo2_proofs::{
 
 use crate::FieldExt;
 
-// #[derive(Clone, Copy, Debug)]
-// pub struct PointAffine<F: Field, C: CurveExt> {
-//     pub x: F,
-//     pub y: F,
-//     _c: PhantomData<C>,
-// }
+// TODO : type-enforce curve (Grumpkin::G1)
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PointAffine {
+    pub x: Fr,
+    pub y: Fr,
+}
 
-// impl<F: Field, C: CurveExt> PointAffine<F, C> {
-//     pub fn new(x: F, y: F) -> Self {
-//         PointAffine {
-//             x,
-//             y,
-//             _c: PhantomData,
-//         }
-//     }
+impl PointAffine {
+    pub fn new(x: Fr, y: Fr) -> Self {
+        PointAffine { x, y }
+    }
 
-//     pub fn to_projective(&self) -> PointProjective<F, C> {
-//         PointProjective::new(self.x, self.y, F::ONE)
-//     }
-// }
+    pub fn to_projective(&self) -> PointProjective {
+        PointProjective::new(self.x, self.y, Fr::ONE)
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PointProjective {
     pub x: Fr,
     pub y: Fr,
     pub z: Fr,
-    // _c: PhantomData<G1>,
 }
 
 impl PointProjective {
     pub fn new(x: Fr, y: Fr, z: Fr) -> Self {
-        PointProjective {
-            x,
-            y,
-            z,
-            // _c: PhantomData,
-        }
+        PointProjective { x, y, z }
     }
 
-    // pub fn to_affine(&self) -> PointAffine<F, C> {
-    //     let z_inverse = self
-    //         .z
-    //         .invert()
-    //         .expect("no multiplicative inverse to the element");
+    pub fn to_affine(&self) -> PointAffine {
+        let z_inverse = self
+            .z
+            .invert()
+            .expect("no multiplicative inverse to the element");
 
-    //     PointAffine::new(self.x.mul(z_inverse), self.y.mul(z_inverse))
-    // }
+        PointAffine::new(self.x.mul(&z_inverse), self.y.mul(&z_inverse))
+    }
+}
+
+impl From<G1> for PointProjective {
+    fn from(g1: G1) -> Self {
+        PointProjective::new(g1.x, g1.y, g1.z)
+    }
 }
 
 pub trait GroupOperations {
+    const POINT_AT_INFINITY: Self;
+
     fn add(&self, q: PointProjective) -> PointProjective;
 }
 
-impl GroupOperations for PointProjective
-// where
-//     <F as Sub<<<C as CurveExt>::Base as Mul<F>>::Output>>::Output:
-//         Mul<<F as Add<<<C as CurveExt>::Base as Mul<F>>::Output>>::Output>,
-//     <F as Mul<<F as Sub<<<C as CurveExt>::Base as Mul<F>>::Output>>::Output>>::Output:
-//         Sub<<F as Mul<<<C as CurveExt>::Base as Mul<F>>::Output>>::Output>,
-//     F: Add<<<C as CurveExt>::Base as std::ops::Mul<F>>::Output>
-//         + Sub<<<C as CurveExt>::Base as std::ops::Mul<F>>::Output>
-//         + Mul<<<C as CurveExt>::Base as std::ops::Mul<F>>::Output>
-//         + Mul<<F as Sub<<<C as CurveExt>::Base as Mul<F>>::Output>>::Output>,
-// <C as CurveExt>::Base: Mul<F>,
-// <<C as CurveExt>::Base as Mul<F>>::Output: Mul<F>,
-{
+impl GroupOperations for PointProjective {
+    const POINT_AT_INFINITY: Self = PointProjective {
+        x: Fr::zero(),
+        y: Fr::one(),
+        z: Fr::zero(),
+    };
+
     /// Adds another point on the curve
     ///
     /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
@@ -141,33 +128,41 @@ mod test {
         halo2curves::{
             bn256::{Fr, G1Affine},
             ff::PrimeField,
-            group::Curve,
+            group::Group,
             grumpkin::G1,
         },
     };
+    use once_cell::sync::Lazy;
+    use rand::{rngs::StdRng, SeedableRng};
 
     use crate::grumpkin::{native::PointProjective, GroupOperations};
 
-    // #[test]
-    // fn test_coordinate_conversion() {
-    //     let p =
-    //         PointProjective::<Fr, G1>::new(Fr::from_u128(3), Fr::from_u128(2), Fr::from_u128(1));
-
-    //     let p_affine = p.to_affine();
-    //     let p_projective = p_affine.to_projective();
-
-    //     assert_eq!(p, p_projective);
-    // }
+    static RNG: Lazy<StdRng> =
+        Lazy::new(|| StdRng::from_seed(*b"00000000000000000000100001011001"));
 
     #[test]
-    fn test_group_generator() {
-        let g = G1::generator();
-        let generator = PointProjective::new(g.x, g.y, g.z);
+    fn coordinate_conversion() {
+        let p = PointProjective::new(Fr::from_u128(3), Fr::from_u128(2), Fr::from_u128(1));
 
-        let zero = PointProjective::new(Fr::zero(), Fr::one(), Fr::zero());
+        let p_affine = p.to_affine();
+        let p_projective = p_affine.to_projective();
 
-        let p = generator.add(zero);
+        assert_eq!(p, p_projective);
+    }
 
-        assert_eq!(p, generator);
+    #[test]
+    fn adding_point_at_infinity() {
+        let mut rng = RNG.clone();
+        let p1: PointProjective = G1::random(&mut rng).into();
+        let p2 = p1.add(PointProjective::POINT_AT_INFINITY);
+        assert_eq!(p1.to_affine(), p2.to_affine());
+    }
+
+    #[test]
+    fn group_generator() {
+        // let mut rng = RNG.clone();
+        let g: PointProjective = G1::generator().into();
+        // let p2 = p1.add(PointProjective::POINT_AT_INFINITY);
+        // assert_eq!(p1.to_affine(), p2.to_affine());
     }
 }
