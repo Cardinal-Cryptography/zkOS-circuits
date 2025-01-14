@@ -1,8 +1,8 @@
 use std::{
     marker::PhantomData,
-    prelude::rust_2015::Vec,
     string::{String, ToString},
     vec,
+    vec::Vec,
 };
 
 use halo2_proofs::{
