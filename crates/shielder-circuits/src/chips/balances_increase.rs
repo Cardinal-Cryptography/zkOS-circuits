@@ -13,7 +13,7 @@ use crate::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
         Gate,
     },
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
 
 pub mod off_circuit {
@@ -42,9 +42,7 @@ pub struct BalancesIncreaseChip {
     pub advice_pool: ColumnPool<Advice>,
 }
 
-fn values_from_cell_array<F: FieldExt, const N: usize>(
-    cell_array: &[AssignedCell<F>; N],
-) -> [Value<F>; N] {
+fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value<F>; N] {
     array::from_fn(|i| cell_array[i].value().copied())
 }
 
@@ -53,20 +51,20 @@ impl BalancesIncreaseChip {
         Self { gate, advice_pool }
     }
 
-    pub fn increase_balances<F: FieldExt>(
+    pub fn increase_balances(
         &self,
         layouter: &mut impl Layouter<F>,
-        balances_old: &[AssignedCell<F>; NUM_TOKENS],
-        token_indicators: &[AssignedCell<F>; NUM_TOKENS],
-        increase_value: &AssignedCell<F>,
-    ) -> Result<[AssignedCell<F>; NUM_TOKENS], Error> {
+        balances_old: &[AssignedCell; NUM_TOKENS],
+        token_indicators: &[AssignedCell; NUM_TOKENS],
+        increase_value: &AssignedCell,
+    ) -> Result<[AssignedCell; NUM_TOKENS], Error> {
         let balances_new_values = off_circuit::increase_balances(
             &values_from_cell_array(balances_old),
             &values_from_cell_array(token_indicators),
             increase_value.value().cloned(),
         );
 
-        let mut balances_new: Vec<AssignedCell<F>> = vec![];
+        let mut balances_new: Vec<AssignedCell> = vec![];
 
         for i in 0..NUM_TOKENS {
             let balance_new = layouter.assign_region(

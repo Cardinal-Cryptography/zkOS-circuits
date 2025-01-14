@@ -6,11 +6,11 @@ use halo2_proofs::{
     plonk::{Advice, Error},
 };
 
-use crate::{column_pool::ColumnPool, AssignedCell, Field};
+use crate::{column_pool::ColumnPool, AssignedCell, F};
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
-pub trait Embed<F: Field> {
-    /// The resulting type of the embedding. For single values, this would be `AssignedCell<F>`.
+pub trait Embed {
+    /// The resulting type of the embedding. For single values, this would be `AssignedCell`.
     type Embedded;
 
     /// Embeds the instance into the circuit.
@@ -22,8 +22,8 @@ pub trait Embed<F: Field> {
     ) -> Result<Self::Embedded, Error>;
 }
 
-impl Embed<Fr> for Fr {
-    type Embedded = AssignedCell<Fr>;
+impl Embed for Fr {
+    type Embedded = AssignedCell;
 
     fn embed(
         &self,
@@ -36,7 +36,7 @@ impl Embed<Fr> for Fr {
     }
 }
 
-impl<F: Field, E: Embed<F>> Embed<F> for &E {
+impl<E: Embed> Embed for &E {
     type Embedded = E::Embedded;
 
     fn embed(
@@ -49,8 +49,8 @@ impl<F: Field, E: Embed<F>> Embed<F> for &E {
     }
 }
 
-impl<F: Field> Embed<F> for Value<F> {
-    type Embedded = AssignedCell<F>;
+impl Embed for Value<F> {
+    type Embedded = AssignedCell;
 
     fn embed(
         &self,
@@ -66,7 +66,7 @@ impl<F: Field> Embed<F> for Value<F> {
     }
 }
 
-impl<F: Field, E: Embed<F>, const N: usize> Embed<F> for [E; N] {
+impl<E: Embed, const N: usize> Embed for [E; N] {
     type Embedded = [E::Embedded; N];
 
     fn embed(
@@ -85,7 +85,7 @@ impl<F: Field, E: Embed<F>, const N: usize> Embed<F> for [E; N] {
     }
 }
 
-impl<F: Field, E: Embed<F>> Embed<F> for Vec<E> {
+impl<E: Embed> Embed for Vec<E> {
     type Embedded = Vec<E::Embedded>;
 
     fn embed(

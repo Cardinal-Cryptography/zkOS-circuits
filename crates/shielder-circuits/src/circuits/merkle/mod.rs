@@ -1,7 +1,7 @@
 use rand_core::RngCore;
 use strum_macros::{EnumCount, EnumIter};
 
-use crate::{circuits::FieldExt, consts::merkle_constants::ARITY, poseidon::off_circuit::hash};
+use crate::{consts::merkle_constants::ARITY, poseidon::off_circuit::hash, Field, F};
 
 mod chip;
 mod circuit;
@@ -26,7 +26,7 @@ pub enum MerkleConstraints {
     MerkleRootInstanceIsConstrainedToAdvice,
 }
 
-pub fn generate_example_path_with_given_leaf<F: FieldExt, const TREE_HEIGHT: usize>(
+pub fn generate_example_path_with_given_leaf<const TREE_HEIGHT: usize>(
     leaf: F,
     rng: &mut impl RngCore,
 ) -> (F, [[F; ARITY]; TREE_HEIGHT]) {

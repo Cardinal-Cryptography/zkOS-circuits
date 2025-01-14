@@ -1,17 +1,16 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::Field,
     circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, crate::F, macros::embeddable};
+use {crate::embed::Embed, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell,
+    AssignedCell, F,
 };
 
 const SELECTOR_OFFSET: usize = 0;
@@ -40,7 +39,7 @@ pub struct BalanceIncreaseGateAdvices {
     embeddable(
         receiver = "BalanceIncreaseGateInput<F>",
         impl_generics = "",
-        embedded = "BalanceIncreaseGateInput<crate::AssignedCell<F>>"
+        embedded = "BalanceIncreaseGateInput<crate::AssignedCell>"
     )
 )]
 pub struct BalanceIncreaseGateInput<T> {
@@ -50,8 +49,8 @@ pub struct BalanceIncreaseGateInput<T> {
     pub balance_new: T,
 }
 
-impl<F: Field> Gate<F> for BalanceIncreaseGate {
-    type Input = BalanceIncreaseGateInput<AssignedCell<F>>;
+impl Gate for BalanceIncreaseGate {
+    type Input = BalanceIncreaseGateInput<AssignedCell>;
     type Advices = BalanceIncreaseGateAdvices;
 
     fn create_gate(cs: &mut ConstraintSystem<F>, advices: Self::Advices) -> Self {
@@ -134,12 +133,8 @@ impl<F: Field> Gate<F> for BalanceIncreaseGate {
 
 #[cfg(test)]
 mod tests {
-    
 
-    use halo2_proofs::{
-        halo2curves::bn256::Fr,
-        plonk::ConstraintSystem,
-    };
+    use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
     use crate::gates::{
         balance_increase::{

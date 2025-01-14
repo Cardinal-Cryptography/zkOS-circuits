@@ -15,7 +15,6 @@ use crate::{
     circuits::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
-        FieldExt,
     },
     column_pool::ColumnPool,
     deposit::{
@@ -26,25 +25,25 @@ use crate::{
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
     version::NOTE_VERSION,
-    AssignedCell,
+    AssignedCell, F,
 };
 
 #[derive(Clone, Debug)]
-pub struct DepositChip<F: FieldExt> {
+pub struct DepositChip {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<DepositInstance>,
-    pub poseidon: PoseidonChip<F>,
+    pub poseidon: PoseidonChip,
     pub range_check: RangeCheckChip,
-    pub merkle: MerkleChip<F>,
+    pub merkle: MerkleChip,
     pub balances_increase: BalancesIncreaseChip,
     pub token_index: TokenIndexChip,
 }
 
-impl<F: FieldExt> DepositChip<F> {
+impl DepositChip {
     pub fn check_old_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
+        knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let old_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
@@ -69,7 +68,7 @@ impl<F: FieldExt> DepositChip<F> {
     pub fn check_old_nullifier(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
+        knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
@@ -87,7 +86,7 @@ impl<F: FieldExt> DepositChip<F> {
     pub fn check_id_hiding(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
+        knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
@@ -104,7 +103,7 @@ impl<F: FieldExt> DepositChip<F> {
     pub fn check_new_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
+        knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         self.public_inputs
@@ -139,7 +138,7 @@ impl<F: FieldExt> DepositChip<F> {
     pub fn check_token_index(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &DepositProverKnowledge<AssignedCell<F>>,
+        knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         self.token_index

@@ -1,13 +1,13 @@
 use alloc::{vec, vec::Vec};
 use core::fmt::{self, Display, Formatter};
 
-use halo2_proofs::plonk::Circuit;
+use halo2_proofs::{halo2curves::serde::SerdeObject, plonk::Circuit};
 
 use crate::{
     circuits::{Params, ProvingKey},
     consts::merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
     marshall::MarshallError::{InvalidContent, IoError},
-    FieldExt, F, SERDE_FORMAT,
+    F, SERDE_FORMAT,
 };
 
 #[derive(Debug)]
@@ -58,7 +58,7 @@ pub fn unmarshall_pk<C: Circuit<F>>(buf: &[u8]) -> MarshallResult<(u32, ProvingK
 }
 
 /// Serialize `(leaf, path)` to bytes.
-pub fn marshall_path<F: FieldExt>(leaf: &F, path: &[[F; ARITY]; NOTE_TREE_HEIGHT]) -> Vec<u8> {
+pub fn marshall_path(leaf: &F, path: &[[F; ARITY]; NOTE_TREE_HEIGHT]) -> Vec<u8> {
     let mut buf = vec![];
     leaf.write_raw(&mut buf).expect("leaf should serialize");
     for level in path.iter() {
@@ -70,7 +70,7 @@ pub fn marshall_path<F: FieldExt>(leaf: &F, path: &[[F; ARITY]; NOTE_TREE_HEIGHT
 }
 
 /// Deserialize `(root, leaf, path)` from bytes.
-pub fn unmarshall_path<F: FieldExt>(mut buf: &[u8]) -> (F, [[F; ARITY]; NOTE_TREE_HEIGHT]) {
+pub fn unmarshall_path(mut buf: &[u8]) -> (F, [[F; ARITY]; NOTE_TREE_HEIGHT]) {
     let leaf = F::read_raw(&mut buf).expect("leaf should deserialize");
     let mut path = [[F::default(); ARITY]; NOTE_TREE_HEIGHT];
     for level in path.iter_mut() {
@@ -97,7 +97,7 @@ mod tests {
 
     fn generate_data() -> (Params, u32, ProvingKey) {
         let mut rng = rand::thread_rng();
-        let (params, k, pk, _) = generate_keys_with_min_k::<MerkleCircuit<NOTE_TREE_HEIGHT, F>>(
+        let (params, k, pk, _) = generate_keys_with_min_k::<MerkleCircuit<NOTE_TREE_HEIGHT>>(
             generate_setup_params(MAX_K, &mut rng),
         )
         .expect("keys should not fail to generate");
@@ -119,7 +119,7 @@ mod tests {
         let (_, k, pk) = generate_data();
 
         let bytes = marshall_pk(k, &pk).unwrap();
-        let (k2, pk2) = unmarshall_pk::<MerkleCircuit<NOTE_TREE_HEIGHT, F>>(&bytes).unwrap();
+        let (k2, pk2) = unmarshall_pk::<MerkleCircuit<NOTE_TREE_HEIGHT>>(&bytes).unwrap();
 
         assert_eq!(k, k2);
         assert_eq!(format!("{pk:?}"), format!("{pk2:?}"));

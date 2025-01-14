@@ -10,14 +10,14 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     new_account::{NewAccountConstraints, NewAccountInstance},
     todo::Todo,
-    FieldExt,
+    F,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct NewAccountCircuit<F>(pub NewAccountProverKnowledge<Value<F>>);
+pub struct NewAccountCircuit(pub NewAccountProverKnowledge<Value<F>>);
 
-impl<F: FieldExt> Circuit<F> for NewAccountCircuit<F> {
-    type Config = NewAccountChip<F>;
+impl Circuit<F> for NewAccountCircuit {
+    type Config = NewAccountChip;
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {

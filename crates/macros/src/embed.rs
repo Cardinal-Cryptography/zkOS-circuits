@@ -39,7 +39,7 @@ pub fn embeddable(attr: TokenStream2, item: TokenStream2) -> SynResult<TokenStre
     Ok(quote! {
         #backed_up_struct
 
-        impl #impl_generics Embed < #field_type > for #receiver {
+        impl #impl_generics Embed for #receiver {
             type Embedded = #embedded;
 
             fn embed(

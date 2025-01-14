@@ -1,17 +1,16 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::Field,
     circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, crate::F, macros::embeddable};
+use {crate::embed::Embed, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell,
+    AssignedCell, F,
 };
 
 /// Represents the relation: `a + b = c`.
@@ -27,7 +26,7 @@ pub struct SumGate {
     embeddable(
         receiver = "SumGateInput<F>",
         impl_generics = "",
-        embedded = "SumGateInput<AssignedCell<F>>"
+        embedded = "SumGateInput<AssignedCell>"
     )
 )]
 pub struct SumGateInput<T> {
@@ -40,8 +39,8 @@ const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Sum gate";
 
-impl<F: Field> Gate<F> for SumGate {
-    type Input = SumGateInput<AssignedCell<F>>;
+impl Gate for SumGate {
+    type Input = SumGateInput<AssignedCell>;
     type Advices = [Column<Advice>; 3];
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:

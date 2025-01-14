@@ -1,6 +1,7 @@
 use core::array;
 
 use halo2_proofs::{
+    arithmetic::Field,
     circuit::Layouter,
     plonk::{Advice, Error},
 };
@@ -11,13 +12,12 @@ use crate::{
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
-
 /// Chip that is able to calculate note hash
 #[derive(Clone, Debug)]
-pub struct NoteChip<F: FieldExt> {
-    poseidon: PoseidonChip<F>,
+pub struct NoteChip {
+    poseidon: PoseidonChip,
     advice_pool: ColumnPool<Advice>,
 }
 
@@ -32,14 +32,16 @@ pub struct Note<T> {
 
 pub mod off_circuit {
 
+    use halo2_proofs::arithmetic::Field;
+
     use crate::{
         chips::{balances::off_circuit::balances_hash, note::Note},
         consts::NUM_TOKENS,
         poseidon::off_circuit::hash,
-        FieldExt,
+        F,
     };
 
-    pub fn note_hash<F: FieldExt>(note: &Note<F>) -> F {
+    pub fn note_hash(note: &Note<F>) -> F {
         let input = [
             note.version.as_field(),
             note.id,
@@ -53,15 +55,15 @@ pub mod off_circuit {
 
     /// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
     /// Produces the balance shortlist tuple from a single native balance.
-    pub fn balances_from_native_balance<F: FieldExt>(native_balance: F) -> [F; NUM_TOKENS] {
+    pub fn balances_from_native_balance(native_balance: F) -> [F; NUM_TOKENS] {
         let mut balances = [F::ZERO; NUM_TOKENS];
         balances[0] = native_balance;
         balances
     }
 }
 
-impl<F: FieldExt> NoteChip<F> {
-    pub fn new(poseidon: PoseidonChip<F>, advice_pool: ColumnPool<Advice>) -> Self {
+impl NoteChip {
+    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
         Self {
             poseidon,
             advice_pool,
@@ -70,9 +72,9 @@ impl<F: FieldExt> NoteChip<F> {
 
     fn assign_note_version(
         &self,
-        note: &Note<AssignedCell<F>>,
+        note: &Note<AssignedCell>,
         layouter: &mut impl Layouter<F>,
-    ) -> Result<AssignedCell<F>, Error> {
+    ) -> Result<AssignedCell, Error> {
         let note_version: F = note.version.as_field();
 
         layouter.assign_region(
@@ -93,8 +95,8 @@ impl<F: FieldExt> NoteChip<F> {
     pub fn note(
         &self,
         layouter: &mut impl Layouter<F>,
-        note: &Note<AssignedCell<F>>,
-    ) -> Result<AssignedCell<F>, Error> {
+        note: &Note<AssignedCell>,
+    ) -> Result<AssignedCell, Error> {
         let note_version = self.assign_note_version(note, layouter)?;
 
         let h_balance = BalancesChip::new(self.poseidon.clone(), self.advice_pool.clone())
@@ -119,11 +121,11 @@ impl<F: FieldExt> NoteChip<F> {
 /// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
 /// Converts a single native balance to a balance tuple with the remaining balances
 /// constrained to 0.
-pub fn balances_from_native_balance<F: FieldExt>(
-    native_balance: AssignedCell<F>,
+pub fn balances_from_native_balance(
+    native_balance: AssignedCell,
     layouter: &mut impl Layouter<F>,
     advice_pool: &ColumnPool<Advice>,
-) -> Result<[AssignedCell<F>; NUM_TOKENS], Error> {
+) -> Result<[AssignedCell; NUM_TOKENS], Error> {
     let zero_cell = layouter.assign_region(
         || "Balance placeholder (zero)",
         |mut region| {

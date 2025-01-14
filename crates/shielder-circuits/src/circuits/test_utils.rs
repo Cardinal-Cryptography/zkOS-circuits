@@ -17,8 +17,8 @@ use crate::{
     generate_proof, ProverKnowledge, PublicInputProvider,
 };
 
-pub trait PublicInputProviderExt<Id: IntoEnumIterator + EnumCount + PartialEq, F: Clone>:
-    PublicInputProvider<Id, F>
+pub trait PublicInputProviderExt<Id: IntoEnumIterator + EnumCount + PartialEq>:
+    PublicInputProvider<Id>
 {
     fn with_substitution(&self, id: Id, change: impl Fn(F) -> F) -> Vec<F> {
         Id::iter()
@@ -33,8 +33,8 @@ pub trait PublicInputProviderExt<Id: IntoEnumIterator + EnumCount + PartialEq, F
     }
 }
 
-impl<Id: IntoEnumIterator + EnumCount + PartialEq, F: Clone, PIP: PublicInputProvider<Id, F>>
-    PublicInputProviderExt<Id, F> for PIP
+impl<Id: IntoEnumIterator + EnumCount + PartialEq, PIP: PublicInputProvider<Id>>
+    PublicInputProviderExt<Id> for PIP
 {
 }
 
@@ -43,7 +43,7 @@ impl<Id: IntoEnumIterator + EnumCount + PartialEq, F: Clone, PIP: PublicInputPro
 ///  - running a mock prover,
 ///  - generating keys and proof,
 ///  - verifying the proof.
-pub fn run_full_pipeline<PK: ProverKnowledge<F>>() {
+pub fn run_full_pipeline<PK: ProverKnowledge>() {
     let mut rng = OsRng;
 
     let prover_knowledge = PK::random_correct_example(&mut rng);

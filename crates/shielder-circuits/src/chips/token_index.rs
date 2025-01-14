@@ -9,17 +9,17 @@ use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
     column_pool::ColumnPool, consts::NUM_TOKENS, instance_wrapper::InstanceWrapper, todo::Todo,
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
 
 pub mod off_circuit {
     use core::array;
 
-    use halo2_proofs::circuit::Value;
+    use halo2_proofs::{arithmetic::Field, circuit::Value};
 
-    use crate::{consts::NUM_TOKENS, FieldExt};
+    use crate::{consts::NUM_TOKENS, F};
 
-    pub fn index_from_indicators<F: FieldExt>(indicators: &[F; NUM_TOKENS]) -> F {
+    pub fn index_from_indicators(indicators: &[F; NUM_TOKENS]) -> F {
         // All `indicators` must be from {0, 1}.
         assert!(indicators.iter().all(|&x| x == F::ZERO || x == F::ONE));
         // Exactly one indicator must be equal to 1.
@@ -32,9 +32,7 @@ pub mod off_circuit {
         F::from(index as u64)
     }
 
-    pub fn index_from_indicator_values<F: FieldExt>(
-        indicators: &[Value<F>; NUM_TOKENS],
-    ) -> Value<F> {
+    pub fn index_from_indicator_values(indicators: &[Value<F>; NUM_TOKENS]) -> Value<F> {
         // All indicators must be from {0, 1}.
         for indicator in indicators.iter() {
             indicator.assert_if_known(|v| *v == F::ZERO || *v == F::ONE);
@@ -92,13 +90,10 @@ impl TokenIndexChip {
     /// Temporary hack: the function should apply a gate to produce the index from indicators,
     /// by the formula `index = 0 * indicators[0] + 1 * indicators[1] + 2 * indicators[2] + ...`,
     /// but for now it just produces a cell with an unconstrained value.
-    pub fn constrain_index<
-        F: FieldExt,
-        Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator,
-    >(
+    pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
         layouter: &mut impl Layouter<F>,
-        indicators: &[AssignedCell<F>; NUM_TOKENS],
+        indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {
         let values = array::from_fn(|i| indicators[i].value().cloned());
