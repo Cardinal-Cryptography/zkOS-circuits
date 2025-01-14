@@ -6,6 +6,8 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
+#[cfg(test)]
+use {crate::embed::Embed, crate::F, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
@@ -21,9 +23,17 @@ pub struct MembershipGate<const N: usize> {
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipGateInput<F: Field, const N: usize> {
-    pub needle: AssignedCell<F>,
-    pub haystack: [AssignedCell<F>; N],
+#[cfg_attr(
+    test,
+    embeddable(
+        receiver = "MembershipGateInput<F, N>",
+        impl_generics = "<const N: usize>",
+        embedded = "MembershipGateInput<AssignedCell<F>, N>"
+    )
+)]
+pub struct MembershipGateInput<T, const N: usize> {
+    pub needle: T,
+    pub haystack: [T; N],
 }
 
 const SELECTOR_OFFSET: usize = 0;
@@ -31,7 +41,7 @@ const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Membership gate";
 
 impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
-    type Input = MembershipGateInput<F, N>;
+    type Input = MembershipGateInput<AssignedCell<F>, N>;
     type Advices = (Column<Advice>, [Column<Advice>; N]);
 
     /// The gate operates on a single advice column `needle` and `N` advice columns `haystack`. It
@@ -110,8 +120,8 @@ impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
 mod tests {
     use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
-    use super::MembershipGate;
-    use crate::gates::Gate;
+    use super::{MembershipGate, MembershipGateInput};
+    use crate::gates::{test_utils::verify, Gate};
 
     #[test]
     fn gate_creation_with_proper_columns_passes() {
@@ -138,5 +148,33 @@ mod tests {
         let col_2 = cs.advice_column();
         let improper_advice = (col_1, [col_2, col_2]);
         MembershipGate::<2>::create_gate(&mut cs, improper_advice);
+    }
+
+    fn input(needle: impl Into<Fr>, [h0, h1]: [impl Into<Fr>; 2]) -> MembershipGateInput<Fr, 2> {
+        MembershipGateInput {
+            needle: needle.into(),
+            haystack: [h0.into(), h1.into()],
+        }
+    }
+
+    impl Default for MembershipGateInput<Fr, 2> {
+        fn default() -> Self {
+            Self {
+                needle: Fr::default(),
+                haystack: [Fr::default(), Fr::default()],
+            }
+        }
+    }
+
+    #[test]
+    fn simple_case_passes() {
+        assert!(verify::<MembershipGate<2>, _>(input(1, [2, 1])).is_ok());
+    }
+
+    #[test]
+    fn needle_is_not_in_haystack_fails() {
+        let err = verify::<MembershipGate<2>, _>(input(1, [2, 3])).expect_err("Should fail");
+        assert_eq!(err.len(), 1);
+        assert!(err[0].contains("Constraint 0 in gate 0 ('Membership gate') is not satisfied"));
     }
 }
