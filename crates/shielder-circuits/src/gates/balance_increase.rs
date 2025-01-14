@@ -123,6 +123,8 @@ mod tests {
         Constraint::from((Gate::from((0, "Balance increase gate")), 0, ""))
     }
 
+    // TODO: Replace with gates::test_utils::verify
+    // once https://github.com/Cardinal-Cryptography/zkOS-circuits/pull/28 is merged.
     fn verify(input: BalanceIncreaseGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<BalanceIncreaseGate, _>::new(input);
         MockProver::run(3, &circuit, vec![])
@@ -151,6 +153,7 @@ mod tests {
         })
         .expect_err("Verification should fail");
 
+        assert_eq!(errors.len(), 1);
         match &errors[0] {
             VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
                 assert_eq!(constraint, &failed_constraint())
@@ -169,6 +172,7 @@ mod tests {
         })
         .expect_err("Verification should fail");
 
+        assert_eq!(errors.len(), 1);
         match &errors[0] {
             VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
                 assert_eq!(constraint, &failed_constraint())
