@@ -1,11 +1,17 @@
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
+    dev::MockProver,
     plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
-use crate::{column_pool::ColumnPool, embed::Embed, gates::Gate, Field};
+use crate::{column_pool::ColumnPool, embed::Embed, gates::Gate, F};
 
 /// The minimal circuit that uses a single gate. It represents a single application of the gate to
 /// the input.
@@ -34,8 +40,8 @@ impl<Gate, Input> OneGateCircuit<Gate, Input> {
     }
 }
 
-impl<F: Field, G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default>
-    Circuit<F> for OneGateCircuit<G, Input>
+impl<G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default> Circuit<F>
+    for OneGateCircuit<G, Input>
 {
     type Config = (ColumnPool<Advice>, G);
     type FloorPlanner = V1;
@@ -64,4 +70,14 @@ impl<F: Field, G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::In
         let embedded_input = self.input.embed(&mut layouter, &advice_pool, "input")?;
         gate.apply_in_new_region(&mut layouter, embedded_input)
     }
+}
+
+pub fn verify<G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default>(
+    input: Input,
+) -> Result<(), Vec<String>> {
+    let circuit = OneGateCircuit::<G, Input>::new(input);
+    MockProver::run(4, &circuit, vec![])
+        .expect("Mock prover should run")
+        .verify()
+        .map_err(|v| v.into_iter().map(|e| e.to_string()).collect())
 }
