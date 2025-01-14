@@ -25,7 +25,6 @@ pub mod off_circuit {
     }
 }
 
-/// TODO: rename to `BalancesHashChip`.
 /// Chip used to hash balances
 #[derive(Clone, Debug)]
 pub struct BalancesChip<F: FieldExt> {
