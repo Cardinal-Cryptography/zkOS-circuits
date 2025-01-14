@@ -1,4 +1,7 @@
+use core::array;
+
 use halo2_proofs::{
+    arithmetic::Field,
     circuit::Layouter,
     plonk::{Advice, Error},
 };
@@ -6,11 +9,11 @@ use halo2_proofs::{
 use crate::{
     chips::balances::BalancesChip,
     column_pool::ColumnPool,
+    consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
     AssignedCell, F,
 };
-
 /// Chip that is able to calculate note hash
 #[derive(Clone, Debug)]
 pub struct NoteChip {
@@ -24,12 +27,16 @@ pub struct Note<T> {
     pub id: T,
     pub nullifier: T,
     pub trapdoor: T,
-    pub account_balance: T,
+    pub balances: [T; NUM_TOKENS],
 }
 
 pub mod off_circuit {
+
+    use halo2_proofs::arithmetic::Field;
+
     use crate::{
         chips::{balances::off_circuit::balances_hash, note::Note},
+        consts::NUM_TOKENS,
         poseidon::off_circuit::hash,
         F,
     };
@@ -40,10 +47,18 @@ pub mod off_circuit {
             note.id,
             note.nullifier,
             note.trapdoor,
-            balances_hash(note.account_balance),
+            balances_hash(note.balances),
         ];
 
         hash(&input)
+    }
+
+    /// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
+    /// Produces the balance shortlist tuple from a single native balance.
+    pub fn balances_from_native_balance(native_balance: F) -> [F; NUM_TOKENS] {
+        let mut balances = [F::ZERO; NUM_TOKENS];
+        balances[0] = native_balance;
+        balances
     }
 }
 
@@ -85,7 +100,7 @@ impl NoteChip {
         let note_version = self.assign_note_version(note, layouter)?;
 
         let h_balance = BalancesChip::new(self.poseidon.clone(), self.advice_pool.clone())
-            .hash_balances(layouter, &note.account_balance)?;
+            .hash_balances(layouter, &note.balances)?;
 
         let input = [
             note_version,
@@ -101,4 +116,33 @@ impl NoteChip {
             input,
         )
     }
+}
+
+/// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
+/// Converts a single native balance to a balance tuple with the remaining balances
+/// constrained to 0.
+pub fn balances_from_native_balance(
+    native_balance: AssignedCell,
+    layouter: &mut impl Layouter<F>,
+    advice_pool: &ColumnPool<Advice>,
+) -> Result<[AssignedCell; NUM_TOKENS], Error> {
+    let zero_cell = layouter.assign_region(
+        || "Balance placeholder (zero)",
+        |mut region| {
+            region.assign_advice_from_constant(
+                || "Balance placeholder (zero)",
+                advice_pool.get_any(),
+                0,
+                F::ZERO,
+            )
+        },
+    )?;
+
+    Ok(array::from_fn(|i| {
+        if i == 0 {
+            native_balance.clone()
+        } else {
+            zero_cell.clone()
+        }
+    }))
 }

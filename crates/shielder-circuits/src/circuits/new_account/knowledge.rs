@@ -3,6 +3,7 @@ use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
+    chips::note::off_circuit::balances_from_native_balance,
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
@@ -55,7 +56,7 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<F> {
                 id: self.id,
                 nullifier: self.nullifier,
                 trapdoor: self.trapdoor,
-                account_balance: self.initial_deposit,
+                balances: balances_from_native_balance(self.initial_deposit),
             }),
             NewAccountInstance::HashedId => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,

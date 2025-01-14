@@ -35,6 +35,7 @@ ignored = ["getrandom", "rayon"]
 [dev-dependencies]
 criterion = { workspace = true }
 halo2_proofs = { workspace = true, default-features = true }
+regex = { workspace = true }
 
 [[bench]]
 name = "benchmarks"

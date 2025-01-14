@@ -1,12 +1,18 @@
+use core::array;
+
 use halo2_proofs::circuit::Value;
 use macros::embeddable;
 use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
+    chips::{
+        balances_increase::off_circuit::increase_balances,
+        token_index::off_circuit::index_from_indicators,
+    },
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
-        NONCE_UPPER_LIMIT,
+        NONCE_UPPER_LIMIT, NUM_TOKENS,
     },
     deposit::{circuit::DepositCircuit, DepositInstance},
     embed::Embed,
@@ -33,7 +39,7 @@ pub struct DepositProverKnowledge<F> {
     pub id: F,
     pub nullifier_old: F,
     pub trapdoor_old: F,
-    pub account_old_balance: F,
+    pub balances_old: [F; NUM_TOKENS],
 
     // Merkle proof
     pub path: [[F; ARITY]; NOTE_TREE_HEIGHT],
@@ -42,18 +48,14 @@ pub struct DepositProverKnowledge<F> {
     pub nullifier_new: F,
     pub trapdoor_new: F,
 
-    // nonce for id_hiding
+    // `token_indicators[i] = 1` if token i is deposited, 0 otherwise.
+    // Exactly one entry is 1, the rest are 0.
+    pub token_indicators: [F; NUM_TOKENS],
+
+    // Nonce for id_hiding
     pub nonce: F,
 
     pub deposit_value: F,
-}
-
-impl DepositProverKnowledge<Value<F>> {
-    pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
-        IntermediateValues {
-            account_new_balance: self.account_old_balance + self.deposit_value,
-        }
-    }
 }
 
 impl ProverKnowledge for DepositProverKnowledge<F> {
@@ -61,32 +63,34 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
     type PublicInput = DepositInstance;
 
     /// Creates a random example with correct inputs. All values are random except for the deposit
-    /// amount and the old account balance, which are set to 1 and 9 respectively.
+    /// amount and the old account balances.
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
         let id = F::random(&mut *rng);
         let nonce = F::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
 
         let nullifier_old = F::random(&mut *rng);
         let trapdoor_old = F::random(&mut *rng);
-        let account_old_balance = F::from(9);
+        let balances_old = array::from_fn(|i| F::from((i + 10) as u64));
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
             nullifier: nullifier_old,
             trapdoor: trapdoor_old,
-            account_balance: account_old_balance,
+            balances: balances_old,
         });
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
+        let token_indicators = array::from_fn(|i| F::from((i == 0) as u64));
         Self {
             id,
             nonce,
             nullifier_old,
             trapdoor_old,
-            account_old_balance,
+            balances_old,
             path,
             nullifier_new: F::random(&mut *rng),
             trapdoor_new: F::random(rng),
             deposit_value: F::ONE,
+            token_indicators,
         }
     }
 
@@ -96,11 +100,12 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
             trapdoor_old: Value::known(self.trapdoor_old),
             nullifier_new: Value::known(self.nullifier_new),
             nullifier_old: Value::known(self.nullifier_old),
-            account_old_balance: Value::known(self.account_old_balance),
+            balances_old: self.balances_old.map(Value::known),
             id: Value::known(self.id),
             nonce: Value::known(self.nonce),
             path: self.path.map(|level| level.map(Value::known)),
             deposit_value: Value::known(self.deposit_value),
+            token_indicators: self.token_indicators.map(Value::known),
         })
     }
 }
@@ -116,21 +121,14 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<F> {
                 id: self.id,
                 nullifier: self.nullifier_new,
                 trapdoor: self.trapdoor_new,
-                account_balance: self.account_old_balance + self.deposit_value,
+                balances: increase_balances(
+                    &self.balances_old,
+                    &self.token_indicators,
+                    self.deposit_value,
+                ),
             }),
             DepositInstance::DepositValue => self.deposit_value,
+            DepositInstance::TokenIndex => index_from_indicators(&self.token_indicators),
         }
     }
-}
-
-/// Stores values that are a result of intermediate computations.
-#[derive(Clone, Debug, Default)]
-#[embeddable(
-    receiver = "IntermediateValues<Value<F>>",
-    impl_generics = "",
-    embedded = "IntermediateValues<crate::AssignedCell>"
-)]
-pub struct IntermediateValues<F> {
-    /// Account balance after the deposit is made.
-    pub account_new_balance: F,
 }

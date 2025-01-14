@@ -9,8 +9,10 @@ use halo2_proofs::{
 use crate::column_pool::ColumnPool;
 use crate::F;
 
+pub mod balance_increase;
 pub mod membership;
 pub mod sum;
+
 #[cfg(test)]
 mod test_utils;
 
