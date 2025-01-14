@@ -13,7 +13,6 @@ use crate::{
     circuits::{
         merkle::{MerkleChip, MerkleProverKnowledge},
         withdraw::knowledge::{IntermediateValues, WithdrawProverKnowledge},
-        FieldExt,
     },
     column_pool::ColumnPool,
     consts::RANGE_PROOF_NUM_WORDS,
@@ -26,24 +25,24 @@ use crate::{
         WithdrawConstraints::*,
         WithdrawInstance::{self, *},
     },
-    AssignedCell,
+    AssignedCell, F,
 };
 
 #[derive(Clone, Debug)]
-pub struct WithdrawChip<F: FieldExt> {
+pub struct WithdrawChip {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<WithdrawInstance>,
-    pub poseidon: PoseidonChip<F>,
-    pub merkle: MerkleChip<F>,
+    pub poseidon: PoseidonChip,
+    pub merkle: MerkleChip,
     pub range_check: RangeCheckChip,
     pub sum_chip: SumChip,
 }
 
-impl<F: FieldExt> WithdrawChip<F> {
+impl WithdrawChip {
     pub fn check_old_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let old_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
@@ -68,7 +67,7 @@ impl<F: FieldExt> WithdrawChip<F> {
     pub fn check_old_nullifier(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
@@ -86,7 +85,7 @@ impl<F: FieldExt> WithdrawChip<F> {
     pub fn check_id_hiding(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
@@ -101,17 +100,16 @@ impl<F: FieldExt> WithdrawChip<F> {
     pub fn check_new_note(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
-        intermediate_values: &IntermediateValues<AssignedCell<F>>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell>,
+        intermediate_values: &IntermediateValues<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let new_balance = intermediate_values.new_account_balance.clone();
 
-        self.range_check
-            .constrain_value::<RANGE_PROOF_NUM_WORDS, _>(
-                &mut layouter.namespace(|| "Range Check"),
-                new_balance.clone(),
-            )?;
+        self.range_check.constrain_value::<RANGE_PROOF_NUM_WORDS>(
+            &mut layouter.namespace(|| "Range Check"),
+            new_balance.clone(),
+        )?;
         todo.check_off(NewBalanceIsInRange)?;
 
         self.sum_chip.constrain_sum(
@@ -148,7 +146,7 @@ impl<F: FieldExt> WithdrawChip<F> {
     pub fn check_commitment(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &WithdrawProverKnowledge<AssignedCell<F>>,
+        knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         self.public_inputs

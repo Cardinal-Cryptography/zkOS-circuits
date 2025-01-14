@@ -2,11 +2,7 @@ use alloc::{vec, vec::Vec};
 
 use halo2_proofs::{
     dev::MockProver,
-    halo2curves::{
-        bn256::{Bn256, Fr, G1Affine},
-        ff::{FromUniformBytes, PrimeFieldBits},
-        serde::SerdeObject,
-    },
+    halo2curves::bn256::{Bn256, Fr, G1Affine},
     plonk::{create_proof, keygen_pk, keygen_vk_custom, verify_proof, Circuit, Error},
     poly::{
         commitment::Params as _,
@@ -31,11 +27,8 @@ pub mod withdraw;
 pub mod marshall;
 #[cfg(test)]
 mod test_utils;
-pub trait FieldExt: FromUniformBytes<64> + Ord + SerdeObject + PrimeFieldBits {}
 
-impl FieldExt for Fr {}
-
-pub type AssignedCell<F> = halo2_proofs::circuit::AssignedCell<F, F>;
+pub type AssignedCell = halo2_proofs::circuit::AssignedCell<F, F>;
 
 pub type Params = ParamsKZG<Bn256>;
 pub type ProvingKey = halo2_proofs::plonk::ProvingKey<G1Affine>;

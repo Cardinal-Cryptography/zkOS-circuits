@@ -16,7 +16,7 @@ use shielder_circuits::{
 static PARAMS: Lazy<Params> =
     Lazy::new(|| generate_setup_params(MAX_K, &mut StdRng::from_seed(Default::default())));
 
-fn measure_circuit<PK: ProverKnowledge<F>>(circuit_name: &str) {
+fn measure_circuit<PK: ProverKnowledge>(circuit_name: &str) {
     let values = PK::random_correct_example(&mut rand::thread_rng());
     let circuit = values.create_circuit();
     let (reduced_params, k, pk, vk) =

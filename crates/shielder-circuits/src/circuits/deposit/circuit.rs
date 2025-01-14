@@ -4,22 +4,20 @@ use halo2_proofs::{
 };
 
 use crate::{
-    circuits::{
-        deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
-        FieldExt,
-    },
+    circuits::deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
     config_builder::ConfigsBuilder,
     deposit::{DepositConstraints, DepositInstance},
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
+    F,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct DepositCircuit<F>(pub DepositProverKnowledge<Value<F>>);
+pub struct DepositCircuit(pub DepositProverKnowledge<Value<F>>);
 
-impl<F: FieldExt> Circuit<F> for DepositCircuit<F> {
-    type Config = DepositChip<F>;
+impl Circuit<F> for DepositCircuit {
+    type Config = DepositChip;
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
