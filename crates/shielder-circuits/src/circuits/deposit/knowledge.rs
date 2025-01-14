@@ -14,7 +14,7 @@ use crate::{
     note_hash,
     poseidon::off_circuit::hash,
     version::NOTE_VERSION,
-    FieldExt, Note, ProverKnowledge, PublicInputProvider,
+    Field, Note, ProverKnowledge, PublicInputProvider, F,
 };
 
 /// Stores values needed to compute example inputs for `DepositCircuit`. Provides a function
@@ -25,8 +25,8 @@ use crate::{
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "DepositProverKnowledge<Value<F>>",
-    impl_generics = "<F: FieldExt>",
-    embedded = "DepositProverKnowledge<crate::AssignedCell<F>>"
+    impl_generics = "",
+    embedded = "DepositProverKnowledge<crate::AssignedCell>"
 )]
 pub struct DepositProverKnowledge<F> {
     // Old note
@@ -48,7 +48,7 @@ pub struct DepositProverKnowledge<F> {
     pub deposit_value: F,
 }
 
-impl<F: FieldExt> DepositProverKnowledge<Value<F>> {
+impl DepositProverKnowledge<Value<F>> {
     pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
         IntermediateValues {
             account_new_balance: self.account_old_balance + self.deposit_value,
@@ -56,8 +56,8 @@ impl<F: FieldExt> DepositProverKnowledge<Value<F>> {
     }
 }
 
-impl<F: FieldExt> ProverKnowledge<F> for DepositProverKnowledge<F> {
-    type Circuit = DepositCircuit<F>;
+impl ProverKnowledge for DepositProverKnowledge<F> {
+    type Circuit = DepositCircuit;
     type PublicInput = DepositInstance;
 
     /// Creates a random example with correct inputs. All values are random except for the deposit
@@ -105,7 +105,7 @@ impl<F: FieldExt> ProverKnowledge<F> for DepositProverKnowledge<F> {
     }
 }
 
-impl<F: FieldExt> PublicInputProvider<DepositInstance, F> for DepositProverKnowledge<F> {
+impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<F> {
     fn compute_public_input(&self, instance_id: DepositInstance) -> F {
         match instance_id {
             DepositInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
@@ -127,8 +127,8 @@ impl<F: FieldExt> PublicInputProvider<DepositInstance, F> for DepositProverKnowl
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "IntermediateValues<Value<F>>",
-    impl_generics = "<F: FieldExt>",
-    embedded = "IntermediateValues<crate::AssignedCell<F>>"
+    impl_generics = "",
+    embedded = "IntermediateValues<crate::AssignedCell>"
 )]
 pub struct IntermediateValues<F> {
     /// Account balance after the deposit is made.

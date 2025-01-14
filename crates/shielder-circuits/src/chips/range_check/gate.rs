@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    consts::RANGE_PROOF_CHUNK_SIZE, gates::Gate, range_table::RangeTable, AssignedCell, FieldExt,
+    consts::RANGE_PROOF_CHUNK_SIZE, gates::Gate, range_table::RangeTable, AssignedCell, F,
 };
 
 /// Represents inequality: `base - shifted * 2^RANGE_PROOF_CHUNK_SIZE < 2^RANGE_PROOF_CHUNK_SIZE`.
@@ -20,14 +20,14 @@ pub struct RangeCheckGate {
 
 /// The values that are required to construct a range check gate. Pair `(base, shifted)` is expected
 /// to satisfy the inequality: `base - shifted * 2^CHUNK_SIZE < 2^CHUNK_SIZE`.
-pub type RangeCheckGateInput<F> = (AssignedCell<F>, AssignedCell<F>);
+pub type RangeCheckGateInput = (AssignedCell, AssignedCell);
 
 const GATE_NAME: &str = "Range check gate";
 const BASE_OFFSET: usize = 0;
 const SHIFTED_OFFSET: usize = 1;
 
-impl<F: FieldExt> Gate<F> for RangeCheckGate {
-    type Input = RangeCheckGateInput<F>;
+impl Gate for RangeCheckGate {
+    type Input = RangeCheckGateInput;
     type Advices = Column<Advice>;
 
     /// The gate operates on a single advice column `A` and a table `T`. It enforces that:
@@ -69,7 +69,7 @@ impl<F: FieldExt> Gate<F> for RangeCheckGate {
     fn apply_in_new_region(
         &self,
         layouter: &mut impl Layouter<F>,
-        (base, shifted): (AssignedCell<F>, AssignedCell<F>),
+        (base, shifted): (AssignedCell, AssignedCell),
     ) -> Result<(), Error> {
         self.table.ensure_initialized(layouter)?;
         layouter.assign_region(

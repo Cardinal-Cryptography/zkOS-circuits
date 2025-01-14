@@ -5,7 +5,7 @@ use halo2_proofs::{
 
 use crate::{
     chips::note::{Note, NoteChip},
-    circuits::{new_account::knowledge::NewAccountProverKnowledge, FieldExt},
+    circuits::new_account::knowledge::NewAccountProverKnowledge,
     column_pool::ColumnPool,
     instance_wrapper::InstanceWrapper,
     new_account::{
@@ -14,21 +14,21 @@ use crate::{
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
     version::NOTE_VERSION,
-    AssignedCell,
+    AssignedCell, F,
 };
 
 #[derive(Clone, Debug)]
-pub struct NewAccountChip<F: FieldExt> {
+pub struct NewAccountChip {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
-    pub poseidon: PoseidonChip<F>,
+    pub poseidon: PoseidonChip,
 }
 
-impl<F: FieldExt> NewAccountChip<F> {
+impl NewAccountChip {
     pub fn synthesize(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &NewAccountProverKnowledge<AssignedCell<F>>,
+        knowledge: &NewAccountProverKnowledge<AssignedCell>,
         todo: &mut Todo<NewAccountConstraints>,
     ) -> Result<(), Error> {
         let public_inputs = &self.public_inputs;

@@ -10,14 +10,14 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     todo::Todo,
     withdraw::{WithdrawConstraints, WithdrawInstance, WithdrawProverKnowledge},
-    FieldExt,
+    F,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct WithdrawCircuit<F>(pub WithdrawProverKnowledge<Value<F>>);
+pub struct WithdrawCircuit(pub WithdrawProverKnowledge<Value<F>>);
 
-impl<F: FieldExt> Circuit<F> for WithdrawCircuit<F> {
-    type Config = WithdrawChip<F>;
+impl Circuit<F> for WithdrawCircuit {
+    type Config = WithdrawChip;
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -221,7 +221,7 @@ mod tests {
         pk.withdrawal_value = -F::ONE;
 
         let params = generate_setup_params(MAX_K, &mut OsRng);
-        let (params, _, key, _) = generate_keys_with_min_k::<WithdrawCircuit<F>>(params).unwrap();
+        let (params, _, key, _) = generate_keys_with_min_k::<WithdrawCircuit>(params).unwrap();
         generate_proof(
             &params,
             &key,

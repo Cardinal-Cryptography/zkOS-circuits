@@ -8,14 +8,14 @@ use crate::{
     note_hash,
     poseidon::off_circuit::hash,
     version::NOTE_VERSION,
-    FieldExt, Note, ProverKnowledge, PublicInputProvider,
+    Field, Note, ProverKnowledge, PublicInputProvider, F,
 };
 
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "NewAccountProverKnowledge<Value<F>>",
-    impl_generics = "<F: FieldExt>",
-    embedded = "NewAccountProverKnowledge<crate::AssignedCell<F>>"
+    impl_generics = "",
+    embedded = "NewAccountProverKnowledge<crate::AssignedCell>"
 )]
 pub struct NewAccountProverKnowledge<T> {
     pub id: T,
@@ -24,8 +24,8 @@ pub struct NewAccountProverKnowledge<T> {
     pub initial_deposit: T,
 }
 
-impl<F: FieldExt> ProverKnowledge<F> for NewAccountProverKnowledge<F> {
-    type Circuit = NewAccountCircuit<F>;
+impl ProverKnowledge for NewAccountProverKnowledge<F> {
+    type Circuit = NewAccountCircuit;
     type PublicInput = NewAccountInstance;
 
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
@@ -47,7 +47,7 @@ impl<F: FieldExt> ProverKnowledge<F> for NewAccountProverKnowledge<F> {
     }
 }
 
-impl<F: FieldExt> PublicInputProvider<NewAccountInstance, F> for NewAccountProverKnowledge<F> {
+impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<F> {
     fn compute_public_input(&self, instance_id: NewAccountInstance) -> F {
         match instance_id {
             NewAccountInstance::HashedNote => note_hash(&Note {

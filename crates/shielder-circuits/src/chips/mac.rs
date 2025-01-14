@@ -2,7 +2,7 @@ use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use crate::{
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
 
 /// Input for MAC calculation.
@@ -23,10 +23,10 @@ pub mod off_circuit {
     use crate::{
         chips::mac::{Mac, MacInput},
         poseidon::off_circuit::hash,
-        FieldExt,
+        F,
     };
 
-    pub fn mac<F: FieldExt>(input: &MacInput<F>) -> Mac<F> {
+    pub fn mac(input: &MacInput<F>) -> Mac<F> {
         Mac {
             r: input.r,
             commitment: hash(&[input.r, input.key]),
@@ -38,13 +38,13 @@ pub mod off_circuit {
 ///
 /// Given a key `key` and a random value `r`, MAC is calculated as `(r, H(r, key))`.
 #[derive(Clone, Debug)]
-pub struct MacChip<F: FieldExt> {
-    poseidon: PoseidonChip<F>,
+pub struct MacChip {
+    poseidon: PoseidonChip,
 }
 
-impl<F: FieldExt> MacChip<F> {
+impl MacChip {
     /// Create a new `MacChip`.
-    pub fn new(poseidon: PoseidonChip<F>) -> Self {
+    pub fn new(poseidon: PoseidonChip) -> Self {
         Self { poseidon }
     }
 
@@ -52,8 +52,8 @@ impl<F: FieldExt> MacChip<F> {
     pub fn mac(
         &self,
         layouter: &mut impl Layouter<F>,
-        input: &MacInput<AssignedCell<F>>,
-    ) -> Result<Mac<AssignedCell<F>>, Error> {
+        input: &MacInput<AssignedCell>,
+    ) -> Result<Mac<AssignedCell>, Error> {
         let commitment = hash(
             &mut layouter.namespace(|| "MAC"),
             self.poseidon.clone(),
@@ -93,7 +93,7 @@ mod tests {
     struct MacCircuit(MacInput<F>);
 
     impl Circuit<F> for MacCircuit {
-        type Config = (ColumnPool<Advice>, MacChip<F>, Column<Instance>);
+        type Config = (ColumnPool<Advice>, MacChip, Column<Instance>);
         type FloorPlanner = V1;
 
         fn without_witnesses(&self) -> Self {

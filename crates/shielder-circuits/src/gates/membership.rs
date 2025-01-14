@@ -1,17 +1,16 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::Field,
     circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, crate::F, macros::embeddable};
+use {crate::embed::Embed, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell,
+    AssignedCell, F,
 };
 
 /// Represents the relation: `(needle - haystack_1) · … · (needle - haystack_N) = 0`.
@@ -28,7 +27,7 @@ pub struct MembershipGate<const N: usize> {
     embeddable(
         receiver = "MembershipGateInput<F, N>",
         impl_generics = "<const N: usize>",
-        embedded = "MembershipGateInput<AssignedCell<F>, N>"
+        embedded = "MembershipGateInput<AssignedCell, N>"
     )
 )]
 pub struct MembershipGateInput<T, const N: usize> {
@@ -40,8 +39,8 @@ const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "Membership gate";
 
-impl<F: Field, const N: usize> Gate<F> for MembershipGate<N> {
-    type Input = MembershipGateInput<AssignedCell<F>, N>;
+impl<const N: usize> Gate for MembershipGate<N> {
+    type Input = MembershipGateInput<AssignedCell, N>;
     type Advices = (Column<Advice>, [Column<Advice>; N]);
 
     /// The gate operates on a single advice column `needle` and `N` advice columns `haystack`. It

@@ -40,7 +40,7 @@ impl<Gate, Input> OneGateCircuit<Gate, Input> {
     }
 }
 
-impl<G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default> Circuit<F>
+impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Circuit<F>
     for OneGateCircuit<G, Input>
 {
     type Config = (ColumnPool<Advice>, G);
@@ -72,7 +72,7 @@ impl<G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Def
     }
 }
 
-pub fn verify<G: Gate<F> + Clone, Input: Embed<F, Embedded = <G as Gate<F>>::Input> + Default>(
+pub fn verify<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default>(
     input: Input,
 ) -> Result<(), Vec<String>> {
     let circuit = OneGateCircuit::<G, Input>::new(input);

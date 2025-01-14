@@ -9,14 +9,14 @@ use crate::{
     embed::Embed,
     merkle::{circuit::MerkleCircuit, MerkleInstance},
     poseidon::off_circuit::hash,
-    FieldExt, ProverKnowledge, PublicInputProvider,
+    Field, ProverKnowledge, PublicInputProvider, F,
 };
 
 #[derive(Clone, Debug)]
 #[embeddable(
     receiver = "MerkleProverKnowledge<TREE_HEIGHT, Value<F>>",
-    impl_generics = "<const TREE_HEIGHT: usize, F: FieldExt>",
-    embedded = "MerkleProverKnowledge<TREE_HEIGHT, crate::AssignedCell<F>>"
+    impl_generics = "<const TREE_HEIGHT: usize>",
+    embedded = "MerkleProverKnowledge<TREE_HEIGHT, crate::AssignedCell>"
 )]
 pub struct MerkleProverKnowledge<const TREE_HEIGHT: usize, T> {
     pub leaf: T,
@@ -43,10 +43,8 @@ impl<const TREE_HEIGHT: usize, T: Clone> MerkleProverKnowledge<TREE_HEIGHT, T> {
     }
 }
 
-impl<const TREE_HEIGHT: usize, F: FieldExt> ProverKnowledge<F>
-    for MerkleProverKnowledge<TREE_HEIGHT, F>
-{
-    type Circuit = MerkleCircuit<TREE_HEIGHT, F>;
+impl<const TREE_HEIGHT: usize> ProverKnowledge for MerkleProverKnowledge<TREE_HEIGHT, F> {
+    type Circuit = MerkleCircuit<TREE_HEIGHT>;
     type PublicInput = MerkleInstance;
 
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
@@ -57,7 +55,7 @@ impl<const TREE_HEIGHT: usize, F: FieldExt> ProverKnowledge<F>
         MerkleProverKnowledge::new(path[0][0], path)
     }
 
-    fn create_circuit(&self) -> MerkleCircuit<TREE_HEIGHT, F> {
+    fn create_circuit(&self) -> MerkleCircuit<TREE_HEIGHT> {
         MerkleCircuit(MerkleProverKnowledge {
             leaf: Value::known(self.leaf),
             path: self.path.map(|level| level.map(Value::known)),
@@ -65,7 +63,7 @@ impl<const TREE_HEIGHT: usize, F: FieldExt> ProverKnowledge<F>
     }
 }
 
-impl<const TREE_HEIGHT: usize, F: FieldExt> PublicInputProvider<MerkleInstance, F>
+impl<const TREE_HEIGHT: usize> PublicInputProvider<MerkleInstance>
     for MerkleProverKnowledge<TREE_HEIGHT, F>
 {
     fn compute_public_input(&self, instance_id: MerkleInstance) -> F {

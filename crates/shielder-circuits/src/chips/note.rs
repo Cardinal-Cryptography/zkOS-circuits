@@ -8,13 +8,13 @@ use crate::{
     column_pool::ColumnPool,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
 
 /// Chip that is able to calculate note hash
 #[derive(Clone, Debug)]
-pub struct NoteChip<F: FieldExt> {
-    poseidon: PoseidonChip<F>,
+pub struct NoteChip {
+    poseidon: PoseidonChip,
     advice_pool: ColumnPool<Advice>,
 }
 
@@ -31,10 +31,10 @@ pub mod off_circuit {
     use crate::{
         chips::{balances::off_circuit::balances_hash, note::Note},
         poseidon::off_circuit::hash,
-        FieldExt,
+        F,
     };
 
-    pub fn note_hash<F: FieldExt>(note: &Note<F>) -> F {
+    pub fn note_hash(note: &Note<F>) -> F {
         let input = [
             note.version.as_field(),
             note.id,
@@ -47,8 +47,8 @@ pub mod off_circuit {
     }
 }
 
-impl<F: FieldExt> NoteChip<F> {
-    pub fn new(poseidon: PoseidonChip<F>, advice_pool: ColumnPool<Advice>) -> Self {
+impl NoteChip {
+    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
         Self {
             poseidon,
             advice_pool,
@@ -57,9 +57,9 @@ impl<F: FieldExt> NoteChip<F> {
 
     fn assign_note_version(
         &self,
-        note: &Note<AssignedCell<F>>,
+        note: &Note<AssignedCell>,
         layouter: &mut impl Layouter<F>,
-    ) -> Result<AssignedCell<F>, Error> {
+    ) -> Result<AssignedCell, Error> {
         let note_version: F = note.version.as_field();
 
         layouter.assign_region(
@@ -80,8 +80,8 @@ impl<F: FieldExt> NoteChip<F> {
     pub fn note(
         &self,
         layouter: &mut impl Layouter<F>,
-        note: &Note<AssignedCell<F>>,
-    ) -> Result<AssignedCell<F>, Error> {
+        note: &Note<AssignedCell>,
+    ) -> Result<AssignedCell, Error> {
         let note_version = self.assign_note_version(note, layouter)?;
 
         let h_balance = BalancesChip::new(self.poseidon.clone(), self.advice_pool.clone())

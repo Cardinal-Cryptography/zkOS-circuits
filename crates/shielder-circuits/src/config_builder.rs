@@ -8,26 +8,26 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
     poseidon::{circuit::PoseidonChip, spec::PoseidonSpec},
-    FieldExt,
+    F,
 };
 
 pub struct Empty;
 pub struct With<T>(T);
 
 type WithSum = With<SumChip>;
-type WithMerkle<F> = With<MerkleChip<F>>;
-type WithPoseidon<F> = With<PoseidonChip<F>>;
+type WithMerkle = With<MerkleChip>;
+type WithPoseidon = With<PoseidonChip>;
 type WithRangeCheck = With<RangeCheckChip>;
 
-pub struct ConfigsBuilder<'cs, F: FieldExt, Poseidon, Merkle, Sum, RangeCheck> {
-    base_builder: BaseBuilder<'cs, F>,
+pub struct ConfigsBuilder<'cs, Poseidon, Merkle, Sum, RangeCheck> {
+    base_builder: BaseBuilder<'cs>,
     poseidon: Poseidon,
     merkle: Merkle,
     sum: Sum,
     range_check: RangeCheck,
 }
 
-impl<'cs, F: FieldExt> ConfigsBuilder<'cs, F, Empty, Empty, Empty, Empty> {
+impl<'cs> ConfigsBuilder<'cs, Empty, Empty, Empty, Empty> {
     pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
         Self {
             base_builder: BaseBuilder::new(system),
@@ -39,8 +39,8 @@ impl<'cs, F: FieldExt> ConfigsBuilder<'cs, F, Empty, Empty, Empty, Empty> {
     }
 }
 
-impl<'cs, F: FieldExt, Poseidon> ConfigsBuilder<'cs, F, Poseidon, Empty, Empty, Empty> {
-    pub fn sum(mut self) -> ConfigsBuilder<'cs, F, Poseidon, Empty, WithSum, Empty> {
+impl<'cs, Poseidon> ConfigsBuilder<'cs, Poseidon, Empty, Empty, Empty> {
+    pub fn sum(mut self) -> ConfigsBuilder<'cs, Poseidon, Empty, WithSum, Empty> {
         let advice_pool = self.base_builder.advice_pool_with_capacity(3);
         let gate_advice = advice_pool.get_array();
         let advice = advice_pool.get_any();
@@ -61,8 +61,8 @@ impl<'cs, F: FieldExt, Poseidon> ConfigsBuilder<'cs, F, Poseidon, Empty, Empty, 
     }
 }
 
-impl<'cs, F: FieldExt, Sum> ConfigsBuilder<'cs, F, Empty, Empty, Sum, Empty> {
-    pub fn poseidon(mut self) -> ConfigsBuilder<'cs, F, WithPoseidon<F>, Empty, Sum, Empty> {
+impl<'cs, Sum> ConfigsBuilder<'cs, Empty, Empty, Sum, Empty> {
+    pub fn poseidon(mut self) -> ConfigsBuilder<'cs, WithPoseidon, Empty, Sum, Empty> {
         let advice_pool = self.base_builder.advice_pool_with_capacity(WIDTH + 1);
         let advice_array = advice_pool.get_array::<WIDTH>();
         let advice = advice_pool.get(WIDTH);
@@ -88,11 +88,11 @@ impl<'cs, F: FieldExt, Sum> ConfigsBuilder<'cs, F, Empty, Empty, Sum, Empty> {
     }
 }
 
-impl<'cs, F: FieldExt, Sum> ConfigsBuilder<'cs, F, WithPoseidon<F>, Empty, Sum, Empty> {
+impl<'cs, Sum> ConfigsBuilder<'cs, WithPoseidon, Empty, Sum, Empty> {
     pub fn merkle(
         mut self,
         public_inputs: InstanceWrapper<MerkleInstance>,
-    ) -> ConfigsBuilder<'cs, F, WithPoseidon<F>, WithMerkle<F>, Sum, Empty> {
+    ) -> ConfigsBuilder<'cs, WithPoseidon, WithMerkle, Sum, Empty> {
         let advice_pool = self
             .base_builder
             .advice_pool_with_capacity(ARITY + 1)
@@ -102,7 +102,7 @@ impl<'cs, F: FieldExt, Sum> ConfigsBuilder<'cs, F, WithPoseidon<F>, Empty, Sum, 
         let advice_path = advice_pool.get_array::<ARITY>();
 
         let system = &mut self.base_builder.system;
-        let merkle = MerkleChip::<F> {
+        let merkle = MerkleChip {
             membership_gate: MembershipGate::create_gate(system, (needle, advice_path)),
             advice_pool,
             public_inputs,
@@ -119,12 +119,8 @@ impl<'cs, F: FieldExt, Sum> ConfigsBuilder<'cs, F, WithPoseidon<F>, Empty, Sum, 
     }
 }
 
-impl<'cs, F: FieldExt, Poseidon, Merkle, RangeCheck>
-    ConfigsBuilder<'cs, F, Poseidon, Merkle, WithSum, RangeCheck>
-{
-    pub fn range_check(
-        mut self,
-    ) -> ConfigsBuilder<'cs, F, Poseidon, Merkle, WithSum, WithRangeCheck> {
+impl<'cs, Poseidon, Merkle, RangeCheck> ConfigsBuilder<'cs, Poseidon, Merkle, WithSum, RangeCheck> {
+    pub fn range_check(mut self) -> ConfigsBuilder<'cs, Poseidon, Merkle, WithSum, WithRangeCheck> {
         let system = &mut self.base_builder.system;
         self.base_builder.advice_pool.ensure_capacity(system, 1);
         let advice_pool = self.base_builder.advice_pool.clone();
@@ -141,18 +137,14 @@ impl<'cs, F: FieldExt, Poseidon, Merkle, RangeCheck>
     }
 }
 
-impl<'cs, F: FieldExt, Poseidon, Merkle, Sum>
-    ConfigsBuilder<'cs, F, Poseidon, Merkle, Sum, WithRangeCheck>
-{
+impl<'cs, Poseidon, Merkle, Sum> ConfigsBuilder<'cs, Poseidon, Merkle, Sum, WithRangeCheck> {
     pub fn resolve_range_check(&self) -> RangeCheckChip {
         self.range_check.0.clone()
     }
 }
 
-impl<'cs, F: FieldExt, Merkle, Sum, RangeCheck>
-    ConfigsBuilder<'cs, F, WithPoseidon<F>, Merkle, Sum, RangeCheck>
-{
-    pub fn resolve_poseidon(&self) -> (ColumnPool<Advice>, PoseidonChip<F>) {
+impl<'cs, Merkle, Sum, RangeCheck> ConfigsBuilder<'cs, WithPoseidon, Merkle, Sum, RangeCheck> {
+    pub fn resolve_poseidon(&self) -> (ColumnPool<Advice>, PoseidonChip) {
         (
             self.base_builder.advice_pool.clone(),
             self.poseidon.0.clone(),
@@ -160,10 +152,8 @@ impl<'cs, F: FieldExt, Merkle, Sum, RangeCheck>
     }
 }
 
-impl<'cs, F: FieldExt, Sum, RangeCheck>
-    ConfigsBuilder<'cs, F, WithPoseidon<F>, WithMerkle<F>, Sum, RangeCheck>
-{
-    pub fn resolve_merkle(&self) -> (ColumnPool<Advice>, PoseidonChip<F>, MerkleChip<F>) {
+impl<'cs, Sum, RangeCheck> ConfigsBuilder<'cs, WithPoseidon, WithMerkle, Sum, RangeCheck> {
+    pub fn resolve_merkle(&self) -> (ColumnPool<Advice>, PoseidonChip, MerkleChip) {
         (
             self.base_builder.advice_pool.clone(),
             self.poseidon.0.clone(),
@@ -172,21 +162,19 @@ impl<'cs, F: FieldExt, Sum, RangeCheck>
     }
 }
 
-impl<'cs, F: FieldExt, Poseidon, Merkle, RangeCheck>
-    ConfigsBuilder<'cs, F, Poseidon, Merkle, WithSum, RangeCheck>
-{
+impl<'cs, Poseidon, Merkle, RangeCheck> ConfigsBuilder<'cs, Poseidon, Merkle, WithSum, RangeCheck> {
     pub fn resolve_sum_chip(&self) -> (ColumnPool<Advice>, SumChip) {
         (self.base_builder.advice_pool.clone(), self.sum.0.clone())
     }
 }
 
-struct BaseBuilder<'cs, F: FieldExt> {
+struct BaseBuilder<'cs> {
     system: &'cs mut ConstraintSystem<F>,
     advice_pool: ColumnPool<Advice>,
     fixed_pool: ColumnPool<Fixed>,
 }
 
-impl<'cs, F: FieldExt> BaseBuilder<'cs, F> {
+impl<'cs> BaseBuilder<'cs> {
     pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
         Self {
             advice_pool: ColumnPool::<Advice>::new(),
