@@ -59,6 +59,7 @@ impl<F: FieldExt> BalancesChip<F> {
             },
         )?;
 
+        static_assertions::const_assert!(NUM_TOKENS <= POSEIDON_RATE);
         let hash_input: [AssignedCell<F>; POSEIDON_RATE] = array::from_fn(|i| {
             if i < NUM_TOKENS {
                 balances[i].clone()

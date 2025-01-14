@@ -16,7 +16,6 @@ mod instance_wrapper;
 pub mod poseidon;
 mod range_table;
 mod todo;
-mod utils;
 mod version;
 
 use alloc::{fmt::Debug, vec::Vec};

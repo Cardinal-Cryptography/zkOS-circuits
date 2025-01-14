@@ -1,7 +1,8 @@
 use alloc::{vec, vec::Vec};
+use core::array;
 
 use halo2_proofs::{
-    circuit::Layouter,
+    circuit::{Layouter, Value},
     plonk::{Advice, Error},
 };
 
@@ -12,7 +13,6 @@ use crate::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
         Gate,
     },
-    utils::values_from_cell_array,
     AssignedCell, FieldExt,
 };
 
@@ -25,11 +25,11 @@ pub mod off_circuit {
     use crate::consts::NUM_TOKENS;
 
     /// Computes new balances. Works for both `F` and `Value<F>`.
-    pub fn increase_balances<F: Add<Output = F> + Mul<Output = F> + Clone>(
-        balances_old: &[F; NUM_TOKENS],
-        token_indicators: &[F; NUM_TOKENS],
-        increase_value: F,
-    ) -> [F; NUM_TOKENS] {
+    pub fn increase_balances<T: Add<Output = T> + Mul<Output = T> + Clone>(
+        balances_old: &[T; NUM_TOKENS],
+        token_indicators: &[T; NUM_TOKENS],
+        increase_value: T,
+    ) -> [T; NUM_TOKENS] {
         array::from_fn(|i| {
             balances_old[i].clone() + token_indicators[i].clone() * increase_value.clone()
         })
@@ -40,6 +40,12 @@ pub mod off_circuit {
 pub struct BalancesIncreaseChip {
     pub gate: BalanceIncreaseGate,
     pub advice_pool: ColumnPool<Advice>,
+}
+
+fn values_from_cell_array<F: FieldExt, const N: usize>(
+    cell_array: &[AssignedCell<F>; N],
+) -> [Value<F>; N] {
+    array::from_fn(|i| cell_array[i].value().copied())
 }
 
 impl BalancesIncreaseChip {
@@ -84,6 +90,6 @@ impl BalancesIncreaseChip {
             };
             self.gate.apply_in_new_region(layouter, gate_input)?;
         }
-        Ok(balances_new.try_into().expect(""))
+        Ok(balances_new.try_into().expect("length must agree"))
     }
 }

@@ -158,6 +158,6 @@ pub fn expect_instance_permutation_failures(
             _ => panic!("Unexpected failure type"),
         }
     }
-    assert!(matched_advice);
-    assert!(matched_instance);
+    assert!(matched_advice, "Advice failure not found");
+    assert!(matched_instance, "Instance failure not found");
 }

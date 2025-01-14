@@ -5,7 +5,10 @@ use crate::{
     column_pool::ColumnPool,
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
-        balance_increase::BalanceIncreaseGate, membership::MembershipGate, sum::SumGate, Gate,
+        balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
+        membership::MembershipGate,
+        sum::SumGate,
+        Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -49,11 +52,19 @@ impl<'cs, F: FieldExt> ConfigsBuilder<'cs, F, Empty, Empty, Empty, Empty, Empty>
         mut self,
     ) -> ConfigsBuilder<'cs, F, Empty, Empty, WithBalancesIncrease, Empty, Empty> {
         let advice_pool = self.base_builder.advice_pool_with_capacity(4).clone();
-        let gate_advice = advice_pool.get_array();
+        let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
         let system = &mut self.base_builder.system;
 
         let balances_increase = BalancesIncreaseChip {
-            gate: BalanceIncreaseGate::create_gate(system, gate_advice),
+            gate: BalanceIncreaseGate::create_gate(
+                system,
+                BalanceIncreaseGateAdvices {
+                    balance_old: gate_advice[0],
+                    increase_value: gate_advice[1],
+                    token_indicator: gate_advice[2],
+                    balance_new: gate_advice[3],
+                },
+            ),
             advice_pool,
         };
 

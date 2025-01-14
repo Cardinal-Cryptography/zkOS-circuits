@@ -1,4 +1,4 @@
-use core::{array, marker::PhantomData};
+use core::array;
 
 use halo2_proofs::{
     circuit::Layouter,
@@ -73,13 +73,12 @@ pub enum TokenIndexConstraints {
 // TODO: Constrain that exactly one indicator has value 1.
 // A chip that manages the token index indicator variables and related constraints.
 #[derive(Clone, Debug)]
-pub struct TokenIndexChip<F: FieldExt> {
+pub struct TokenIndexChip {
     advice_pool: ColumnPool<Advice>,
     public_inputs: InstanceWrapper<TokenIndexInstance>,
-    _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> TokenIndexChip<F> {
+impl TokenIndexChip {
     pub fn new(
         advice_pool: ColumnPool<Advice>,
         public_inputs: InstanceWrapper<TokenIndexInstance>,
@@ -87,14 +86,16 @@ impl<F: FieldExt> TokenIndexChip<F> {
         Self {
             advice_pool,
             public_inputs,
-            _marker: PhantomData,
         }
     }
 
     /// Temporary hack: the function should apply a gate to produce the index from indicators,
     /// by the formula `index = 0 * indicators[0] + 1 * indicators[1] + 2 * indicators[2] + ...`,
     /// but for now it just produces a cell with an unconstrained value.
-    pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
+    pub fn constrain_index<
+        F: FieldExt,
+        Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator,
+    >(
         &self,
         layouter: &mut impl Layouter<F>,
         indicators: &[AssignedCell<F>; NUM_TOKENS],

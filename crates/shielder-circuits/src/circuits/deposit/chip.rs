@@ -37,7 +37,7 @@ pub struct DepositChip<F: FieldExt> {
     pub range_check: RangeCheckChip,
     pub merkle: MerkleChip<F>,
     pub balances_increase: BalancesIncreaseChip,
-    pub token_index: TokenIndexChip<F>,
+    pub token_index: TokenIndexChip,
 }
 
 impl<F: FieldExt> DepositChip<F> {

@@ -39,5 +39,4 @@ pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
 
 // Number of tokens supported via shortlist, including AZERO.
 // Required to be a multiple of `POSEIDON_RATE - 1`.
-// Temporarily, we only support hashing of tuples of length `NUM_TOKENS = POSEIDON_RATE - 1 = 6`.
 pub const NUM_TOKENS: usize = POSEIDON_RATE - 1;
