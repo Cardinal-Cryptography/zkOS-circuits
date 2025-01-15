@@ -16,7 +16,7 @@ const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 
 /// Chip that is able to calculate the shortlist hash
 #[derive(Clone, Debug)]
-pub struct ShortlistChip<const N: usize> {
+pub struct ShortlistHashChip<const N: usize> {
     poseidon: PoseidonChip,
     advice_pool: ColumnPool<Advice>,
 }
@@ -46,8 +46,8 @@ impl<const N: usize> Default for Shortlist<F, N> {
 }
 
 pub mod off_circuit {
-    use super::CHUNK_SIZE;
-    use crate::{chips::shortlist::Shortlist, poseidon::off_circuit::hash, F};
+    use super::{Shortlist, CHUNK_SIZE};
+    use crate::{poseidon::off_circuit::hash, F};
 
     #[allow(dead_code)]
     pub fn shortlist_hash<const N: usize>(shortlist: &Shortlist<F, N>) -> F {
@@ -66,7 +66,7 @@ pub mod off_circuit {
     }
 }
 
-impl<const N: usize> ShortlistChip<N> {
+impl<const N: usize> ShortlistHashChip<N> {
     pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
         Self {
             poseidon,
@@ -76,7 +76,7 @@ impl<const N: usize> ShortlistChip<N> {
 
     /// Calculate the shortlist hash by chunking the shortlist by POSEIDON_RATE - 1
     /// and chaining the hashes together.
-    pub fn shortlist(
+    pub fn shortlist_hash(
         &self,
         layouter: &mut impl Layouter<F>,
         shortlist: &Shortlist<AssignedCell, N>,
@@ -130,7 +130,7 @@ mod test {
     struct ShortlistCircuit<const N: usize>(Shortlist<F, N>);
 
     impl<const N: usize> Circuit<F> for ShortlistCircuit<N> {
-        type Config = (ColumnPool<Advice>, ShortlistChip<N>, Column<Instance>);
+        type Config = (ColumnPool<Advice>, ShortlistHashChip<N>, Column<Instance>);
         type FloorPlanner = V1;
 
         fn configure(meta: &mut halo2_proofs::plonk::ConstraintSystem<F>) -> Self::Config {
@@ -140,7 +140,7 @@ mod test {
             // Register Poseidon.
             let (pool, poseidon) = ConfigsBuilder::new(meta).poseidon().resolve_poseidon();
             // Create Shortlist chip.
-            let chip = ShortlistChip::new(poseidon, pool.clone());
+            let chip = ShortlistHashChip::new(poseidon, pool.clone());
 
             (pool, chip, instance)
         }
@@ -160,7 +160,7 @@ mod test {
                 .items
                 .map(|balance| balance.embed(&mut layouter, &pool, "balance").unwrap());
             let shortlist = Shortlist { items };
-            let embedded_hash = chip.shortlist(&mut layouter, &shortlist)?;
+            let embedded_hash = chip.shortlist_hash(&mut layouter, &shortlist)?;
 
             // 2. Compare hash with public input.
             layouter.constrain_instance(embedded_hash.cell(), instance, 0)
