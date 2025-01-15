@@ -124,7 +124,7 @@ mod test {
     };
 
     use super::*;
-    use crate::{config_builder::ConfigsBuilder, embed::Embed, F};
+    use crate::{config_builder::ConfigsBuilder, embed::Embed, poseidon, F};
 
     #[derive(Clone, Debug, Default)]
     struct ShortlistCircuit<const N: usize>(Shortlist<F, N>);
@@ -168,10 +168,21 @@ mod test {
     }
 
     #[test]
-    fn test_hash_compatibility() {
-        let input: Shortlist<_, 12> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
-        let expected_hash = off_circuit::shortlist_hash(&input);
+    fn test_hash_compatibility_chained() {
+        test_hash_compatibility(Shortlist::<F, 12>::new(array::from_fn(|i| {
+            (i as u64).into()
+        })));
+    }
 
+    #[test]
+    fn test_hash_compatibility_single_chunk() {
+        test_hash_compatibility(Shortlist::<F, 6>::new(array::from_fn(|i| {
+            (i as u64).into()
+        })));
+    }
+
+    fn test_hash_compatibility<const N: usize>(input: Shortlist<F, N>) {
+        let expected_hash = off_circuit::shortlist_hash(&input);
         let result = MockProver::run(7, &ShortlistCircuit(input), vec![vec![expected_hash]])
             .expect("Mock prover should run successfully")
             .verify();
@@ -183,7 +194,7 @@ mod test {
     fn test_chained_hash() {
         let input: Shortlist<F, 12> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
 
-        let hash_chunk_2 = crate::poseidon::off_circuit::hash(&[
+        let hash_chunk_2 = poseidon::off_circuit::hash(&[
             F::from(6),
             F::from(7),
             F::from(8),
@@ -200,6 +211,23 @@ mod test {
             F::from(4),
             F::from(5),
             hash_chunk_2,
+        ]);
+
+        assert!(expected_hash == off_circuit::shortlist_hash(&input));
+    }
+
+    #[test]
+    fn test_single_chunk_hash() {
+        let input: Shortlist<F, 6> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
+
+        let expected_hash = crate::poseidon::off_circuit::hash(&[
+            F::from(0),
+            F::from(1),
+            F::from(2),
+            F::from(3),
+            F::from(4),
+            F::from(5),
+            F::zero(),
         ]);
 
         assert!(expected_hash == off_circuit::shortlist_hash(&input));
