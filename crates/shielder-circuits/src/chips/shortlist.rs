@@ -9,7 +9,7 @@ use crate::{
     column_pool::ColumnPool,
     consts::POSEIDON_RATE,
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
 
 struct AssertShortlistSizeCorrect<const N: usize>;
@@ -23,8 +23,8 @@ impl<const N: usize> AssertShortlistSizeCorrect<N> {
 
 /// Chip that is able to calculate the shortlist hash
 #[derive(Clone, Debug)]
-pub struct ShortlistChip<F: FieldExt, const N: usize> {
-    poseidon: PoseidonChip<F>,
+pub struct ShortlistChip<const N: usize> {
+    poseidon: PoseidonChip,
     advice_pool: ColumnPool<Advice>,
 }
 
@@ -36,7 +36,7 @@ pub struct Shortlist<F, const N: usize> {
     pub items: [F; N],
 }
 
-impl<F: Default, const N: usize> Default for Shortlist<F, N> {
+impl<const N: usize> Default for Shortlist<F, N> {
     fn default() -> Self {
         Self {
             items: array::from_fn(|_| F::default()),
@@ -49,15 +49,15 @@ pub mod off_circuit {
         chips::shortlist::{AssertShortlistSizeCorrect, Shortlist},
         consts::POSEIDON_RATE,
         poseidon::off_circuit::hash,
-        FieldExt,
+        F,
     };
 
     #[allow(dead_code)]
-    pub fn shortlist_hash<F: FieldExt, const N: usize>(shortlist: &Shortlist<F, N>) -> F {
+    pub fn shortlist_hash<const N: usize>(shortlist: &Shortlist<F, N>) -> F {
         let () = AssertShortlistSizeCorrect::<N>::OK;
 
-        let mut last = F::ZERO;
-        let mut input = [F::ZERO; POSEIDON_RATE];
+        let mut last = F::zero();
+        let mut input = [F::zero(); POSEIDON_RATE];
         let items = &shortlist.items[..];
 
         for chunk in items.chunks(POSEIDON_RATE - 1).rev() {
@@ -71,8 +71,8 @@ pub mod off_circuit {
     }
 }
 
-impl<F: FieldExt, const N: usize> ShortlistChip<F, N> {
-    pub fn new(poseidon: PoseidonChip<F>, advice_pool: ColumnPool<Advice>) -> Self {
+impl<const N: usize> ShortlistChip<N> {
+    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
         Self {
             poseidon,
             advice_pool,
@@ -84,8 +84,8 @@ impl<F: FieldExt, const N: usize> ShortlistChip<F, N> {
     pub fn shortlist(
         &self,
         layouter: &mut impl Layouter<F>,
-        shortlist: &Shortlist<AssignedCell<F>, N>,
-    ) -> Result<AssignedCell<F>, Error> {
+        shortlist: &Shortlist<AssignedCell, N>,
+    ) -> Result<AssignedCell, Error> {
         let () = AssertShortlistSizeCorrect::<N>::OK;
 
         let zero_cell = layouter.assign_region(
@@ -95,7 +95,7 @@ impl<F: FieldExt, const N: usize> ShortlistChip<F, N> {
                     || "Shortlist placeholder (zero)",
                     self.advice_pool.get_any(),
                     0,
-                    F::ZERO,
+                    F::zero(),
                 )
             },
         )?;
@@ -104,7 +104,7 @@ impl<F: FieldExt, const N: usize> ShortlistChip<F, N> {
         let items = &shortlist.items[..];
 
         for chunk in items.chunks(POSEIDON_RATE - 1).rev() {
-            let mut input: [AssignedCell<F>; POSEIDON_RATE] = array::from_fn(|_| zero_cell.clone());
+            let mut input: [AssignedCell; POSEIDON_RATE] = array::from_fn(|_| zero_cell.clone());
             let size = input.len() - 1;
             input[size] = last;
             input[0..size].clone_from_slice(chunk);
@@ -140,7 +140,7 @@ mod test {
     struct ShortlistCircuit<const N: usize>(Shortlist<F, N>);
 
     impl<const N: usize> Circuit<F> for ShortlistCircuit<N> {
-        type Config = (ColumnPool<Advice>, ShortlistChip<F, N>, Column<Instance>);
+        type Config = (ColumnPool<Advice>, ShortlistChip<N>, Column<Instance>);
         type FloorPlanner = V1;
 
         fn configure(meta: &mut halo2_proofs::plonk::ConstraintSystem<F>) -> Self::Config {
@@ -165,7 +165,7 @@ mod test {
             mut layouter: impl Layouter<F>,
         ) -> Result<(), Error> {
             // 1. Embed shortlist items and hash.
-            let items: [AssignedCell<F>; N] = self
+            let items: [AssignedCell; N] = self
                 .0
                 .items
                 .map(|balance| balance.embed(&mut layouter, &pool, "balance").unwrap());
