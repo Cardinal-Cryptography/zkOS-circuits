@@ -10,6 +10,7 @@ use crate::column_pool::ColumnPool;
 use crate::Field;
 
 pub mod membership;
+pub mod point_add;
 pub mod sum;
 #[cfg(test)]
 mod test_utils;
