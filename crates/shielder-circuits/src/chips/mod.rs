@@ -1,5 +1,3 @@
-// !#[feature(generic_const_exprs)]
-
 pub mod balances;
 pub mod balances_increase;
 pub mod id_hiding;

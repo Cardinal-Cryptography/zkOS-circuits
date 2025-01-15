@@ -12,14 +12,7 @@ use crate::{
     AssignedCell, F,
 };
 
-struct AssertShortlistSizeCorrect<const N: usize>;
-
-impl<const N: usize> AssertShortlistSizeCorrect<N> {
-    const OK: () = assert!(
-        N > 0 && N % (POSEIDON_RATE - 1) == 0,
-        "Invalid compile time constants - N must be positive and divisible by POSEIDON_RATE - 1"
-    );
-}
+const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 
 /// Chip that is able to calculate the shortlist hash
 #[derive(Clone, Debug)]
@@ -36,6 +29,14 @@ pub struct Shortlist<F, const N: usize> {
     pub items: [F; N],
 }
 
+impl<const N: usize> Shortlist<F, N> {
+    #[allow(dead_code)]
+    fn new(items: [F; N]) -> Self {
+        const { assert!(N > 0 && N % CHUNK_SIZE == 0) };
+        Self { items }
+    }
+}
+
 impl<const N: usize> Default for Shortlist<F, N> {
     fn default() -> Self {
         Self {
@@ -45,22 +46,16 @@ impl<const N: usize> Default for Shortlist<F, N> {
 }
 
 pub mod off_circuit {
-    use crate::{
-        chips::shortlist::{AssertShortlistSizeCorrect, Shortlist},
-        consts::POSEIDON_RATE,
-        poseidon::off_circuit::hash,
-        F,
-    };
+    use super::CHUNK_SIZE;
+    use crate::{chips::shortlist::Shortlist, poseidon::off_circuit::hash, F};
 
     #[allow(dead_code)]
     pub fn shortlist_hash<const N: usize>(shortlist: &Shortlist<F, N>) -> F {
-        let () = AssertShortlistSizeCorrect::<N>::OK;
-
         let mut last = F::zero();
-        let mut input = [F::zero(); POSEIDON_RATE];
+        let mut input = [F::zero(); CHUNK_SIZE + 1];
         let items = &shortlist.items[..];
 
-        for chunk in items.chunks(POSEIDON_RATE - 1).rev() {
+        for chunk in items.chunks(CHUNK_SIZE).rev() {
             let size = input.len() - 1;
             input[size] = last;
             input[0..size].copy_from_slice(chunk);
@@ -86,8 +81,6 @@ impl<const N: usize> ShortlistChip<N> {
         layouter: &mut impl Layouter<F>,
         shortlist: &Shortlist<AssignedCell, N>,
     ) -> Result<AssignedCell, Error> {
-        let () = AssertShortlistSizeCorrect::<N>::OK;
-
         let zero_cell = layouter.assign_region(
             || "Shortlist placeholder (zero)",
             |mut region| {
@@ -103,8 +96,8 @@ impl<const N: usize> ShortlistChip<N> {
         let mut last = zero_cell.clone();
         let items = &shortlist.items[..];
 
-        for chunk in items.chunks(POSEIDON_RATE - 1).rev() {
-            let mut input: [AssignedCell; POSEIDON_RATE] = array::from_fn(|_| zero_cell.clone());
+        for chunk in items.chunks(CHUNK_SIZE).rev() {
+            let mut input: [AssignedCell; CHUNK_SIZE + 1] = array::from_fn(|_| zero_cell.clone());
             let size = input.len() - 1;
             input[size] = last;
             input[0..size].clone_from_slice(chunk);
@@ -121,12 +114,9 @@ impl<const N: usize> ShortlistChip<N> {
 
 #[cfg(test)]
 mod test {
-    use std::{
-        string::{String, ToString},
-        vec,
-        vec::Vec,
-    };
+    use std::vec;
 
+    use assert2::assert;
     use halo2_proofs::{
         circuit::floor_planner::V1,
         dev::MockProver,
@@ -178,30 +168,22 @@ mod test {
     }
 
     #[test]
-    fn test_hash_compatibility() -> Result<(), Vec<String>> {
-        let input: Shortlist<_, 12> = Shortlist {
-            items: array::from_fn(|i| (i as u64).into()),
-        };
+    fn test_hash_compatibility() {
+        let input: Shortlist<_, 12> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
         let expected_hash = off_circuit::shortlist_hash(&input);
 
-        MockProver::run(21, &ShortlistCircuit(input), vec![vec![expected_hash]])
+        let result = MockProver::run(7, &ShortlistCircuit(input), vec![vec![expected_hash]])
             .expect("Mock prover should run successfully")
-            .verify()
-            .map_err(|errors| {
-                errors
-                    .into_iter()
-                    .map(|failure| failure.to_string())
-                    .collect()
-            })
+            .verify();
+
+        assert!(result.is_ok());
     }
 
     #[test]
     fn test_chained_hash() {
-        let input: Shortlist<F, 12> = Shortlist {
-            items: array::from_fn(|i| (i as u64).into()),
-        };
+        let input: Shortlist<F, 12> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
 
-        let hash_chunk2 = crate::poseidon::off_circuit::hash(&[
+        let hash_chunk_2 = crate::poseidon::off_circuit::hash(&[
             F::from(6),
             F::from(7),
             F::from(8),
@@ -217,7 +199,7 @@ mod test {
             F::from(3),
             F::from(4),
             F::from(5),
-            hash_chunk2,
+            hash_chunk_2,
         ]);
 
         assert!(expected_hash == off_circuit::shortlist_hash(&input));
