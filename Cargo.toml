@@ -32,6 +32,7 @@ quote = { version = "1.0.37" }
 rand = { version = "0.8.5" }
 rand_core = { version = "0.6.4" }
 rayon = { version = "1.8" }
+regex =  { version = "1.11.1" }
 ruint = { version = "1" }
 secrecy = "0.10.3"
 sha3 = { version = "0.10" }

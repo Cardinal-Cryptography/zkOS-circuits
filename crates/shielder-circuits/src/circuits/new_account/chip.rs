@@ -4,31 +4,32 @@ use halo2_proofs::{
 };
 
 use crate::{
-    chips::note::{Note, NoteChip},
-    circuits::{new_account::knowledge::NewAccountProverKnowledge, FieldExt},
+    chips::note::{balances_from_native_balance, Note, NoteChip},
+    circuits::new_account::knowledge::NewAccountProverKnowledge,
     column_pool::ColumnPool,
     instance_wrapper::InstanceWrapper,
     new_account::{
-        NewAccountConstraints, NewAccountConstraints::*, NewAccountInstance, NewAccountInstance::*,
+        NewAccountConstraints::{self, *},
+        NewAccountInstance::{self, *},
     },
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
     version::NOTE_VERSION,
-    AssignedCell,
+    AssignedCell, F,
 };
 
 #[derive(Clone, Debug)]
-pub struct NewAccountChip<F: FieldExt> {
+pub struct NewAccountChip {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
-    pub poseidon: PoseidonChip<F>,
+    pub poseidon: PoseidonChip,
 }
 
-impl<F: FieldExt> NewAccountChip<F> {
+impl NewAccountChip {
     pub fn synthesize(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &NewAccountProverKnowledge<AssignedCell<F>>,
+        knowledge: &NewAccountProverKnowledge<AssignedCell>,
         todo: &mut Todo<NewAccountConstraints>,
     ) -> Result<(), Error> {
         let public_inputs = &self.public_inputs;
@@ -42,6 +43,12 @@ impl<F: FieldExt> NewAccountChip<F> {
         let h_id = hash(layouter, self.poseidon.clone(), [knowledge.id.clone()])?;
         todo.check_off(HashedIdIsCorrect)?;
 
+        let balances = balances_from_native_balance(
+            knowledge.initial_deposit.clone(),
+            layouter,
+            &self.advice_pool,
+        )?;
+
         let note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
             layouter,
             &Note {
@@ -49,7 +56,7 @@ impl<F: FieldExt> NewAccountChip<F> {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier.clone(),
                 trapdoor: knowledge.trapdoor.clone(),
-                account_balance: knowledge.initial_deposit.clone(),
+                balances,
             },
         )?;
         todo.check_off(IdIsIncludedInTheNote)?;

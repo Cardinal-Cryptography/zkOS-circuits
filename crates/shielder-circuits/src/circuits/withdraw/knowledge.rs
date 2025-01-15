@@ -1,9 +1,10 @@
-use halo2_proofs::circuit::Value;
+use halo2_proofs::{circuit::Value, halo2curves::ff::PrimeField};
 use macros::embeddable;
 use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
+    chips::note::off_circuit::balances_from_native_balance,
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK, NONCE_UPPER_LIMIT,
@@ -14,14 +15,14 @@ use crate::{
     poseidon::off_circuit::hash,
     version::NOTE_VERSION,
     withdraw::{circuit::WithdrawCircuit, WithdrawInstance},
-    FieldExt, Note, ProverKnowledge, PublicInputProvider,
+    Field, Note, ProverKnowledge, PublicInputProvider, F,
 };
 
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "WithdrawProverKnowledge<Value<F>>",
-    impl_generics = "<F: FieldExt>",
-    embedded = "WithdrawProverKnowledge<crate::AssignedCell<F>>"
+    impl_generics = "",
+    embedded = "WithdrawProverKnowledge<crate::AssignedCell>"
 )]
 pub struct WithdrawProverKnowledge<F> {
     pub withdrawal_value: F,
@@ -46,7 +47,7 @@ pub struct WithdrawProverKnowledge<F> {
     pub nonce: F,
 }
 
-impl<F: FieldExt> WithdrawProverKnowledge<Value<F>> {
+impl WithdrawProverKnowledge<Value<F>> {
     pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
         IntermediateValues {
             new_account_balance: self.account_old_balance - self.withdrawal_value,
@@ -54,8 +55,8 @@ impl<F: FieldExt> WithdrawProverKnowledge<Value<F>> {
     }
 }
 
-impl<F: FieldExt> ProverKnowledge<F> for WithdrawProverKnowledge<F> {
-    type Circuit = WithdrawCircuit<F>;
+impl ProverKnowledge for WithdrawProverKnowledge<F> {
+    type Circuit = WithdrawCircuit;
     type PublicInput = WithdrawInstance;
 
     /// TODO: Refactor this test. Having `MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK` as the only
@@ -79,7 +80,7 @@ impl<F: FieldExt> ProverKnowledge<F> for WithdrawProverKnowledge<F> {
             id,
             nullifier: nullifier_old,
             trapdoor: trapdoor_old,
-            account_balance: account_old_balance,
+            balances: balances_from_native_balance(account_old_balance),
         });
 
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
@@ -119,7 +120,7 @@ impl<F: FieldExt> ProverKnowledge<F> for WithdrawProverKnowledge<F> {
     }
 }
 
-impl<F: FieldExt> PublicInputProvider<WithdrawInstance, F> for WithdrawProverKnowledge<F> {
+impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<F> {
     fn compute_public_input(&self, instance_id: WithdrawInstance) -> F {
         match instance_id {
             WithdrawInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
@@ -130,7 +131,9 @@ impl<F: FieldExt> PublicInputProvider<WithdrawInstance, F> for WithdrawProverKno
                 id: self.id,
                 nullifier: self.nullifier_new,
                 trapdoor: self.trapdoor_new,
-                account_balance: self.account_old_balance - self.withdrawal_value,
+                balances: balances_from_native_balance(
+                    self.account_old_balance - self.withdrawal_value,
+                ),
             }),
             WithdrawInstance::WithdrawalValue => self.withdrawal_value,
             WithdrawInstance::Commitment => self.commitment,
@@ -142,8 +145,8 @@ impl<F: FieldExt> PublicInputProvider<WithdrawInstance, F> for WithdrawProverKno
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "IntermediateValues<Value<F>>",
-    impl_generics = "<F: FieldExt>",
-    embedded = "IntermediateValues<crate::AssignedCell<F>>"
+    impl_generics = "",
+    embedded = "IntermediateValues<crate::AssignedCell>"
 )]
 pub struct IntermediateValues<F> {
     /// Account balance after the withdrawal is made.

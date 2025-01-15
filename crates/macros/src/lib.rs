@@ -14,7 +14,7 @@ mod embed;
 /// # Attributes
 ///
 /// - `field_type`: The type of the field that will be used in the `Embed` trait implementation.
-///    If not provided, `F` is used.
+///    If not provided, literal `F` is used.
 /// - `receiver`: The type of the struct that will implement the `Embed` trait.
 /// - `impl_generics`: Generics that will be used in the `Embed` trait implementation.
 /// - `embedded`: The type that the struct will be embedded into.
@@ -26,8 +26,8 @@ mod embed;
 ///
 /// #[embeddable(
 ///     receiver = "IntermediateValues<Value<F>>",
-///     impl_generics = "<F: FieldExt>",
-///     embedded = "IntermediateValues<crate::AssignedCell<F>>"
+///     impl_generics = "",
+///     embedded = "IntermediateValues<crate::AssignedCell>"
 /// )]
 /// pub struct IntermediateValues<F> {
 ///     /// Account balance after the deposit is made.
@@ -38,8 +38,8 @@ mod embed;
 /// This will generate the following code:
 ///
 /// ```rust, no_run
-/// impl<F: FieldExt> Embed<F> for IntermediateValues<Value<F>> {
-///     type Embedded = IntermediateValues<crate::AssignedCell<F>>;
+/// impl Embed for IntermediateValues<Value<F>> {
+///     type Embedded = IntermediateValues<crate::AssignedCell>;
 ///     fn embed(
 ///         &self,
 ///         layouter: &mut impl halo2_proofs::circuit::Layouter<F>,

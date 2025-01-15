@@ -3366,6 +3366,7 @@ dependencies = [
  "rand",
  "rand_core",
  "rayon",
+ "regex",
  "static_assertions",
  "strum",
  "strum_macros",

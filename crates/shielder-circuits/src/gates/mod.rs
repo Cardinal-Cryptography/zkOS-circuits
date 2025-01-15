@@ -7,10 +7,12 @@ use halo2_proofs::{
 
 #[cfg(test)]
 use crate::column_pool::ColumnPool;
-use crate::Field;
+use crate::F;
 
+pub mod balance_increase;
 pub mod membership;
 pub mod sum;
+
 #[cfg(test)]
 mod test_utils;
 
@@ -18,7 +20,7 @@ mod test_utils;
 ///   1. Takes in some values (assigned cells).
 ///   2. Within a dedicated region, constrained-copies the inputs to the region, enables a selector
 ///      and applies some constraints.
-pub trait Gate<F: Field>: Sized {
+pub trait Gate: Sized {
     /// Represents the value structure that the gate operates on.
     type Input;
     /// How the gate expects advice columns to be passed to it during creation.

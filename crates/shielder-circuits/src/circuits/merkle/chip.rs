@@ -6,7 +6,7 @@ use strum::IntoEnumIterator;
 use MerkleInstance::MerkleRoot;
 
 use crate::{
-    circuits::{merkle::knowledge::MerkleProverKnowledge, FieldExt},
+    circuits::merkle::knowledge::MerkleProverKnowledge,
     column_pool::ColumnPool,
     consts::merkle_constants::ARITY,
     gates::{
@@ -17,25 +17,25 @@ use crate::{
     merkle::{MerkleConstraints, MerkleConstraints::*, MerkleInstance},
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
-    AssignedCell,
+    AssignedCell, F,
 };
 
 #[derive(Clone, Debug)]
-pub struct MerkleChip<F: FieldExt> {
+pub struct MerkleChip {
     pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<MerkleInstance>,
     pub membership_gate: MembershipGate<ARITY>,
-    pub poseidon: PoseidonChip<F>,
+    pub poseidon: PoseidonChip,
 }
 
-impl<F: FieldExt> MerkleChip<F> {
+impl MerkleChip {
     pub fn synthesize<
         const TREE_HEIGHT: usize,
         Constraint: From<MerkleConstraints> + Ord + IntoEnumIterator,
     >(
         &self,
         layouter: &mut impl Layouter<F>,
-        knowledge: &MerkleProverKnowledge<TREE_HEIGHT, AssignedCell<F>>,
+        knowledge: &MerkleProverKnowledge<TREE_HEIGHT, AssignedCell>,
         todo: &mut Todo<Constraint>,
     ) -> Result<(), Error> {
         let mut current_root = knowledge.leaf.clone();
