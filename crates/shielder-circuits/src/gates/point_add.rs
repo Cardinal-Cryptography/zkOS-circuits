@@ -36,7 +36,7 @@ pub struct PointAddGateInput {
 }
 
 // const SELECTOR_OFFSET: usize = 0;
-const ADVICE_OFFSET: usize = 0;
+const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "Point add gate";
 
 impl Gate<Fr> for PointAddGate {
@@ -55,28 +55,17 @@ impl Gate<Fr> for PointAddGate {
         cs.create_gate(GATE_NAME, |vc| {
             let selector = vc.query_selector(selector);
 
-            let x1 = vc.query_advice(p[0], Rotation(ADVICE_OFFSET as i32));
-            let y1 = vc.query_advice(p[1], Rotation(ADVICE_OFFSET as i32));
-            let z1 = vc.query_advice(p[2], Rotation(ADVICE_OFFSET as i32));
+            let x1 = vc.query_advice(p[0], Rotation(ADVICE_OFFSET));
+            let y1 = vc.query_advice(p[1], Rotation(ADVICE_OFFSET));
+            let z1 = vc.query_advice(p[2], Rotation(ADVICE_OFFSET));
 
-            let x2 = vc.query_advice(q[0], Rotation(ADVICE_OFFSET as i32));
-            let y2 = vc.query_advice(q[1], Rotation(ADVICE_OFFSET as i32));
-            let z2 = vc.query_advice(q[2], Rotation(ADVICE_OFFSET as i32));
+            let x2 = vc.query_advice(q[0], Rotation(ADVICE_OFFSET));
+            let y2 = vc.query_advice(q[1], Rotation(ADVICE_OFFSET));
+            let z2 = vc.query_advice(q[2], Rotation(ADVICE_OFFSET));
 
-            let x3 = vc.query_advice(s[0], Rotation(ADVICE_OFFSET as i32));
-            let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET as i32));
-            let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET as i32));
-
-            // TODO : add field elements
-
-            // let one = Fr::one();
-            // let exp_one: Expression<Fr> = one.into();
-
-            // let p = G1 {
-            //     x: x1,
-            //     y: y1,
-            //     z: z1,
-            // };
+            let x3 = vc.query_advice(s[0], Rotation(ADVICE_OFFSET));
+            let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET));
+            let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET));
 
             // Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
             let b3 = G1::b() + G1::b() + G1::b();
@@ -106,15 +95,20 @@ impl Gate<Fr> for PointAddGate {
             let y3 = y3 * b3;
             let x3 = t4.clone() * y3.clone();
             let t2 = t3.clone() * t1.clone();
-            let x3 = t2 - x3;
+            let res_x3 = t2 - x3.clone();
             let y3 = y3 * t0.clone();
             let t1 = t1 * z3.clone();
-            let y3 = t1 + y3;
+            let res_y3 = t1 + y3.clone();
             let t0 = t0 * t3;
             let z3 = z3 * t4;
-            let z3 = z3 + t0;
+            let res_z3 = z3.clone() + t0;
 
-            vec![selector]
+            // vec![selector]
+            vec![
+                selector.clone() * (res_x3 - x3),
+                selector.clone() * (res_y3 - y3),
+                selector * (res_z3 - z3),
+            ]
         });
 
         Self { p, q, s, selector }
