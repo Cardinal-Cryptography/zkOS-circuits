@@ -173,7 +173,12 @@ mod test {
     fn el_gamal() {
         let rng = RNG.clone();
 
-        let generator = G1::generator();
+        // let generator = G1::generator();
+        let generator = G1 {
+            x: Fr::ONE,
+            y: Fr::from_u128(2),
+            z: Fr::ONE,
+        };
 
         let private_key = Fq::random(rng.clone());
 

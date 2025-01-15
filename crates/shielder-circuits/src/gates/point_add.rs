@@ -2,9 +2,9 @@ use alloc::vec;
 
 use halo2_proofs::{
     arithmetic::{CurveExt, Field},
-    circuit::Layouter,
+    circuit::{Layouter, Value},
     halo2curves::{bn256::Fr, grumpkin::G1},
-    plonk::{Advice, Column, ConstraintSystem, Error, Selector},
+    plonk::{Advice, Assigned, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
 
@@ -56,12 +56,63 @@ impl Gate<Fr> for PointAddGate {
             let selector = vc.query_selector(selector);
 
             let x1 = vc.query_advice(p[0], Rotation(ADVICE_OFFSET as i32));
-            let x2 = vc.query_advice(p[1], Rotation(ADVICE_OFFSET as i32));
-            let x3 = vc.query_advice(p[2], Rotation(ADVICE_OFFSET as i32));
+            let y1 = vc.query_advice(p[1], Rotation(ADVICE_OFFSET as i32));
+            let z1 = vc.query_advice(p[2], Rotation(ADVICE_OFFSET as i32));
 
-            let x1 = vc.query_advice(p[0], Rotation(ADVICE_OFFSET as i32));
-            let x2 = vc.query_advice(p[1], Rotation(ADVICE_OFFSET as i32));
-            let x3 = vc.query_advice(p[2], Rotation(ADVICE_OFFSET as i32));
+            let x2 = vc.query_advice(q[0], Rotation(ADVICE_OFFSET as i32));
+            let y2 = vc.query_advice(q[1], Rotation(ADVICE_OFFSET as i32));
+            let z2 = vc.query_advice(q[2], Rotation(ADVICE_OFFSET as i32));
+
+            let x3 = vc.query_advice(s[0], Rotation(ADVICE_OFFSET as i32));
+            let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET as i32));
+            let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET as i32));
+
+            // TODO : add field elements
+
+            // let one = Fr::one();
+            // let exp_one: Expression<Fr> = one.into();
+
+            // let p = G1 {
+            //     x: x1,
+            //     y: y1,
+            //     z: z1,
+            // };
+
+            // Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
+            let b3 = G1::b() + G1::b() + G1::b();
+            let t0 = x1.clone() * x2.clone();
+            let t1 = y1.clone() * y2.clone();
+            let t2 = z1.clone() * z2.clone();
+            let t3 = x1.clone() + y1.clone();
+            let t4 = x2.clone() + y2.clone();
+            let t3 = t3 * t4;
+            let t4 = t0.clone() + t1.clone();
+            let t3 = t3 - t4;
+            let t4 = y1 + z1.clone();
+            let x3 = y2 + z2.clone();
+            let t4 = t4 * x3;
+            let x3 = t1.clone() + t2.clone();
+            let t4 = t4 - x3;
+            let x3 = x1 + z1;
+            let y3 = x2 + z2;
+            let x3 = x3 * y3;
+            let y3 = t0.clone() + t2.clone();
+            let y3 = x3 - y3;
+            let x3 = t0.clone() + t0.clone();
+            let t0 = x3 + t0;
+            let t2 = t2 * b3;
+            let z3 = t1.clone() + t2.clone();
+            let t1 = t1 - t2;
+            let y3 = y3 * b3;
+            let x3 = t4.clone() * y3.clone();
+            let t2 = t3.clone() * t1.clone();
+            let x3 = t2 - x3;
+            let y3 = y3 * t0.clone();
+            let t1 = t1 * z3.clone();
+            let y3 = t1 + y3;
+            let t0 = t0 * t3;
+            let z3 = z3 * t4;
+            let z3 = z3 + t0;
 
             vec![selector]
         });
