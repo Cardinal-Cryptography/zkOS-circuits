@@ -39,6 +39,52 @@ pub struct PointAddGateInput {
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "Point add gate";
 
+/// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
+fn add(
+    p: (Expression<Fr>, Expression<Fr>, Expression<Fr>),
+    q: (Expression<Fr>, Expression<Fr>, Expression<Fr>),
+) -> (Expression<Fr>, Expression<Fr>, Expression<Fr>) {
+    let (x1, y1, z1) = p;
+    let (x2, y2, z2) = q;
+
+    let b3 = G1::b() + G1::b() + G1::b();
+    let t0 = x1.clone() * x2.clone();
+    let t1 = y1.clone() * y2.clone();
+    let t2 = z1.clone() * z2.clone();
+    let t3 = x1.clone() + y1.clone();
+    let t4 = x2.clone() + y2.clone();
+    let t3 = t3 * t4;
+    let t4 = t0.clone() + t1.clone();
+    let t3 = t3 - t4;
+    let t4 = y1 + z1.clone();
+    let x3 = y2 + z2.clone();
+    let t4 = t4 * x3;
+    let x3 = t1.clone() + t2.clone();
+    let t4 = t4 - x3;
+    let x3 = x1 + z1;
+    let y3 = x2 + z2;
+    let x3 = x3 * y3;
+    let y3 = t0.clone() + t2.clone();
+    let y3 = x3 - y3;
+    let x3 = t0.clone() + t0.clone();
+    let t0 = x3 + t0;
+    let t2 = t2 * b3;
+    let z3 = t1.clone() + t2.clone();
+    let t1 = t1 - t2;
+    let y3 = y3 * b3;
+    let x3 = t4.clone() * y3.clone();
+    let t2 = t3.clone() * t1.clone();
+    let x3 = t2 - x3.clone();
+    let y3 = y3 * t0.clone();
+    let t1 = t1 * z3.clone();
+    let y3 = t1 + y3.clone();
+    let t0 = t0 * t3;
+    let z3 = z3 * t4;
+    let z3 = z3.clone() + t0;
+
+    (x3, y3, z3)
+}
+
 impl Gate<Fr> for PointAddGate {
     type Input = PointAddGateInput;
 
@@ -67,43 +113,8 @@ impl Gate<Fr> for PointAddGate {
             let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET));
             let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET));
 
-            // Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
-            let b3 = G1::b() + G1::b() + G1::b();
-            let t0 = x1.clone() * x2.clone();
-            let t1 = y1.clone() * y2.clone();
-            let t2 = z1.clone() * z2.clone();
-            let t3 = x1.clone() + y1.clone();
-            let t4 = x2.clone() + y2.clone();
-            let t3 = t3 * t4;
-            let t4 = t0.clone() + t1.clone();
-            let t3 = t3 - t4;
-            let t4 = y1 + z1.clone();
-            let x3 = y2 + z2.clone();
-            let t4 = t4 * x3;
-            let x3 = t1.clone() + t2.clone();
-            let t4 = t4 - x3;
-            let x3 = x1 + z1;
-            let y3 = x2 + z2;
-            let x3 = x3 * y3;
-            let y3 = t0.clone() + t2.clone();
-            let y3 = x3 - y3;
-            let x3 = t0.clone() + t0.clone();
-            let t0 = x3 + t0;
-            let t2 = t2 * b3;
-            let z3 = t1.clone() + t2.clone();
-            let t1 = t1 - t2;
-            let y3 = y3 * b3;
-            let x3 = t4.clone() * y3.clone();
-            let t2 = t3.clone() * t1.clone();
-            let res_x3 = t2 - x3.clone();
-            let y3 = y3 * t0.clone();
-            let t1 = t1 * z3.clone();
-            let res_y3 = t1 + y3.clone();
-            let t0 = t0 * t3;
-            let z3 = z3 * t4;
-            let res_z3 = z3.clone() + t0;
+            let (res_x3, res_y3, res_z3) = add((x1, y1, z1), (x2, y2, z2));
 
-            // vec![selector]
             vec![
                 selector.clone() * (res_x3 - x3),
                 selector.clone() * (res_y3 - y3),
