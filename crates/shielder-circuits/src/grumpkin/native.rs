@@ -54,6 +54,8 @@ pub trait GroupOperations {
     const POINT_AT_INFINITY: Self;
 
     fn add(&self, q: PointProjective) -> PointProjective;
+
+    fn is_on_curve(&self) -> bool;
 }
 
 impl GroupOperations for PointProjective {
@@ -62,6 +64,13 @@ impl GroupOperations for PointProjective {
         y: Fr::one(),
         z: Fr::zero(),
     };
+
+    ///
+    ///
+    /// Inefficient implementation
+    fn is_on_curve(&self) -> bool {
+        todo!()
+    }
 
     /// Adds another point on the curve
     ///
@@ -124,16 +133,17 @@ impl GroupOperations for PointProjective {
 #[cfg(test)]
 mod test {
     use halo2_proofs::{
-        arithmetic::CurveExt,
+        arithmetic::{CurveExt, Field},
         halo2curves::{
-            bn256::{Fr, G1Affine},
+            bn256::{Fq, Fr, G1Affine},
             ff::PrimeField,
-            group::Group,
+            group::{Curve, Group},
             grumpkin::G1,
         },
     };
     use once_cell::sync::Lazy;
     use rand::{rngs::StdRng, SeedableRng};
+    use rand_core::RngCore;
 
     use crate::grumpkin::{native::PointProjective, GroupOperations};
 
@@ -142,7 +152,8 @@ mod test {
 
     #[test]
     fn coordinate_conversion() {
-        let p = PointProjective::new(Fr::from_u128(3), Fr::from_u128(2), Fr::from_u128(1));
+        let rng = RNG.clone();
+        let p: PointProjective = G1::random(rng).into();
 
         let p_affine = p.to_affine();
         let p_projective = p_affine.to_projective();
@@ -152,17 +163,37 @@ mod test {
 
     #[test]
     fn adding_point_at_infinity() {
-        let mut rng = RNG.clone();
-        let p1: PointProjective = G1::random(&mut rng).into();
+        let rng = RNG.clone();
+        let p1: PointProjective = G1::random(rng).into();
         let p2 = p1.add(PointProjective::POINT_AT_INFINITY);
         assert_eq!(p1.to_affine(), p2.to_affine());
     }
 
     #[test]
-    fn group_generator() {
-        // let mut rng = RNG.clone();
-        let g: PointProjective = G1::generator().into();
-        // let p2 = p1.add(PointProjective::POINT_AT_INFINITY);
-        // assert_eq!(p1.to_affine(), p2.to_affine());
+    fn el_gamal() {
+        let rng = RNG.clone();
+
+        let generator = G1::generator();
+
+        let private_key = Fq::random(rng.clone());
+
+        let public_key = generator * private_key;
+
+        let message = G1::random(rng.clone());
+
+        let trapdoor = Fq::random(rng.clone());
+
+        let shared_secret = public_key * trapdoor;
+
+        let c1 = generator * trapdoor;
+        let c2 = message + shared_secret;
+
+        let recovered_shared_secret = c1 * private_key;
+
+        assert_eq!(shared_secret, recovered_shared_secret);
+
+        let recovered_message = c2 - recovered_shared_secret;
+
+        assert_eq!(message, recovered_message);
     }
 }
