@@ -35,7 +35,7 @@ pub struct PointAddGate {
     embeddable(
         receiver = "PointAddGateInput<Fr>",
         impl_generics = "",
-        embedded = "PointAddGateInput<crate::AssignedCell<Fr>>"
+        embedded = "PointAddGateInput<crate::AssignedCell>"
     )
 )]
 pub struct PointAddGateInput<T> {
@@ -94,8 +94,8 @@ fn add(
     (x3, y3, z3)
 }
 
-impl Gate<Fr> for PointAddGate {
-    type Input = PointAddGateInput<AssignedCell<Fr>>;
+impl Gate for PointAddGate {
+    type Input = PointAddGateInput<AssignedCell>;
 
     type Advices = (
         [Column<Advice>; 3], // p
