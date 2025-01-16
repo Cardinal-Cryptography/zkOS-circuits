@@ -1,10 +1,9 @@
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
-use halo2_proofs::{
-    arithmetic::Field,
-    plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed},
-};
+use halo2_proofs::plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed};
+
+use crate::F;
 
 #[derive(Clone, Debug)]
 pub struct ColumnPool<C: ColumnType> {
@@ -31,7 +30,7 @@ impl<C: ColumnType> ColumnPool<C> {
 impl ColumnPool<Advice> {
     /// Ensure that there are at least `capacity` advice columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable equality for each of them.
-    pub fn ensure_capacity<F: Field>(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
+    pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
         for _ in self.len()..capacity {
             let column = cs.advice_column();
             cs.enable_equality(column);
@@ -43,7 +42,7 @@ impl ColumnPool<Advice> {
 impl ColumnPool<Fixed> {
     /// Ensure that there are at least `capacity` fixed columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable storing constants in each of them.
-    pub fn ensure_capacity<F: Field>(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
+    pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
         for _ in self.len()..capacity {
             let column = cs.fixed_column();
             cs.enable_constant(column);

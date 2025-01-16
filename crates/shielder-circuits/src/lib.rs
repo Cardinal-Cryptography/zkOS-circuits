@@ -40,7 +40,7 @@ pub use version::NoteVersion;
 // For our benchmarks, the sizes were 5447 and 3367 for Raw and Processed, respectively.
 pub const SERDE_FORMAT: SerdeFormat = SerdeFormat::RawBytes;
 
-pub trait ProverKnowledge<F: Field>: Clone + PublicInputProvider<Self::PublicInput, F> {
+pub trait ProverKnowledge: Clone + PublicInputProvider<Self::PublicInput> {
     /// Associated type for the circuit.
     type Circuit: Circuit<F> + Clone + Debug + Default;
 
@@ -56,7 +56,7 @@ pub trait ProverKnowledge<F: Field>: Clone + PublicInputProvider<Self::PublicInp
     fn create_circuit(&self) -> Self::Circuit;
 }
 
-pub trait PublicInputProvider<Id: IntoEnumIterator + EnumCount, F> {
+pub trait PublicInputProvider<Id: IntoEnumIterator + EnumCount> {
     /// Computes specific public input value.
     fn compute_public_input(&self, input: Id) -> F;
 
@@ -68,7 +68,7 @@ pub trait PublicInputProvider<Id: IntoEnumIterator + EnumCount, F> {
     }
 }
 
-impl<Id: IntoEnumIterator + EnumCount, F, Comp: Fn(Id) -> F> PublicInputProvider<Id, F> for Comp {
+impl<Id: IntoEnumIterator + EnumCount, Comp: Fn(Id) -> F> PublicInputProvider<Id> for Comp {
     fn compute_public_input(&self, instance_id: Id) -> F {
         self(instance_id)
     }

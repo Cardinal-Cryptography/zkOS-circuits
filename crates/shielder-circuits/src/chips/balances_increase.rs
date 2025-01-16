@@ -1,0 +1,93 @@
+use alloc::{vec, vec::Vec};
+use core::array;
+
+use halo2_proofs::{
+    circuit::{Layouter, Value},
+    plonk::{Advice, Error},
+};
+
+use crate::{
+    column_pool::ColumnPool,
+    consts::NUM_TOKENS,
+    gates::{
+        balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
+        Gate,
+    },
+    AssignedCell, F,
+};
+
+pub mod off_circuit {
+    use core::{
+        array,
+        ops::{Add, Mul},
+    };
+
+    use crate::consts::NUM_TOKENS;
+
+    /// Computes new balances. Works for both `F` and `Value<F>`.
+    pub fn increase_balances<T: Add<Output = T> + Mul<Output = T> + Clone>(
+        balances_old: &[T; NUM_TOKENS],
+        token_indicators: &[T; NUM_TOKENS],
+        increase_value: T,
+    ) -> [T; NUM_TOKENS] {
+        array::from_fn(|i| {
+            balances_old[i].clone() + token_indicators[i].clone() * increase_value.clone()
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BalancesIncreaseChip {
+    pub gate: BalanceIncreaseGate,
+    pub advice_pool: ColumnPool<Advice>,
+}
+
+fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value<F>; N] {
+    array::from_fn(|i| cell_array[i].value().copied())
+}
+
+impl BalancesIncreaseChip {
+    pub fn new(gate: BalanceIncreaseGate, advice_pool: ColumnPool<Advice>) -> Self {
+        Self { gate, advice_pool }
+    }
+
+    pub fn increase_balances(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        balances_old: &[AssignedCell; NUM_TOKENS],
+        token_indicators: &[AssignedCell; NUM_TOKENS],
+        increase_value: &AssignedCell,
+    ) -> Result<[AssignedCell; NUM_TOKENS], Error> {
+        let balances_new_values = off_circuit::increase_balances(
+            &values_from_cell_array(balances_old),
+            &values_from_cell_array(token_indicators),
+            increase_value.value().cloned(),
+        );
+
+        let mut balances_new: Vec<AssignedCell> = vec![];
+
+        for i in 0..NUM_TOKENS {
+            let balance_new = layouter.assign_region(
+                || "balance_new",
+                |mut region| {
+                    region.assign_advice(
+                        || "balance_new",
+                        self.advice_pool.get_any(),
+                        0,
+                        || balances_new_values[i],
+                    )
+                },
+            )?;
+            balances_new.push(balance_new);
+
+            let gate_input = BalanceIncreaseGateInput {
+                balance_old: balances_old[i].clone(),
+                increase_value: increase_value.clone(),
+                token_indicator: token_indicators[i].clone(),
+                balance_new: balances_new[i].clone(),
+            };
+            self.gate.apply_in_new_region(layouter, gate_input)?;
+        }
+        Ok(balances_new.try_into().expect("length must agree"))
+    }
+}

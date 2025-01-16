@@ -11,7 +11,7 @@ use shielder_circuits::{
     ProverKnowledge, MAX_K,
 };
 
-pub fn bench_circuit<PK: ProverKnowledge<Fr>>(c: &mut Criterion, group_name: &str) {
+pub fn bench_circuit<PK: ProverKnowledge>(c: &mut Criterion, group_name: &str) {
     let mut group = c.benchmark_group(group_name);
 
     let mut rng = OsRng;

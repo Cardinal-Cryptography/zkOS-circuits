@@ -10,7 +10,7 @@ use crate::{
     consts::RANGE_PROOF_CHUNK_SIZE,
     embed::Embed,
     gates::Gate,
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
 
 mod bits;
@@ -25,7 +25,7 @@ pub struct RangeCheckChip {
 }
 
 impl RangeCheckChip {
-    pub fn new<F: FieldExt>(
+    pub fn new(
         system: &mut ConstraintSystem<F>,
         advice_pool: ColumnPool<Advice>,
         sum_chip: SumChip,
@@ -39,10 +39,10 @@ impl RangeCheckChip {
     }
 
     /// Constrains the value to be less than `2^(CHUNK_SIZE * CHUNKS)`.
-    pub fn constrain_value<const CHUNKS: usize, F: FieldExt>(
+    pub fn constrain_value<const CHUNKS: usize>(
         &self,
         layouter: &mut impl Layouter<F>,
-        value: AssignedCell<F>,
+        value: AssignedCell,
     ) -> Result<(), Error> {
         // PROVER STEPS:
         // 1. Represent `value` as a running sum (compute it outside of the circuit).

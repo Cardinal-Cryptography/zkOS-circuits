@@ -10,16 +10,16 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     merkle::{chip::MerkleChip, MerkleConstraints, MerkleInstance},
     todo::Todo,
-    FieldExt,
+    F,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct MerkleCircuit<const TREE_HEIGHT: usize, F: FieldExt>(
+pub struct MerkleCircuit<const TREE_HEIGHT: usize>(
     pub MerkleProverKnowledge<TREE_HEIGHT, Value<F>>,
 );
 
-impl<const TREE_HEIGHT: usize, F: FieldExt> Circuit<F> for MerkleCircuit<TREE_HEIGHT, F> {
-    type Config = MerkleChip<F>;
+impl<const TREE_HEIGHT: usize> Circuit<F> for MerkleCircuit<TREE_HEIGHT> {
+    type Config = MerkleChip;
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {

@@ -10,14 +10,14 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     todo::Todo,
     withdraw::{WithdrawConstraints, WithdrawInstance, WithdrawProverKnowledge},
-    FieldExt,
+    F,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct WithdrawCircuit<F>(pub WithdrawProverKnowledge<Value<F>>);
+pub struct WithdrawCircuit(pub WithdrawProverKnowledge<Value<F>>);
 
-impl<F: FieldExt> Circuit<F> for WithdrawCircuit<F> {
-    type Config = WithdrawChip<F>;
+impl Circuit<F> for WithdrawCircuit {
+    type Config = WithdrawChip;
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -79,6 +79,7 @@ mod tests {
     use rand_core::OsRng;
 
     use crate::{
+        chips::note::off_circuit::balances_from_native_balance,
         circuits::{
             merkle::generate_example_path_with_given_leaf,
             test_utils::{
@@ -91,7 +92,10 @@ mod tests {
         generate_keys_with_min_k, generate_proof, generate_setup_params, note_hash,
         poseidon::off_circuit::hash,
         version::NOTE_VERSION,
-        withdraw::{circuit::WithdrawCircuit, WithdrawInstance, WithdrawInstance::*},
+        withdraw::{
+            circuit::WithdrawCircuit,
+            WithdrawInstance::{self, *},
+        },
         Field, Note, ProverKnowledge, PublicInputProvider, F, MAX_K,
     };
 
@@ -150,7 +154,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_old,
                 trapdoor: pk.trapdoor_old,
-                account_balance: pk.account_old_balance,
+                balances: balances_from_native_balance(pk.account_old_balance),
             }) + modification /* Modification here! */;
             let h_nullifier_old = hash(&[pk.nullifier_old]);
 
@@ -167,7 +171,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_new,
                 trapdoor: pk.trapdoor_new,
-                account_balance: account_balance_new,
+                balances: balances_from_native_balance(account_balance_new),
             });
 
             let pub_input = |instance: WithdrawInstance| match instance {
@@ -221,7 +225,7 @@ mod tests {
         pk.withdrawal_value = -F::ONE;
 
         let params = generate_setup_params(MAX_K, &mut OsRng);
-        let (params, _, key, _) = generate_keys_with_min_k::<WithdrawCircuit<F>>(params).unwrap();
+        let (params, _, key, _) = generate_keys_with_min_k::<WithdrawCircuit>(params).unwrap();
         generate_proof(
             &params,
             &key,

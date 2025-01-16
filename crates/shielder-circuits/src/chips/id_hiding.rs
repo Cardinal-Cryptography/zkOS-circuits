@@ -4,17 +4,17 @@ use crate::{
     chips::range_check::RangeCheckChip,
     consts::NONCE_RANGE_PROOF_NUM_WORDS,
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, FieldExt,
+    AssignedCell, F,
 };
 
 #[derive(Clone, Debug)]
-pub struct IdHidingChip<F: FieldExt> {
-    pub poseidon: PoseidonChip<F>,
+pub struct IdHidingChip {
+    pub poseidon: PoseidonChip,
     pub range_check: RangeCheckChip,
 }
 
-impl<F: FieldExt> IdHidingChip<F> {
-    pub fn new(poseidon: PoseidonChip<F>, range_check: RangeCheckChip) -> Self {
+impl IdHidingChip {
+    pub fn new(poseidon: PoseidonChip, range_check: RangeCheckChip) -> Self {
         Self {
             poseidon,
             range_check,
@@ -27,12 +27,12 @@ impl<F: FieldExt> IdHidingChip<F> {
     pub fn id_hiding(
         &self,
         layouter: &mut impl Layouter<F>,
-        id: AssignedCell<F>,
-        nonce: AssignedCell<F>,
-    ) -> Result<AssignedCell<F>, Error> {
+        id: AssignedCell,
+        nonce: AssignedCell,
+    ) -> Result<AssignedCell, Error> {
         // Constrain `nonce` to be smaller than `2^{CHUNK_SIZE * NONCE_RANGE_PROOF_NUM_WORDS}`.
         self.range_check
-            .constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS, _>(
+            .constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS>(
                 &mut layouter.namespace(|| "Range Check for nonce"),
                 nonce.clone(),
             )?;

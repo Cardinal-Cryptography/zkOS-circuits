@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
 
-use halo2_proofs::circuit::Value;
+use halo2_proofs::{circuit::Value, halo2curves::ff::PrimeFieldBits};
 
-use crate::FieldExt;
+use crate::F;
 
 /// Splits least significant bits of a field value `value` into `chunks` chunks of size `chunk_size`
 /// each, ensuring any leading bits are zero.
@@ -21,7 +21,7 @@ use crate::FieldExt;
 /// The function will panic if the input does not contain enough bits (`chunk_size * CHUNKS`).
 /// The function will panic if trailing bits are non-zero.
 /// The function will panic if `chunk_size` is greater than 64.
-pub fn to_chunks<F: FieldExt>(value: Value<F>, chunk_size: usize, chunks: usize) -> Vec<Value<F>> {
+pub fn to_chunks(value: Value<F>, chunk_size: usize, chunks: usize) -> Vec<Value<F>> {
     assert!(chunk_size <= 64, "Chunk size must be <= 64");
 
     // Take LittleEndian bits of the value.

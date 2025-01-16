@@ -1,3 +1,5 @@
+use core::array;
+
 use halo2_proofs::{
     circuit::Layouter,
     plonk::{Advice, Error},
@@ -5,51 +7,46 @@ use halo2_proofs::{
 
 use crate::{
     column_pool::ColumnPool,
-    consts::POSEIDON_RATE,
+    consts::{NUM_TOKENS, POSEIDON_RATE},
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, FieldExt,
+    AssignedCell, Field, F,
 };
 
 pub mod off_circuit {
-    use super::{FieldExt, POSEIDON_RATE};
-    use crate::poseidon::off_circuit::hash;
+    use super::POSEIDON_RATE;
+    use crate::{consts::NUM_TOKENS, poseidon::off_circuit::hash, Field, F};
 
-    /// Hashes native balance together with placeholders for future token balances
-    pub fn balances_hash<F: FieldExt>(native_balance: F) -> F {
-        hash::<F, POSEIDON_RATE>(&[
-            native_balance,
-            F::ZERO,
-            F::ZERO,
-            F::ZERO,
-            F::ZERO,
-            F::ZERO,
-            F::ZERO,
-        ])
+    /// Hashes balances together with placeholders for future token balances
+    pub fn balances_hash(balances: [F; NUM_TOKENS]) -> F {
+        let mut hash_input = [F::ZERO; POSEIDON_RATE];
+        hash_input[..NUM_TOKENS].copy_from_slice(&balances[..NUM_TOKENS]);
+
+        hash(&hash_input)
     }
 }
 
 /// Chip used to hash balances
 #[derive(Clone, Debug)]
-pub struct BalancesChip<F: FieldExt> {
-    poseidon: PoseidonChip<F>,
+pub struct BalancesChip {
+    poseidon: PoseidonChip,
     advice_pool: ColumnPool<Advice>,
 }
 
-impl<F: FieldExt> BalancesChip<F> {
-    pub fn new(poseidon: PoseidonChip<F>, advice_pool: ColumnPool<Advice>) -> Self {
+impl BalancesChip {
+    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
         Self {
             poseidon,
             advice_pool,
         }
     }
 
-    /// Returns a single cell constrained to be the hash of the given native balance
+    /// Returns a single cell constrained to be the hash of the given balances
     /// together with placeholders for future token balances (zeros are appended to hash input)
     pub fn hash_balances(
         &self,
         layouter: &mut impl Layouter<F>,
-        native_balance: &AssignedCell<F>,
-    ) -> Result<AssignedCell<F>, Error> {
+        balances: &[AssignedCell; NUM_TOKENS],
+    ) -> Result<AssignedCell, Error> {
         let zero_cell = layouter.assign_region(
             || "Balance placeholder (zero)",
             |mut region| {
@@ -62,16 +59,14 @@ impl<F: FieldExt> BalancesChip<F> {
             },
         )?;
 
-        // We currently support only the native token, however, we hash it with placeholders for future token balances
-        let hash_input: [AssignedCell<F>; POSEIDON_RATE] = [
-            native_balance.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell,
-        ];
+        static_assertions::const_assert!(NUM_TOKENS <= POSEIDON_RATE);
+        let hash_input: [AssignedCell; POSEIDON_RATE] = array::from_fn(|i| {
+            if i < NUM_TOKENS {
+                balances[i].clone()
+            } else {
+                zero_cell.clone()
+            }
+        });
 
         hash(
             &mut layouter.namespace(|| "Balances Hash"),

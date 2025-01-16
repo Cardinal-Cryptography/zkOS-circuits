@@ -2,7 +2,7 @@ use alloc::{vec, vec::Vec};
 
 use halo2_proofs::circuit::Value;
 
-use crate::{chips::range_check::bits::to_chunks, FieldExt};
+use crate::{chips::range_check::bits::to_chunks, Field, F};
 
 /// Computes the running sum of a value. The sum will consist of `chunks + 1` values, satisfying:
 ///  - `z_i = 2^chunk_size * z_{i + 1} + a_i`
@@ -15,11 +15,7 @@ use crate::{chips::range_check::bits::to_chunks, FieldExt};
 ///
 /// The function will panic if the input value is greater or equal than `2^(chunk_size * chunks)`.
 /// The function will panic, if `F` has less than `chunk_size * chunks` bits in its representation.
-pub fn running_sum<F: FieldExt>(
-    value: Value<F>,
-    chunk_size: usize,
-    chunks: usize,
-) -> Vec<Value<F>> {
+pub fn running_sum(value: Value<F>, chunk_size: usize, chunks: usize) -> Vec<Value<F>> {
     let chunks = to_chunks(value, chunk_size, chunks);
 
     // Precompute the inverse of `2^CHUNK_SIZE`.

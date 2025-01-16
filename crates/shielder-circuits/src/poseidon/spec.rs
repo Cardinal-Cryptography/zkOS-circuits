@@ -1,14 +1,16 @@
 use alloc::vec::Vec;
 
 use halo2_poseidon::poseidon::primitives::{generate_constants, Mds, Spec};
-use halo2_proofs::halo2curves::ff::FromUniformBytes;
 
-use crate::consts::merkle_constants::{ARITY, WIDTH};
+use crate::{
+    consts::merkle_constants::{ARITY, WIDTH},
+    Field, F,
+};
 
 #[derive(Copy, Clone, Debug)]
 pub enum PoseidonSpec {}
 
-impl<F: FromUniformBytes<64> + Ord> Spec<F, WIDTH, ARITY> for PoseidonSpec {
+impl Spec<F, WIDTH, ARITY> for PoseidonSpec {
     fn pre_rounds() -> usize {
         1
     }
