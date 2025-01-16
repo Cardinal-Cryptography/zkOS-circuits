@@ -7,6 +7,8 @@ use halo2_proofs::{
     plonk::{Advice, Assigned, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
+#[cfg(test)]
+use {crate::embed::Embed, crate::F, macros::embeddable};
 
 use crate::{
     circuits::FieldExt,
@@ -28,11 +30,19 @@ pub struct PointAddGate {
     selector: Selector,
 }
 
-#[derive(Clone, Debug)]
-pub struct PointAddGateInput {
-    p: [AssignedCell<Fr>; 3], // x1,y1,z1
-    q: [AssignedCell<Fr>; 3], // x2,y2,z2
-    s: [AssignedCell<Fr>; 3], // x3,y3,z3
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(
+    test,
+    embeddable(
+        receiver = "PointAddGateInput<Fr>",
+        impl_generics = "",
+        embedded = "PointAddGateInput<crate::AssignedCell<Fr>>"
+    )
+)]
+pub struct PointAddGateInput<T> {
+    p: [T; 3], // x1,y1,z1
+    q: [T; 3], // x2,y2,z2
+    s: [T; 3], // x3,y3,z3
 }
 
 const SELECTOR_OFFSET: usize = 0;
@@ -86,7 +96,7 @@ fn add(
 }
 
 impl Gate<Fr> for PointAddGate {
-    type Input = PointAddGateInput;
+    type Input = PointAddGateInput<AssignedCell<Fr>>;
 
     type Advices = (
         [Column<Advice>; 3], // p
@@ -179,5 +189,37 @@ impl Gate<Fr> for PointAddGate {
         let s_advice = pool.get_array();
 
         (p_advice, q_advice, s_advice)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{vec, vec::Vec};
+
+    use halo2_proofs::{
+        circuit::Value,
+        dev::{
+            metadata::{Constraint, Gate},
+            MockProver, VerifyFailure,
+        },
+        halo2curves::bn256::{Fr, G1},
+        plonk::ConstraintSystem,
+    };
+
+    use super::{PointAddGate, PointAddGateInput};
+    use crate::{
+        gates::{test_utils::OneGateCircuit, Gate as _},
+        AssignedCell,
+    };
+
+    fn input(p: [Fr; 3], q: [Fr; 3], s: [Fr; 3]) -> PointAddGateInput<Fr> {
+        PointAddGateInput { p, q, s }
+    }
+
+    fn verify(input: PointAddGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = OneGateCircuit::<PointAddGate, _>::new(input);
+        MockProver::run(3, &circuit, vec![])
+            .expect("Mock prover should run")
+            .verify()
     }
 }

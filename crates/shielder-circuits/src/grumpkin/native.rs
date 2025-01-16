@@ -170,6 +170,21 @@ mod test {
     }
 
     #[test]
+    fn test_case() {
+        let rng = RNG.clone();
+
+        let zero = G1 {
+            x: Fr::ZERO,
+            y: Fr::ONE,
+            z: Fr::ZERO,
+        };
+
+        let result = zero + zero;
+
+        assert_eq!(result, zero);
+    }
+
+    #[test]
     fn el_gamal() {
         let rng = RNG.clone();
 
