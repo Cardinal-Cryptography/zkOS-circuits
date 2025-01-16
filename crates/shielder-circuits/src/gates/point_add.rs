@@ -35,7 +35,7 @@ pub struct PointAddGateInput {
     s: [AssignedCell<Fr>; 3], // x3,y3,z3
 }
 
-// const SELECTOR_OFFSET: usize = 0;
+const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "Point add gate";
 
@@ -130,7 +130,41 @@ impl Gate<Fr> for PointAddGate {
         layouter: &mut impl Layouter<Fr>,
         input: Self::Input,
     ) -> Result<(), Error> {
-        todo!()
+        layouter.assign_region(
+            || GATE_NAME,
+            |mut region| {
+                self.selector.enable(&mut region, SELECTOR_OFFSET)?;
+
+                for (i, cell) in input.p.iter().enumerate() {
+                    cell.copy_advice(
+                        || alloc::format!("P[{i}]"),
+                        &mut region,
+                        self.p[i],
+                        ADVICE_OFFSET as usize,
+                    )?;
+                }
+
+                for (i, cell) in input.q.iter().enumerate() {
+                    cell.copy_advice(
+                        || alloc::format!("Q[{i}]"),
+                        &mut region,
+                        self.q[i],
+                        ADVICE_OFFSET as usize,
+                    )?;
+                }
+
+                for (i, cell) in input.s.iter().enumerate() {
+                    cell.copy_advice(
+                        || alloc::format!("S[{i}]"),
+                        &mut region,
+                        self.s[i],
+                        ADVICE_OFFSET as usize,
+                    )?;
+                }
+
+                Ok(())
+            },
+        )
     }
 
     #[cfg(test)]
