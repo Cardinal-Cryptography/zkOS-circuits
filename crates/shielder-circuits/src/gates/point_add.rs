@@ -1,21 +1,20 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::{CurveExt, Field},
-    circuit::{Layouter, Value},
+    arithmetic::CurveExt,
+    circuit::Layouter,
     halo2curves::{bn256::Fr, grumpkin::G1},
-    plonk::{Advice, Assigned, Column, ConstraintSystem, Error, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, crate::F, macros::embeddable};
+use {
+    crate::{column_pool::ColumnPool, embed::Embed, F},
+    macros::embeddable,
+};
 
 use crate::{
-    circuits::FieldExt,
-    column_pool::ColumnPool,
     gates::{ensure_unique_columns, Gate},
-    instance_wrapper::InstanceWrapper,
-    todo::Todo,
     AssignedCell,
 };
 
@@ -184,12 +183,6 @@ impl Gate<Fr> for PointAddGate {
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 9);
 
-        // let p_advice = pool.get_array();
-        // let q_advice = pool.get_array();
-        // let s_advice = pool.get_array();
-
-        // (p_advice, q_advice, s_advice)
-
         (
             [pool.get(0), pool.get(1), pool.get(2)],
             [pool.get(3), pool.get(4), pool.get(5)],
@@ -206,20 +199,18 @@ mod tests {
 
     use halo2_proofs::{
         arithmetic::Field,
-        circuit::Value,
-        dev::{
-            metadata::{Constraint, Gate},
-            MockProver, VerifyFailure,
-        },
-        halo2curves::{bn256::Fr, grumpkin::G1},
+        dev::{MockProver, VerifyFailure},
+        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
         plonk::ConstraintSystem,
     };
+    use once_cell::sync::Lazy;
+    use rand::{rngs::StdRng, SeedableRng};
 
     use super::{PointAddGate, PointAddGateInput};
-    use crate::{
-        gates::{test_utils::OneGateCircuit, Gate as _},
-        AssignedCell,
-    };
+    use crate::gates::{test_utils::OneGateCircuit, Gate as _};
+
+    static RNG: Lazy<StdRng> =
+        Lazy::new(|| StdRng::from_seed(*b"00000000000000000000100001011001"));
 
     fn input(p: G1, q: G1, s: G1) -> PointAddGateInput<Fr> {
         PointAddGateInput {
@@ -253,15 +244,35 @@ mod tests {
             y: Fr::ONE,
             z: Fr::ZERO,
         };
-
         let q = G1 {
             x: Fr::ZERO,
             y: Fr::ONE,
             z: Fr::ZERO,
         };
-
         let s = p + q;
 
         assert!(verify(input(p, q, s)).is_ok());
+    }
+
+    #[test]
+    fn adding_random_points() {
+        let rng = RNG.clone();
+
+        let p = G1::random(rng.clone());
+        let q = G1::random(rng.clone());
+        let s = p + q;
+
+        assert!(verify(input(p, q, s)).is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let rng = RNG.clone();
+
+        let p = G1::random(rng.clone());
+        let q = G1::random(rng.clone());
+        let s = G1::random(rng.clone());
+
+        verify(input(p, q, s)).expect_err("Verification should fail");
     }
 }

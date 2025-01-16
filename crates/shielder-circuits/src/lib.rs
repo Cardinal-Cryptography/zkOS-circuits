@@ -12,7 +12,6 @@ mod config_builder;
 pub mod consts;
 mod embed;
 mod gates;
-pub mod grumpkin;
 mod instance_wrapper;
 pub mod poseidon;
 mod range_table;
