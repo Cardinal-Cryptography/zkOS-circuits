@@ -83,13 +83,13 @@ fn add(
     let y3 = y3 * b3;
     let x3 = t4.clone() * y3.clone();
     let t2 = t3.clone() * t1.clone();
-    let x3 = t2 - x3.clone();
+    let x3 = t2 - x3;
     let y3 = y3 * t0.clone();
     let t1 = t1 * z3.clone();
-    let y3 = t1 + y3.clone();
+    let y3 = t1 + y3;
     let t0 = t0 * t3;
     let z3 = z3 * t4;
-    let z3 = z3.clone() + t0;
+    let z3 = z3 + t0;
 
     (x3, y3, z3)
 }
@@ -188,8 +188,6 @@ impl Gate for PointAddGate {
             [pool.get(3), pool.get(4), pool.get(5)],
             [pool.get(6), pool.get(7), pool.get(8)],
         )
-
-        // todo!()
     }
 }
 
