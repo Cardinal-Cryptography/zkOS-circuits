@@ -89,9 +89,9 @@ impl Gate<Fr> for PointAddGate {
     type Input = PointAddGateInput;
 
     type Advices = (
-        [Column<Advice>; 3],
-        [Column<Advice>; 3],
-        [Column<Advice>; 3],
+        [Column<Advice>; 3], // p
+        [Column<Advice>; 3], // q
+        [Column<Advice>; 3], // s
     );
 
     fn create_gate(cs: &mut ConstraintSystem<Fr>, (p, q, s): Self::Advices) -> Self {
@@ -172,6 +172,12 @@ impl Gate<Fr> for PointAddGate {
         pool: &mut ColumnPool<Advice>,
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
-        todo!()
+        pool.ensure_capacity(cs, 9);
+
+        let p_advice = pool.get_array();
+        let q_advice = pool.get_array();
+        let s_advice = pool.get_array();
+
+        (p_advice, q_advice, s_advice)
     }
 }
