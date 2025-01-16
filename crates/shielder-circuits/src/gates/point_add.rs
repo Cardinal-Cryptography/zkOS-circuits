@@ -184,11 +184,19 @@ impl Gate<Fr> for PointAddGate {
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 9);
 
-        let p_advice = pool.get_array();
-        let q_advice = pool.get_array();
-        let s_advice = pool.get_array();
+        // let p_advice = pool.get_array();
+        // let q_advice = pool.get_array();
+        // let s_advice = pool.get_array();
 
-        (p_advice, q_advice, s_advice)
+        // (p_advice, q_advice, s_advice)
+
+        (
+            [pool.get(0), pool.get(1), pool.get(2)],
+            [pool.get(3), pool.get(4), pool.get(5)],
+            [pool.get(6), pool.get(7), pool.get(8)],
+        )
+
+        // todo!()
     }
 }
 
@@ -197,12 +205,13 @@ mod tests {
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{
+        arithmetic::Field,
         circuit::Value,
         dev::{
             metadata::{Constraint, Gate},
             MockProver, VerifyFailure,
         },
-        halo2curves::bn256::{Fr, G1},
+        halo2curves::{bn256::Fr, grumpkin::G1},
         plonk::ConstraintSystem,
     };
 
@@ -212,8 +221,12 @@ mod tests {
         AssignedCell,
     };
 
-    fn input(p: [Fr; 3], q: [Fr; 3], s: [Fr; 3]) -> PointAddGateInput<Fr> {
-        PointAddGateInput { p, q, s }
+    fn input(p: G1, q: G1, s: G1) -> PointAddGateInput<Fr> {
+        PointAddGateInput {
+            p: [p.x, p.y, p.z],
+            q: [q.x, q.y, q.z],
+            s: [s.x, s.y, s.z],
+        }
     }
 
     fn verify(input: PointAddGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
@@ -221,5 +234,34 @@ mod tests {
         MockProver::run(3, &circuit, vec![])
             .expect("Mock prover should run")
             .verify()
+    }
+
+    #[test]
+    fn gate_creation() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let p = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
+        let q = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
+        let s = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
+
+        PointAddGate::create_gate(&mut cs, (p, q, s));
+    }
+
+    #[test]
+    fn adding_point_at_infinity() {
+        let p = G1 {
+            x: Fr::ZERO,
+            y: Fr::ONE,
+            z: Fr::ZERO,
+        };
+
+        let q = G1 {
+            x: Fr::ZERO,
+            y: Fr::ONE,
+            z: Fr::ZERO,
+        };
+
+        let s = p + q;
+
+        assert!(verify(input(p, q, s)).is_ok());
     }
 }
