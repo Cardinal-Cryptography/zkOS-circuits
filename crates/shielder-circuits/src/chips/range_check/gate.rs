@@ -5,9 +5,11 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
+use macros::embeddable;
 
 use crate::{
-    consts::RANGE_PROOF_CHUNK_SIZE, gates::Gate, range_table::RangeTable, AssignedCell, F,
+    consts::RANGE_PROOF_CHUNK_SIZE, embed::Embed, gates::Gate, range_table::RangeTable,
+    AssignedCell, F,
 };
 
 /// Represents inequality: `base - shifted * 2^RANGE_PROOF_CHUNK_SIZE < 2^RANGE_PROOF_CHUNK_SIZE`.
@@ -20,14 +22,23 @@ pub struct RangeCheckGate {
 
 /// The values that are required to construct a range check gate. Pair `(base, shifted)` is expected
 /// to satisfy the inequality: `base - shifted * 2^CHUNK_SIZE < 2^CHUNK_SIZE`.
-pub type RangeCheckGateInput = (AssignedCell, AssignedCell);
+#[derive(Clone, Debug, Default)]
+#[embeddable(
+    receiver = "RangeCheckGateInput<F>",
+    impl_generics = "",
+    embedded = "RangeCheckGateInput<AssignedCell>"
+)]
+pub struct RangeCheckGateInput<T> {
+    pub base: T,
+    pub shifted: T,
+}
 
 const GATE_NAME: &str = "Range check gate";
 const BASE_OFFSET: usize = 0;
 const SHIFTED_OFFSET: usize = 1;
 
 impl Gate for RangeCheckGate {
-    type Input = RangeCheckGateInput;
+    type Input = RangeCheckGateInput<AssignedCell>;
     type Advices = Column<Advice>;
 
     /// The gate operates on a single advice column `A` and a table `T`. It enforces that:
@@ -69,7 +80,7 @@ impl Gate for RangeCheckGate {
     fn apply_in_new_region(
         &self,
         layouter: &mut impl Layouter<F>,
-        (base, shifted): (AssignedCell, AssignedCell),
+        RangeCheckGateInput { base, shifted }: Self::Input,
     ) -> Result<(), Error> {
         self.table.ensure_initialized(layouter)?;
         layouter.assign_region(
@@ -92,3 +103,6 @@ impl Gate for RangeCheckGate {
         pool.get_any()
     }
 }
+
+#[cfg(test)]
+mod tests {}
