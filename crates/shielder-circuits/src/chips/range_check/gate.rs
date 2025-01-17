@@ -105,4 +105,55 @@ impl Gate for RangeCheckGate {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use halo2_proofs::halo2curves::bn256::Fr;
+
+    use crate::{
+        chips::range_check::gate::{RangeCheckGate, RangeCheckGateInput},
+        consts::RANGE_PROOF_CHUNK_SIZE,
+        gates::test_utils::verify,
+    };
+
+    fn input(base: impl Into<Fr>, shifted: impl Into<Fr>) -> RangeCheckGateInput<Fr> {
+        RangeCheckGateInput {
+            base: base.into(),
+            shifted: shifted.into(),
+        }
+    }
+
+    #[test]
+    fn zeros_pass() {
+        assert!(verify::<RangeCheckGate, _>(input(0, 0)).is_ok());
+    }
+
+    #[test]
+    fn full_range_passes() {
+        let shifted = Fr::from(41);
+        let scale = Fr::from(1 << RANGE_PROOF_CHUNK_SIZE);
+        for i in 0..(1 << RANGE_PROOF_CHUNK_SIZE) {
+            let base = shifted * scale + Fr::from(i);
+            assert!(verify::<RangeCheckGate, _>(input(base, shifted)).is_ok());
+        }
+    }
+
+    #[test]
+    fn minimal_incorrect_difference_fails() {
+        let shifted = Fr::from(42);
+        let scale = Fr::from(1 << RANGE_PROOF_CHUNK_SIZE);
+        let base = shifted * scale + scale;
+
+        let err = verify::<RangeCheckGate, _>(input(base, shifted)).unwrap_err();
+        assert_eq!(err.len(), 1);
+        assert!(err[0].contains("Lookup Range check lookup"));
+    }
+
+    #[test]
+    fn big_difference_fails() {
+        let shifted = Fr::from(43);
+        let base = Fr::from(40);
+
+        let err = verify::<RangeCheckGate, _>(input(base, shifted)).unwrap_err();
+        assert_eq!(err.len(), 1);
+        assert!(err[0].contains("Lookup Range check lookup"));
+    }
+}

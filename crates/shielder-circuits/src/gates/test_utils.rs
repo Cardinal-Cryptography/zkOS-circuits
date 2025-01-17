@@ -76,7 +76,7 @@ pub fn verify<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Def
     input: Input,
 ) -> Result<(), Vec<String>> {
     let circuit = OneGateCircuit::<G, Input>::new(input);
-    MockProver::run(4, &circuit, vec![])
+    MockProver::run(9, &circuit, vec![])
         .expect("Mock prover should run")
         .verify()
         .map_err(|v| v.into_iter().map(|e| e.to_string()).collect())
