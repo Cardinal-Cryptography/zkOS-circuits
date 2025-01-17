@@ -201,14 +201,14 @@ mod tests {
         halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
         plonk::ConstraintSystem,
     };
-    use once_cell::sync::Lazy;
     use rand::{rngs::StdRng, SeedableRng};
 
     use super::{PointAddGate, PointAddGateInput};
     use crate::gates::{test_utils::OneGateCircuit, Gate as _};
 
-    static RNG: Lazy<StdRng> =
-        Lazy::new(|| StdRng::from_seed(*b"00000000000000000000100001011001"));
+    fn rng() -> StdRng {
+        StdRng::from_seed(*b"00000000000000000000100001011001")
+    }
 
     fn input(p: G1, q: G1, s: G1) -> PointAddGateInput<Fr> {
         PointAddGateInput {
@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn adding_random_points() {
-        let rng = RNG.clone();
+        let rng = rng();
 
         let p = G1::random(rng.clone());
         let q = G1::random(rng.clone());
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn incorrect_inputs() {
-        let rng = RNG.clone();
+        let rng = rng();
 
         let p = G1::random(rng.clone());
         let q = G1::random(rng.clone());
