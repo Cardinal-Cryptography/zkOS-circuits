@@ -33,6 +33,7 @@ multithreading = ["rayon"]
 ignored = ["getrandom", "rayon"]
 
 [dev-dependencies]
+assert2 = { workspace = true }
 criterion = { workspace = true }
 halo2_proofs = { workspace = true, default-features = true }
 regex = { workspace = true }
