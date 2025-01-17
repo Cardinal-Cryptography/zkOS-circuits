@@ -29,14 +29,13 @@ pub struct Shortlist<T, const N: usize> {
     items: [T; N],
 }
 
-#[allow(dead_code)]
 impl<const N: usize> Shortlist<F, N> {
-    fn new(items: [F; N]) -> Self {
+    pub fn new(items: [F; N]) -> Self {
         const { assert!(N > 0 && N % CHUNK_SIZE == 0) };
         Self { items }
     }
 
-    fn items(&self) -> &[F; N] {
+    pub fn items(&self) -> &[F; N] {
         &self.items
     }
 }
