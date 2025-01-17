@@ -25,8 +25,8 @@ pub struct ShortlistHashChip<const N: usize> {
 ///
 /// Hashing is implemented by chaining fixed-sized chunks of the list.
 #[derive(Copy, Clone, Debug)]
-pub struct Shortlist<F, const N: usize> {
-    items: [F; N],
+pub struct Shortlist<T, const N: usize> {
+    items: [T; N],
 }
 
 #[allow(dead_code)]
