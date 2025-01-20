@@ -11,10 +11,11 @@ use crate::F;
 
 pub mod balance_increase;
 pub mod membership;
+pub mod point_add;
 pub mod sum;
 
 #[cfg(test)]
-mod test_utils;
+pub mod test_utils;
 
 /// `Gate` expresses a concept of a gadget in a circuit that:
 ///   1. Takes in some values (assigned cells).
