@@ -16,48 +16,49 @@ use crate::{
     F,
 };
 
-pub struct Empty;
-pub struct With<T>(T);
+pub struct ConfigsBuilder<'cs> {
+    system: &'cs mut ConstraintSystem<F>,
+    advice_pool: ColumnPool<Advice>,
+    fixed_pool: ColumnPool<Fixed>,
 
-type WithBalancesIncrease = With<BalancesIncreaseChip>;
-type WithSum = With<SumChip>;
-type WithMerkle = With<MerkleChip>;
-type WithPoseidon = With<PoseidonChip>;
-type WithRangeCheck = With<RangeCheckChip>;
-
-pub struct ConfigsBuilder<'cs, Poseidon, Merkle, BalancesIncrease, Sum, RangeCheck> {
-    base_builder: BaseBuilder<'cs>,
-    poseidon: Poseidon,
-    merkle: Merkle,
-    balances_increase: BalancesIncrease,
-    sum: Sum,
-    range_check: RangeCheck,
+    balances_increase: Option<BalancesIncreaseChip>,
+    merkle: Option<MerkleChip>,
+    poseidon: Option<PoseidonChip>,
+    range_check: Option<RangeCheckChip>,
+    sum: Option<SumChip>,
 }
 
-impl<'cs> ConfigsBuilder<'cs, Empty, Empty, Empty, Empty, Empty> {
+impl<'cs> ConfigsBuilder<'cs> {
     pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
         Self {
-            base_builder: BaseBuilder::new(system),
-            poseidon: Empty,
-            merkle: Empty,
-            balances_increase: Empty,
-            sum: Empty,
-            range_check: Empty,
+            system,
+            advice_pool: ColumnPool::<Advice>::new(),
+            fixed_pool: ColumnPool::<Fixed>::new(),
+
+            balances_increase: None,
+            merkle: None,
+            poseidon: None,
+            range_check: None,
+            sum: None,
         }
     }
-}
 
-impl<'cs> ConfigsBuilder<'cs, Empty, Empty, Empty, Empty, Empty> {
-    pub fn balances_increase(
-        mut self,
-    ) -> ConfigsBuilder<'cs, Empty, Empty, WithBalancesIncrease, Empty, Empty> {
-        let advice_pool = self.base_builder.advice_pool_with_capacity(4).clone();
+    pub fn advice_pool(&self) -> ColumnPool<Advice> {
+        self.advice_pool.clone()
+    }
+
+    pub fn with_balances_increase(mut self) -> Self {
+        assert!(
+            self.balances_increase.is_none(),
+            "BalancesIncrease already configured"
+        );
+
+        let advice_pool = self.advice_pool_with_capacity(4).clone();
         let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
-        let system = &mut self.base_builder.system;
 
-        let balances_increase = BalancesIncreaseChip {
+        self.balances_increase = Some(BalancesIncreaseChip {
             gate: BalanceIncreaseGate::create_gate(
-                system,
+                self.system,
                 BalanceIncreaseGateAdvices {
                     balance_old: gate_advice[0],
                     increase_value: gate_advice[1],
@@ -66,202 +67,101 @@ impl<'cs> ConfigsBuilder<'cs, Empty, Empty, Empty, Empty, Empty> {
                 },
             ),
             advice_pool,
-        };
-
-        ConfigsBuilder {
-            base_builder: self.base_builder,
-            poseidon: self.poseidon,
-            merkle: self.merkle,
-            balances_increase: With(balances_increase),
-            sum: self.sum,
-            range_check: self.range_check,
-        }
+        });
+        self
     }
-}
 
-impl<'cs, Poseidon, BalancesIncrease>
-    ConfigsBuilder<'cs, Poseidon, Empty, BalancesIncrease, Empty, Empty>
-{
-    pub fn sum(mut self) -> ConfigsBuilder<'cs, Poseidon, Empty, BalancesIncrease, WithSum, Empty> {
-        let advice_pool = self.base_builder.advice_pool_with_capacity(3);
-        let gate_advice = advice_pool.get_array();
-        let advice = advice_pool.get_any();
-        let system = &mut self.base_builder.system;
-
-        let sum = SumChip {
-            gate: SumGate::create_gate(system, gate_advice),
-            advice,
-        };
-
-        ConfigsBuilder {
-            base_builder: self.base_builder,
-            poseidon: self.poseidon,
-            merkle: self.merkle,
-            balances_increase: self.balances_increase,
-            sum: With(sum),
-            range_check: self.range_check,
-        }
+    pub fn balances_increase_chip(&self) -> BalancesIncreaseChip {
+        self.balances_increase
+            .clone()
+            .expect("BalancesIncrease not configured")
     }
-}
 
-impl<'cs, BalancesIncrease, Sum> ConfigsBuilder<'cs, Empty, Empty, BalancesIncrease, Sum, Empty> {
-    pub fn poseidon(
-        mut self,
-    ) -> ConfigsBuilder<'cs, WithPoseidon, Empty, BalancesIncrease, Sum, Empty> {
-        let advice_pool = self.base_builder.advice_pool_with_capacity(WIDTH + 1);
+    pub fn with_poseidon(mut self) -> Self {
+        assert!(self.poseidon.is_none(), "Poseidon already configured");
+
+        let advice_pool = self.advice_pool_with_capacity(WIDTH + 1);
         let advice_array = advice_pool.get_array::<WIDTH>();
         let advice = advice_pool.get(WIDTH);
 
-        let fixed_pool = self.base_builder.fixed_pool_with_capacity(WIDTH);
+        let fixed_pool = self.fixed_pool_with_capacity(WIDTH);
         let fixed_array = fixed_pool.get_array::<WIDTH>();
 
-        let poseidon_config = PoseidonChip::configure::<PoseidonSpec>(
-            self.base_builder.system,
-            advice_array,
-            fixed_array,
-            advice,
-        );
-        let poseidon = PoseidonChip::construct(poseidon_config);
+        let poseidon_config =
+            PoseidonChip::configure::<PoseidonSpec>(self.system, advice_array, fixed_array, advice);
 
-        ConfigsBuilder {
-            base_builder: self.base_builder,
-            poseidon: With(poseidon),
-            merkle: self.merkle,
-            balances_increase: self.balances_increase,
-            sum: self.sum,
-            range_check: self.range_check,
-        }
+        self.poseidon = Some(PoseidonChip::construct(poseidon_config));
+        self
     }
-}
 
-impl<'cs, BalancesIncrease, Sum>
-    ConfigsBuilder<'cs, WithPoseidon, Empty, BalancesIncrease, Sum, Empty>
-{
-    pub fn merkle(
-        mut self,
-        public_inputs: InstanceWrapper<MerkleInstance>,
-    ) -> ConfigsBuilder<'cs, WithPoseidon, WithMerkle, BalancesIncrease, Sum, Empty> {
-        let advice_pool = self
-            .base_builder
-            .advice_pool_with_capacity(ARITY + 1)
-            .clone();
+    pub fn poseidon_chip(&self) -> PoseidonChip {
+        self.poseidon.clone().expect("Poseidon not configured")
+    }
+
+    pub fn with_merkle(mut self, public_inputs: InstanceWrapper<MerkleInstance>) -> Self {
+        assert!(self.poseidon.is_some(), "Poseidon must be configured first");
+        assert!(self.merkle.is_none(), "Merkle already configured");
+
+        let advice_pool = self.advice_pool_with_capacity(ARITY + 1).clone();
 
         let needle = advice_pool.get(ARITY);
         let advice_path = advice_pool.get_array::<ARITY>();
 
-        let system = &mut self.base_builder.system;
-        let merkle = MerkleChip {
-            membership_gate: MembershipGate::create_gate(system, (needle, advice_path)),
+        self.merkle = Some(MerkleChip {
+            membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
             advice_pool,
             public_inputs,
-            poseidon: self.poseidon.0.clone(),
-        };
-
-        ConfigsBuilder {
-            base_builder: self.base_builder,
-            poseidon: self.poseidon,
-            merkle: With(merkle),
-            balances_increase: self.balances_increase,
-            sum: self.sum,
-            range_check: self.range_check,
-        }
+            poseidon: self.poseidon.clone().unwrap(),
+        });
+        self
     }
-}
 
-impl<'cs, Poseidon, Merkle, BalancesIncrease, RangeCheck>
-    ConfigsBuilder<'cs, Poseidon, Merkle, BalancesIncrease, WithSum, RangeCheck>
-{
-    pub fn range_check(
-        mut self,
-    ) -> ConfigsBuilder<'cs, Poseidon, Merkle, BalancesIncrease, WithSum, WithRangeCheck> {
-        let system = &mut self.base_builder.system;
-        self.base_builder.advice_pool.ensure_capacity(system, 1);
-        let advice_pool = self.base_builder.advice_pool.clone();
-
-        let range_check = RangeCheckChip::new(system, advice_pool.clone(), self.sum.0.clone());
-
-        ConfigsBuilder {
-            base_builder: self.base_builder,
-            poseidon: self.poseidon,
-            merkle: self.merkle,
-            balances_increase: self.balances_increase,
-            sum: self.sum,
-            range_check: With(range_check),
-        }
+    pub fn merkle_chip(&self) -> MerkleChip {
+        self.merkle.clone().expect("Merkle not configured")
     }
-}
 
-impl<'cs, Poseidon, Merkle, BalancesIncrease, Sum>
-    ConfigsBuilder<'cs, Poseidon, Merkle, BalancesIncrease, Sum, WithRangeCheck>
-{
-    pub fn resolve_range_check(&self) -> RangeCheckChip {
-        self.range_check.0.clone()
-    }
-}
+    pub fn with_range_check(mut self) -> Self {
+        assert!(self.sum.is_some(), "Sum must be configured first");
+        assert!(self.range_check.is_none(), "RangeCheck already configured");
 
-impl<'cs, Merkle, BalancesIncrease, Sum, RangeCheck>
-    ConfigsBuilder<'cs, WithPoseidon, Merkle, BalancesIncrease, Sum, RangeCheck>
-{
-    pub fn resolve_poseidon(&self) -> (ColumnPool<Advice>, PoseidonChip) {
-        (
-            self.base_builder.advice_pool.clone(),
-            self.poseidon.0.clone(),
-        )
-    }
-}
+        let system = &mut self.system;
+        self.advice_pool.ensure_capacity(system, 1);
+        let advice_pool = self.advice_pool.clone();
 
-impl<'cs, BalancesIncrease, Sum, RangeCheck>
-    ConfigsBuilder<'cs, WithPoseidon, WithMerkle, BalancesIncrease, Sum, RangeCheck>
-{
-    pub fn resolve_merkle(&self) -> (ColumnPool<Advice>, PoseidonChip, MerkleChip) {
-        (
-            self.base_builder.advice_pool.clone(),
-            self.poseidon.0.clone(),
-            self.merkle.0.clone(),
-        )
-    }
-}
-
-impl<'cs, Poseidon, Merkle, RangeCheck>
-    ConfigsBuilder<'cs, Poseidon, Merkle, WithBalancesIncrease, WithSum, RangeCheck>
-{
-    pub fn resolve_balances_increase_chip(&self) -> (ColumnPool<Advice>, BalancesIncreaseChip) {
-        (
-            self.base_builder.advice_pool.clone(),
-            self.balances_increase.0.clone(),
-        )
-    }
-}
-
-impl<'cs, Poseidon, Merkle, BalancesIncrease, RangeCheck>
-    ConfigsBuilder<'cs, Poseidon, Merkle, BalancesIncrease, WithSum, RangeCheck>
-{
-    pub fn resolve_sum_chip(&self) -> (ColumnPool<Advice>, SumChip) {
-        (self.base_builder.advice_pool.clone(), self.sum.0.clone())
-    }
-}
-
-struct BaseBuilder<'cs> {
-    system: &'cs mut ConstraintSystem<F>,
-    advice_pool: ColumnPool<Advice>,
-    fixed_pool: ColumnPool<Fixed>,
-}
-
-impl<'cs> BaseBuilder<'cs> {
-    pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
-        Self {
-            advice_pool: ColumnPool::<Advice>::new(),
-            fixed_pool: ColumnPool::<Fixed>::new(),
+        self.range_check = Some(RangeCheckChip::new(
             system,
-        }
+            advice_pool.clone(),
+            self.sum.clone().unwrap(),
+        ));
+        self
     }
 
-    pub fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice> {
+    pub fn range_check_chip(&self) -> RangeCheckChip {
+        self.range_check.clone().expect("RangeCheck not configured")
+    }
+
+    pub fn with_sum(mut self) -> Self {
+        assert!(self.sum.is_none(), "Sum already configured");
+
+        let advice_pool = self.advice_pool_with_capacity(3).clone();
+
+        self.sum = Some(SumChip {
+            gate: SumGate::create_gate(self.system, advice_pool.get_array()),
+            advice: advice_pool.get_any(),
+        });
+        self
+    }
+
+    pub fn sum_chip(&self) -> SumChip {
+        self.sum.clone().expect("Sum not configured")
+    }
+
+    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice> {
         self.advice_pool.ensure_capacity(self.system, capacity);
         &self.advice_pool
     }
 
-    pub fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed> {
+    fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed> {
         self.fixed_pool.ensure_capacity(self.system, capacity);
         &self.fixed_pool
     }

@@ -28,11 +28,10 @@ impl<const TREE_HEIGHT: usize> Circuit<F> for MerkleCircuit<TREE_HEIGHT> {
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
         let public_inputs = InstanceWrapper::<MerkleInstance>::new(meta);
-        let (_, _, merkle) = ConfigsBuilder::new(meta)
-            .poseidon()
-            .merkle(public_inputs)
-            .resolve_merkle();
-        merkle
+        ConfigsBuilder::new(meta)
+            .with_poseidon()
+            .with_merkle(public_inputs)
+            .merkle_chip()
     }
 
     fn synthesize(
