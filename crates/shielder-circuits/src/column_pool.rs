@@ -111,4 +111,19 @@ mod tests {
         // 4. Check that the columns are the same.
         assert_eq!(2, cs.num_advice_columns());
     }
+
+    #[test]
+    fn clones_see_new_columns() {
+        let mut cs = ConstraintSystem::<F>::default();
+        let mut root_pool = ColumnPool::<Advice>::new();
+
+        // 1. Clone the root pool.
+        let cloned_pool = root_pool.clone();
+
+        // 2. Ensure 2 columns in the root pool.
+        root_pool.ensure_capacity(&mut cs, 2);
+
+        // 3. Check that the clone sees both columns.
+        assert_eq!(2, cloned_pool.len());
+    }
 }
