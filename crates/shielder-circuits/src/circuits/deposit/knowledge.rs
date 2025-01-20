@@ -50,7 +50,7 @@ pub struct DepositProverKnowledge<F> {
 
     // `token_indicators[i] = 1` if token i is deposited, 0 otherwise.
     // Exactly one entry is 1, the rest are 0.
-    pub token_indicators: Shortlist<F, NUM_TOKENS>,
+    pub token_indicators: [F; NUM_TOKENS],
 
     // Nonce for id_hiding
     pub nonce: F,
@@ -79,7 +79,7 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
             balances: balances_old,
         });
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
-        let token_indicators = Shortlist::new(array::from_fn(|i| F::from((i == 0) as u64)));
+        let token_indicators = array::from_fn(|i| F::from((i == 0) as u64));
         Self {
             id,
             nonce,

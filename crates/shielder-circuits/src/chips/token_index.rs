@@ -7,7 +7,6 @@ use halo2_proofs::{
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
-use super::shortlist_hash::Shortlist;
 use crate::{
     column_pool::ColumnPool, consts::NUM_TOKENS, instance_wrapper::InstanceWrapper, todo::Todo,
     AssignedCell, F,
@@ -18,22 +17,15 @@ pub mod off_circuit {
 
     use halo2_proofs::{arithmetic::Field, circuit::Value};
 
-    use crate::{chips::shortlist_hash::Shortlist, consts::NUM_TOKENS, F};
+    use crate::{consts::NUM_TOKENS, F};
 
-    pub fn index_from_indicators(indicators: &Shortlist<F, NUM_TOKENS>) -> F {
+    pub fn index_from_indicators(indicators: &[F; NUM_TOKENS]) -> F {
         // All `indicators` must be from {0, 1}.
-        assert!(indicators
-            .items()
-            .iter()
-            .all(|&x| x == F::ZERO || x == F::ONE));
+        assert!(indicators.iter().all(|&x| x == F::ZERO || x == F::ONE));
         // Exactly one indicator must be equal to 1.
-        assert_eq!(
-            1,
-            indicators.items().iter().filter(|&&x| x == F::ONE).count()
-        );
+        assert_eq!(1, indicators.iter().filter(|&&x| x == F::ONE).count());
 
         let index = indicators
-            .items()
             .iter()
             .position(|&x| x == F::ONE)
             .expect("at least 1 positive indicator");
@@ -101,10 +93,10 @@ impl TokenIndexChip {
     pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
         layouter: &mut impl Layouter<F>,
-        indicators: &Shortlist<AssignedCell, NUM_TOKENS>,
+        indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {
-        let values = array::from_fn(|i| indicators.items()[i].value().cloned());
+        let values = array::from_fn(|i| indicators[i].value().cloned());
         let index = off_circuit::index_from_indicator_values(&values);
 
         let cell = layouter.assign_region(

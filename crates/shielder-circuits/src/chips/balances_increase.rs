@@ -28,12 +28,11 @@ pub mod off_circuit {
     /// Computes new balances. Works for both `F` and `Value<F>`.
     pub fn increase_balances<T: Add<Output = T> + Mul<Output = T> + Clone>(
         balances_old: &Shortlist<T, NUM_TOKENS>,
-        token_indicators: &Shortlist<T, NUM_TOKENS>,
+        token_indicators: &[T; NUM_TOKENS],
         increase_value: T,
     ) -> Shortlist<T, NUM_TOKENS> {
         Shortlist::new(array::from_fn(|i| {
-            balances_old.items()[i].clone()
-                + token_indicators.items()[i].clone() * increase_value.clone()
+            balances_old.items()[i].clone() + token_indicators[i].clone() * increase_value.clone()
         }))
     }
 }
@@ -44,10 +43,8 @@ pub struct BalancesIncreaseChip {
     pub advice_pool: ColumnPool<Advice>,
 }
 
-fn values_from_cell_array<const N: usize>(
-    cell_array: &Shortlist<AssignedCell, N>,
-) -> Shortlist<Value<F>, N> {
-    Shortlist::new(array::from_fn(|i| cell_array.items()[i].value().copied()))
+fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value<F>; N] {
+    array::from_fn(|i| cell_array[i].value().copied())
 }
 
 impl BalancesIncreaseChip {
@@ -59,11 +56,11 @@ impl BalancesIncreaseChip {
         &self,
         layouter: &mut impl Layouter<F>,
         balances_old: &Shortlist<AssignedCell, NUM_TOKENS>,
-        token_indicators: &Shortlist<AssignedCell, NUM_TOKENS>,
+        token_indicators: &[AssignedCell; NUM_TOKENS],
         increase_value: &AssignedCell,
     ) -> Result<Shortlist<AssignedCell, NUM_TOKENS>, Error> {
         let balances_new_values = off_circuit::increase_balances(
-            &values_from_cell_array(balances_old),
+            &Shortlist::new(values_from_cell_array(balances_old.items())),
             &values_from_cell_array(token_indicators),
             increase_value.value().cloned(),
         );
@@ -87,7 +84,7 @@ impl BalancesIncreaseChip {
             let gate_input = BalanceIncreaseGateInput {
                 balance_old: balances_old.items()[i].clone(),
                 increase_value: increase_value.clone(),
-                token_indicator: token_indicators.items()[i].clone(),
+                token_indicator: token_indicators[i].clone(),
                 balance_new: balances_new[i].clone(),
             };
             self.gate.apply_in_new_region(layouter, gate_input)?;
