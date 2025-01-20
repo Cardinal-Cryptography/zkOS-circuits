@@ -76,7 +76,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn value_too_large() {
-        let value = Value::known(Fr::from(1 << ((CHUNK_SIZE * CHUNKS) + 1)));
+        let value = Value::known(Fr::from(1 << (CHUNK_SIZE * CHUNKS) + 1));
         running_sum(value, CHUNK_SIZE, CHUNKS);
     }
 
