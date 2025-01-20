@@ -28,6 +28,14 @@ pub struct ConfigsBuilder<'cs> {
     sum: Option<SumChip>,
 }
 
+macro_rules! check_if_cached {
+    ($self:ident, $field:ident) => {
+        if $self.$field.is_some() {
+            return $self;
+        }
+    };
+}
+
 impl<'cs> ConfigsBuilder<'cs> {
     pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
         Self {
@@ -48,9 +56,7 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_balances_increase(mut self) -> Self {
-        if self.balances_increase.is_some() {
-            return self;
-        }
+        check_if_cached!(self, balances_increase);
 
         let advice_pool = self.advice_pool_with_capacity(4).clone();
         let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
@@ -77,9 +83,7 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_poseidon(mut self) -> Self {
-        if self.poseidon.is_some() {
-            return self;
-        }
+        check_if_cached!(self, poseidon);
 
         let advice_pool = self.advice_pool_with_capacity(WIDTH + 1);
         let advice_array = advice_pool.get_array::<WIDTH>();
@@ -100,9 +104,7 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_merkle(mut self, public_inputs: InstanceWrapper<MerkleInstance>) -> Self {
-        if self.merkle.is_some() {
-            return self;
-        }
+        check_if_cached!(self, merkle);
         self = self.with_poseidon();
 
         let advice_pool = self.advice_pool_with_capacity(ARITY + 1).clone();
@@ -124,9 +126,7 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_range_check(mut self) -> Self {
-        if self.range_check.is_some() {
-            return self;
-        }
+        check_if_cached!(self, range_check);
         self = self.with_sum();
 
         let system = &mut self.system;
@@ -146,12 +146,9 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_sum(mut self) -> Self {
-        if self.sum.is_some() {
-            return self;
-        }
+        check_if_cached!(self, sum);
 
         let advice_pool = self.advice_pool_with_capacity(3).clone();
-
         self.sum = Some(SumChip {
             gate: SumGate::create_gate(self.system, advice_pool.get_array()),
             advice: advice_pool.get_any(),
