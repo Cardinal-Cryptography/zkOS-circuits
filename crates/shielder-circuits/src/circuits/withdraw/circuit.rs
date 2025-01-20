@@ -28,8 +28,6 @@ impl Circuit<F> for WithdrawCircuit {
         let public_inputs = InstanceWrapper::<WithdrawInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
-            .with_sum()
-            .with_poseidon()
             .with_merkle(public_inputs.narrow())
             .with_range_check();
 

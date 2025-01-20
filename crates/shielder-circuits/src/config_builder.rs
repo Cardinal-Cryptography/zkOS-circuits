@@ -48,10 +48,9 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_balances_increase(mut self) -> Self {
-        assert!(
-            self.balances_increase.is_none(),
-            "BalancesIncrease already configured"
-        );
+        if self.balances_increase.is_some() {
+            return self;
+        }
 
         let advice_pool = self.advice_pool_with_capacity(4).clone();
         let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
@@ -78,7 +77,9 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_poseidon(mut self) -> Self {
-        assert!(self.poseidon.is_none(), "Poseidon already configured");
+        if self.poseidon.is_some() {
+            return self;
+        }
 
         let advice_pool = self.advice_pool_with_capacity(WIDTH + 1);
         let advice_array = advice_pool.get_array::<WIDTH>();
@@ -99,8 +100,10 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_merkle(mut self, public_inputs: InstanceWrapper<MerkleInstance>) -> Self {
-        assert!(self.poseidon.is_some(), "Poseidon must be configured first");
-        assert!(self.merkle.is_none(), "Merkle already configured");
+        if self.merkle.is_some() {
+            return self;
+        }
+        self = self.with_poseidon();
 
         let advice_pool = self.advice_pool_with_capacity(ARITY + 1).clone();
 
@@ -111,7 +114,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
             advice_pool,
             public_inputs,
-            poseidon: self.poseidon.clone().unwrap(),
+            poseidon: self.poseidon_chip(),
         });
         self
     }
@@ -121,8 +124,10 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_range_check(mut self) -> Self {
-        assert!(self.sum.is_some(), "Sum must be configured first");
-        assert!(self.range_check.is_none(), "RangeCheck already configured");
+        if self.range_check.is_some() {
+            return self;
+        }
+        self = self.with_sum();
 
         let system = &mut self.system;
         self.advice_pool.ensure_capacity(system, 1);
@@ -141,7 +146,9 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_sum(mut self) -> Self {
-        assert!(self.sum.is_none(), "Sum already configured");
+        if self.sum.is_some() {
+            return self;
+        }
 
         let advice_pool = self.advice_pool_with_capacity(3).clone();
 

@@ -30,8 +30,6 @@ impl Circuit<F> for DepositCircuit {
 
         let configs_builder = ConfigsBuilder::new(meta)
             .with_balances_increase()
-            .with_sum()
-            .with_poseidon()
             .with_merkle(public_inputs.narrow())
             .with_range_check();
 
