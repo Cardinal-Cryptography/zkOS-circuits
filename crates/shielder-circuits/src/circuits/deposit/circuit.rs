@@ -80,7 +80,7 @@ mod tests {
 
     use crate::{
         chips::{
-            balances_increase::off_circuit::increase_balances,
+            balances_increase::off_circuit::increase_balances, shortlist_hash::Shortlist,
             token_index::off_circuit::index_from_indicators,
         },
         circuits::{
@@ -198,7 +198,7 @@ mod tests {
         let mut rng = SmallRng::from_seed([42; 32]);
         let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
 
-        pk.token_indicators = [0, 1, 0, 0, 0, 0].map(Fr::from);
+        pk.token_indicators = Shortlist::new([0, 1, 0, 0, 0, 0].map(Fr::from));
         let pub_input = pk.serialize_public_input();
 
         assert!(
@@ -208,7 +208,7 @@ mod tests {
         // Manually verify the new note hash used in the circuit.
         let mut hash_input = [Fr::ZERO; 7];
         for i in 0..6 {
-            hash_input[i] = pk.balances_old[i];
+            hash_input[i] = pk.balances_old.items()[i];
         }
         hash_input[1] += pk.deposit_value;
         let new_balances_hash = hash(&hash_input);

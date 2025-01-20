@@ -7,7 +7,7 @@ use rand_core::RngCore;
 
 use crate::{
     chips::{
-        balances_increase::off_circuit::increase_balances,
+        balances_increase::off_circuit::increase_balances, shortlist_hash::Shortlist,
         token_index::off_circuit::index_from_indicators,
     },
     consts::{
@@ -39,7 +39,7 @@ pub struct DepositProverKnowledge<F> {
     pub id: F,
     pub nullifier_old: F,
     pub trapdoor_old: F,
-    pub balances_old: [F; NUM_TOKENS],
+    pub balances_old: Shortlist<F, NUM_TOKENS>,
 
     // Merkle proof
     pub path: [[F; ARITY]; NOTE_TREE_HEIGHT],
@@ -50,7 +50,7 @@ pub struct DepositProverKnowledge<F> {
 
     // `token_indicators[i] = 1` if token i is deposited, 0 otherwise.
     // Exactly one entry is 1, the rest are 0.
-    pub token_indicators: [F; NUM_TOKENS],
+    pub token_indicators: Shortlist<F, NUM_TOKENS>,
 
     // Nonce for id_hiding
     pub nonce: F,
@@ -70,7 +70,7 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
 
         let nullifier_old = F::random(&mut *rng);
         let trapdoor_old = F::random(&mut *rng);
-        let balances_old = array::from_fn(|i| F::from((i + 10) as u64));
+        let balances_old = Shortlist::new(array::from_fn(|i| F::from((i + 10) as u64)));
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
@@ -79,7 +79,7 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
             balances: balances_old,
         });
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
-        let token_indicators = array::from_fn(|i| F::from((i == 0) as u64));
+        let token_indicators = Shortlist::new(array::from_fn(|i| F::from((i == 0) as u64)));
         Self {
             id,
             nonce,
