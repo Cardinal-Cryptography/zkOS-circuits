@@ -232,6 +232,18 @@ mod tests {
     }
 
     #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn unique_columns() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let col = cs.advice_column();
+        let p = [col, cs.advice_column(), cs.advice_column()];
+        let q = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
+        let s = [cs.advice_column(), col, cs.advice_column()];
+
+        PointAddGate::create_gate(&mut cs, (p, q, s));
+    }
+
+    #[test]
     fn adding_point_at_infinity() {
         let p = G1 {
             x: Fr::ZERO,
