@@ -156,4 +156,15 @@ mod tests {
         assert_eq!(err.len(), 1);
         assert!(err[0].contains("Lookup Range check lookup"));
     }
+
+    #[test]
+    fn one_below_limit_fails() {
+        let shifted = Fr::from(44);
+        let scale = Fr::from(1 << RANGE_PROOF_CHUNK_SIZE);
+        let base = shifted * scale - Fr::from(1);
+
+        let err = verify::<RangeCheckGate, _>(input(base, shifted)).unwrap_err();
+        assert_eq!(err.len(), 1);
+        assert!(err[0].contains("Lookup Range check lookup"));
+    }
 }
