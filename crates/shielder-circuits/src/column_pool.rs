@@ -86,3 +86,29 @@ impl<C: ColumnType> ColumnPool<C> {
         self.pool.borrow()[..N].try_into().unwrap()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::plonk::{Advice, ConstraintSystem};
+
+    use crate::{column_pool::ColumnPool, F};
+
+    #[test]
+    fn cloned_pools_share_new_columns() {
+        let mut cs = ConstraintSystem::<F>::default();
+        let mut root_pool = ColumnPool::<Advice>::new();
+
+        // 1. Create some shared column in the root pool.
+        root_pool.ensure_capacity(&mut cs, 1);
+
+        // 2. Clone the root pool.
+        let mut cloned_pool = root_pool.clone();
+
+        // 3. Ensure 2 columns in both pools.
+        root_pool.ensure_capacity(&mut cs, 2);
+        cloned_pool.ensure_capacity(&mut cs, 2);
+
+        // 4. Check that the columns are the same.
+        assert_eq!(2, cs.num_advice_columns());
+    }
+}
