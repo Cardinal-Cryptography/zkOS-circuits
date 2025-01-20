@@ -12,6 +12,7 @@ use crate::F;
 pub mod balance_increase;
 pub mod membership;
 pub mod point_add;
+pub mod point_double;
 pub mod sum;
 
 #[cfg(test)]
