@@ -7,7 +7,7 @@ use crate::F;
 
 #[derive(Clone, Debug)]
 pub struct ColumnPool<C: ColumnType> {
-    pool: Rc<RefCell<Vec<Column<C>>>>,
+    pool: Vec<Column<C>>,
     access_counter: Rc<RefCell<Vec<usize>>>,
 }
 
@@ -16,13 +16,13 @@ impl<C: ColumnType> ColumnPool<C> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            pool: Rc::new(RefCell::new(Vec::new())),
+            pool: Vec::new(),
             access_counter: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
     fn add_column(&mut self, column: Column<C>) {
-        self.pool.borrow_mut().push(column);
+        self.pool.push(column);
         self.access_counter.borrow_mut().push(0);
     }
 }
@@ -70,12 +70,12 @@ impl<C: ColumnType> ColumnPool<C> {
     /// Get the column at the specified index.
     pub fn get(&self, index: usize) -> Column<C> {
         self.access_counter.borrow_mut()[index] += 1;
-        self.pool.borrow()[index]
+        self.pool[index]
     }
 
     /// Get the number of columns in the pool.
     pub fn len(&self) -> usize {
-        self.pool.borrow().len()
+        self.pool.len()
     }
 
     /// Get an array of columns from the pool.
@@ -83,7 +83,7 @@ impl<C: ColumnType> ColumnPool<C> {
         for i in 0..N {
             self.access_counter.borrow_mut()[i] += 1;
         }
-        self.pool.borrow()[..N].try_into().unwrap()
+        self.pool[..N].try_into().unwrap()
     }
 }
 
