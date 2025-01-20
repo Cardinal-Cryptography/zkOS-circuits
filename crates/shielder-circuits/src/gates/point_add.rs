@@ -4,7 +4,7 @@ use halo2_proofs::{
     arithmetic::CurveExt,
     circuit::Layouter,
     halo2curves::{bn256::Fr, grumpkin::G1},
-    plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
@@ -124,11 +124,7 @@ impl Gate for PointAddGate {
 
             let (res_x3, res_y3, res_z3) = add((x1, y1, z1), (x2, y2, z2));
 
-            vec![
-                selector.clone() * (res_x3 - x3),
-                selector.clone() * (res_y3 - y3),
-                selector * (res_z3 - z3),
-            ]
+            Constraints::with_selector(selector, vec![res_x3 - x3, res_y3 - y3, res_z3 - z3])
         });
 
         Self { p, q, s, selector }
