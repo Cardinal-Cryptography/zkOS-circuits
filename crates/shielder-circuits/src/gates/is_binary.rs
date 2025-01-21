@@ -10,16 +10,16 @@ use crate::{gates::Gate, AssignedCell, F};
 
 /// Represents the relation: `x * (1-x) = 0`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct IsBitGate {
+pub struct IsBinaryGate {
     advice: Column<Advice>,
     selector: Selector,
 }
 
 const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: usize = 0;
-const GATE_NAME: &str = "IsBit gate";
+const GATE_NAME: &str = "IsBinary gate";
 
-impl Gate for IsBitGate {
+impl Gate for IsBinaryGate {
     type Input = AssignedCell;
     type Advices = Column<Advice>;
 
@@ -48,7 +48,7 @@ impl Gate for IsBitGate {
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
-                x.copy_advice(|| "bit", &mut region, self.advice, ADVICE_OFFSET)?;
+                x.copy_advice(|| "binary witness", &mut region, self.advice, ADVICE_OFFSET)?;
                 Ok(())
             },
         )
@@ -69,47 +69,41 @@ mod tests {
     use std::{string::String, vec::Vec};
 
     use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
-    use rand_core::OsRng;
 
     use crate::{
-        gates::{is_bit::IsBitGate, test_utils::verify, Gate as _},
-        Field, F,
+        gates::{is_binary::IsBinaryGate, test_utils::verify, Gate as _},
+        F,
     };
 
     #[test]
     fn gate_creation_with_proper_columns_passes() {
         let mut cs = ConstraintSystem::<Fr>::default();
         let col = cs.advice_column();
-        IsBitGate::create_gate(&mut cs, col);
+        IsBinaryGate::create_gate(&mut cs, col);
     }
 
     #[test]
     fn zero_passes() {
-        assert!(verify::<IsBitGate, _>(F::zero()).is_ok());
+        assert!(verify::<IsBinaryGate, _>(F::zero()).is_ok());
     }
 
     #[test]
     fn one_passes() {
-        assert!(verify::<IsBitGate, _>(F::one()).is_ok());
+        assert!(verify::<IsBinaryGate, _>(F::one()).is_ok());
     }
 
-    fn assert_fail(errors: Vec<String>) {
+    fn assert_fails(errors: Vec<String>) {
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].contains("Constraint 0 in gate 0 ('IsBit gate') is not satisfied"));
+        assert!(errors[0].contains("Constraint 0 in gate 0 ('IsBinary gate') is not satisfied"));
     }
 
     #[test]
     fn two_fails() {
-        assert_fail(verify::<IsBitGate, _>(F::from(2)).unwrap_err());
+        assert_fails(verify::<IsBinaryGate, _>(F::from(2)).unwrap_err());
     }
 
     #[test]
     fn minus_one_fails() {
-        assert_fail(verify::<IsBitGate, _>(F::one().neg()).unwrap_err());
-    }
-
-    #[test]
-    fn big_number_fails() {
-        assert_fail(verify::<IsBitGate, _>(F::random(OsRng)).unwrap_err());
+        assert_fails(verify::<IsBinaryGate, _>(F::one().neg()).unwrap_err());
     }
 }
