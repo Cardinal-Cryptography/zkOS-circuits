@@ -1,5 +1,5 @@
 use alloc::{vec, vec::Vec};
-use core::borrow::Borrow;
+use core::{array, borrow::Borrow};
 
 use halo2_proofs::{
     circuit::{Layouter, Value},
@@ -28,6 +28,7 @@ pub mod off_circuit {
 
     use halo2_proofs::{circuit::Value, halo2curves::bn256::Fr};
 
+    use super::{PointAddChipInput, PointAddChipOutput};
     use crate::AssignedCell;
 
     pub fn add(p: &[Value<Fr>; 3], q: &[Value<Fr>; 3]) -> [Value<Fr>; 3] {
@@ -36,13 +37,13 @@ pub mod off_circuit {
 }
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct PointAddInput<T> {
+pub struct PointAddChipInput<T> {
     pub p: [T; 3],
     pub q: [T; 3],
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct PointAddOutput<T> {
+pub struct PointAddChipOutput<T> {
     pub s: [T; 3],
 }
 
@@ -63,8 +64,8 @@ impl PointAddChip {
     pub fn point_add(
         &self,
         layouter: &mut impl Layouter<F>,
-        input: &PointAddGateInput<AssignedCell>,
-    ) -> Result<[AssignedCell; 3], Error> {
+        input: &PointAddChipInput<AssignedCell>,
+    ) -> Result<PointAddChipOutput<AssignedCell>, Error> {
         let s_value = off_circuit::add(
             &[
                 input.p[0].value().copied(),
@@ -78,27 +79,44 @@ impl PointAddChip {
             ],
         );
 
-        let mut s: Vec<AssignedCell> = vec![];
-        for i in 0..s_value.len() {
-            s.push(layouter.assign_region(
-                || "s[{i}]",
-                |mut region| {
-                    region.assign_advice(|| "s[{i}]", self.advice_pool.get_any(), 0, || s_value[i])
-                },
-            )?);
-        }
+        // let mut s: Vec<AssignedCell> = vec![];
+        // // let mut s: [AssignedCell; 3] = [Default::default(), Default::default(), Default::default()];
+        // for i in 0..3 {
+        //     s.push(layouter.assign_region(
+        //         || "s[{i}]",
+        //         |mut region| {
+        //             region.assign_advice(|| "s[{i}]", self.advice_pool.get_any(), 0, || s_value[i])
+        //         },
+        //     )?);
+        // }
 
-        // let s = [s[0], s[1], s[2]];
+        let s: Vec<AssignedCell> = s_value
+            .into_iter()
+            .map(|value| {
+                layouter
+                    .assign_region(
+                        || "s",
+                        |mut region| {
+                            region.assign_advice(|| "s", self.advice_pool.get_any(), 0, || value)
+                        },
+                    )
+                    .expect("can assign advice from a value")
+            })
+            .collect();
+
+        let s: [AssignedCell; 3] = s.try_into().unwrap_or_else(|v: Vec<AssignedCell>| {
+            panic!("Expected a Vec of length {} but it was {}", 3, v.len())
+        });
 
         let gate_input = PointAddGateInput {
             p: input.p.clone(),
             q: input.q.clone(),
-            s: s.into(),
+            s: s.clone(),
         };
 
         self.gate.apply_in_new_region(layouter, gate_input)?;
 
-        Ok(s)
+        Ok(PointAddChipOutput { s })
     }
 }
 
