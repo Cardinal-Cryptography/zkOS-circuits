@@ -15,6 +15,16 @@ pub struct ColumnPool<C: ColumnType, Phase> {
     _phantom: PhantomData<Phase>,
 }
 
+impl<C: ColumnType> Clone for ColumnPool<C, SynthesisPhase> {
+    fn clone(&self) -> Self {
+        Self {
+            pool: self.pool.clone(),
+            access_counter: self.access_counter.clone(),
+            _phantom: Default::default(),
+        }
+    }
+}
+
 impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
     /// Create a new empty pool.
     #[allow(clippy::new_without_default)]

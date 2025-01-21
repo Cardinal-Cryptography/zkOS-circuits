@@ -6,7 +6,11 @@ use halo2_proofs::{
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, macros::embeddable};
+use {
+    crate::column_pool::{ColumnPool, ConfigPhase},
+    crate::embed::Embed,
+    macros::embeddable,
+};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
@@ -117,7 +121,7 @@ impl Gate for BalanceIncreaseGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
@@ -133,7 +137,6 @@ impl Gate for BalanceIncreaseGate {
 
 #[cfg(test)]
 mod tests {
-
     use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
     use crate::gates::{

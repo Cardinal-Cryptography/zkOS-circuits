@@ -62,7 +62,7 @@ impl Circuit<F> for DepositCircuit {
         main_chip.check_old_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_new_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut layouter, &knowledge, &mut todo)?;
+        main_chip.check_id_hiding(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         main_chip.check_token_index(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         todo.assert_done()
     }

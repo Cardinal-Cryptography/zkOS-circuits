@@ -6,8 +6,8 @@ use halo2_proofs::{
 };
 
 #[cfg(test)]
-use crate::column_pool::ColumnPool;
-use crate::{column_pool::ConfigPhase, F};
+use crate::column_pool::{ColumnPool, ConfigPhase};
+use crate::F;
 
 pub mod balance_increase;
 pub mod membership;

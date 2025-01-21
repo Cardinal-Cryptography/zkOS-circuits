@@ -104,8 +104,7 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, merkle);
         self = self.with_poseidon();
 
-        let advice_pool = self.advice_pool_with_capacity(ARITY + 1).clone();
-
+        let advice_pool = self.advice_pool_with_capacity(ARITY + 1);
         let needle = advice_pool.get(ARITY);
         let advice_path = advice_pool.get_array::<ARITY>();
 

@@ -50,11 +50,9 @@ impl Circuit<F> for WithdrawCircuit {
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<WithdrawConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &column_pool,
-            "WithdrawProverKnowledge",
-        )?;
+        let knowledge = self
+            .0
+            .embed(&mut layouter, &column_pool, "WithdrawProverKnowledge")?;
         let intermediate = self.0.compute_intermediate_values().embed(
             &mut layouter,
             &column_pool,
@@ -63,9 +61,15 @@ impl Circuit<F> for WithdrawCircuit {
 
         main_chip.check_old_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut layouter, &column_pool, &knowledge, &intermediate, &mut todo)?;
+        main_chip.check_new_note(
+            &mut layouter,
+            &column_pool,
+            &knowledge,
+            &intermediate,
+            &mut todo,
+        )?;
         main_chip.check_commitment(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut layouter, &knowledge, &mut todo)?;
+        main_chip.check_id_hiding(&mut layouter, &column_pool, &knowledge, &mut todo)?;
 
         todo.assert_done()
     }

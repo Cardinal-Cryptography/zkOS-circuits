@@ -1,10 +1,11 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
     circuits::merkle::knowledge::MerkleProverKnowledge,
+    column_pool::{ColumnPool, SynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
@@ -19,7 +20,7 @@ pub struct MerkleCircuit<const TREE_HEIGHT: usize>(
 );
 
 impl<const TREE_HEIGHT: usize> Circuit<F> for MerkleCircuit<TREE_HEIGHT> {
-    type Config = MerkleChip;
+    type Config = (MerkleChip, ColumnPool<Advice, SynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -28,22 +29,19 @@ impl<const TREE_HEIGHT: usize> Circuit<F> for MerkleCircuit<TREE_HEIGHT> {
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
         let public_inputs = InstanceWrapper::<MerkleInstance>::new(meta);
-        ConfigsBuilder::new(meta)
-            .with_merkle(public_inputs)
-            .merkle_chip()
+        let configs_builder = ConfigsBuilder::new(meta).with_merkle(public_inputs);
+        (configs_builder.merkle_chip(), configs_builder.finish())
     }
 
     fn synthesize(
         &self,
-        main_chip: Self::Config,
+        (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<MerkleConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &main_chip.advice_pool,
-            "MerkleProverKnowledge",
-        )?;
+        let knowledge = self
+            .0
+            .embed(&mut layouter, &column_pool, "MerkleProverKnowledge")?;
         main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
         todo.assert_done()
     }

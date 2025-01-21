@@ -87,11 +87,17 @@ impl DepositChip {
     pub fn check_id_hiding(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
-            .id_hiding(layouter, knowledge.id.clone(), knowledge.nonce.clone())?;
+            .id_hiding(
+                layouter,
+                column_pool,
+                knowledge.id.clone(),
+                knowledge.nonce.clone(),
+            )?;
 
         todo.check_off(IdHidingIsCorrect)?;
 
