@@ -42,7 +42,7 @@ pub struct PointDoubleGateInput<T> {
     s: [T; 3], // x2,y2,z2
 }
 
-const SELECTOR_OFFSET: usize = 0;
+const SELECTOR_OFFSET: i32 = 0;
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "Point double gate";
 
@@ -114,7 +114,8 @@ impl Gate for PointDoubleGate {
         layouter.assign_region(
             || GATE_NAME,
             |mut region| {
-                self.selector.enable(&mut region, SELECTOR_OFFSET)?;
+                self.selector
+                    .enable(&mut region, SELECTOR_OFFSET as usize)?;
 
                 for (i, cell) in input.p.iter().enumerate() {
                     cell.copy_advice(

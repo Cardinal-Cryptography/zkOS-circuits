@@ -29,23 +29,20 @@ impl Circuit<F> for DepositCircuit {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
-            .balances_increase()
-            .sum()
-            .poseidon()
-            .merkle(public_inputs.narrow())
-            .range_check();
+            .with_balances_increase()
+            .with_merkle(public_inputs.narrow())
+            .with_range_check();
 
-        let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
-        let (_, balances_increase) = configs_builder.resolve_balances_increase_chip();
+        let advice_pool = configs_builder.advice_pool();
         let token_index = TokenIndexChip::new(advice_pool.clone(), public_inputs.narrow());
 
         DepositChip {
             advice_pool,
             public_inputs,
-            poseidon,
-            merkle,
-            range_check: configs_builder.resolve_range_check(),
-            balances_increase,
+            poseidon: configs_builder.poseidon_chip(),
+            merkle: configs_builder.merkle_chip(),
+            range_check: configs_builder.range_check_chip(),
+            balances_increase: configs_builder.balances_increase_chip(),
             token_index,
         }
     }
