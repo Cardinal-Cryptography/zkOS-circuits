@@ -10,6 +10,7 @@ use crate::column_pool::{ColumnPool, ConfigPhase};
 use crate::F;
 
 pub mod balance_increase;
+pub mod is_binary;
 pub mod membership;
 pub mod point_add;
 pub mod point_double;
