@@ -13,6 +13,7 @@ pub mod balance_increase;
 pub mod is_bit;
 pub mod membership;
 pub mod point_add;
+pub mod point_double;
 pub mod sum;
 
 #[cfg(test)]
