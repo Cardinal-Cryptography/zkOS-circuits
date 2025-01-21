@@ -1,4 +1,4 @@
-use alloc::{rc::Rc, vec::Vec};
+use alloc::vec::Vec;
 use core::{cell::RefCell, marker::PhantomData};
 
 use halo2_proofs::plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed};
@@ -10,8 +10,8 @@ pub enum SynthesisPhase {}
 
 #[derive(Debug)]
 pub struct ColumnPool<C: ColumnType, Phase> {
-    pool: Rc<RefCell<Vec<Column<C>>>>,
-    access_counter: Rc<RefCell<Vec<usize>>>,
+    pool: Vec<Column<C>>,
+    access_counter: RefCell<Vec<usize>>,
     _phantom: PhantomData<Phase>,
 }
 
@@ -45,7 +45,7 @@ impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
     }
 
     fn add_column(&mut self, column: Column<C>) {
-        self.pool.borrow_mut().push(column);
+        self.pool.push(column);
         self.access_counter.borrow_mut().push(0);
     }
 }
@@ -93,12 +93,12 @@ impl<C: ColumnType, Phase> ColumnPool<C, Phase> {
     /// Get the column at the specified index.
     pub fn get(&self, index: usize) -> Column<C> {
         self.access_counter.borrow_mut()[index] += 1;
-        self.pool.borrow()[index]
+        self.pool[index]
     }
 
     /// Get the number of columns in the pool.
     pub fn len(&self) -> usize {
-        self.pool.borrow().len()
+        self.pool.len()
     }
 
     /// Get an array of columns from the pool.
@@ -106,6 +106,6 @@ impl<C: ColumnType, Phase> ColumnPool<C, Phase> {
         for i in 0..N {
             self.access_counter.borrow_mut()[i] += 1;
         }
-        self.pool.borrow()[..N].try_into().unwrap()
+        self.pool[..N].try_into().unwrap()
     }
 }
