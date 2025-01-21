@@ -9,7 +9,11 @@ use halo2_proofs::{
 };
 #[cfg(test)]
 use {
-    crate::{column_pool::ColumnPool, embed::Embed, F},
+    crate::{
+        column_pool::{ColumnPool, ConfigPhase},
+        embed::Embed,
+        F,
+    },
     macros::embeddable,
 };
 
@@ -174,7 +178,7 @@ impl Gate for PointAddGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut ColumnPool<Advice>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 9);

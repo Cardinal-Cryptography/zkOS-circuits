@@ -137,6 +137,10 @@ mod test {
         );
         type FloorPlanner = V1;
 
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
+
         fn configure(meta: &mut halo2_proofs::plonk::ConstraintSystem<F>) -> Self::Config {
             // Enable public input.
             let instance = meta.instance_column();
@@ -144,14 +148,9 @@ mod test {
             // Register Poseidon.
             let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
             // Create Shortlist chip.
-            let pool = configs_builder.advice_pool();
-            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip(), pool.clone());
+            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip());
 
-            (pool, chip, instance)
-        }
-
-        fn without_witnesses(&self) -> Self {
-            Self::default()
+            (configs_builder.finish(), chip, instance)
         }
 
         fn synthesize(
@@ -165,7 +164,7 @@ mod test {
                 .items
                 .map(|balance| balance.embed(&mut layouter, &pool, "balance").unwrap());
             let shortlist = Shortlist { items };
-            let embedded_hash = chip.shortlist_hash(&mut layouter, &shortlist)?;
+            let embedded_hash = chip.shortlist_hash(&mut layouter, &pool, &shortlist)?;
 
             // 2. Compare hash with public input.
             layouter.constrain_instance(embedded_hash.cell(), instance, 0)

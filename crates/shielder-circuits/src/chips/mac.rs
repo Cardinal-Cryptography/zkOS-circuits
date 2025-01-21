@@ -82,11 +82,8 @@ mod tests {
     };
 
     use crate::{
-        chips::{
-            mac::{off_circuit, Mac, MacChip, MacInput},
-            shortlist_hash::ShortlistHashChip,
-        },
-        column_pool::ColumnPool,
+        chips::mac::{off_circuit, Mac, MacChip, MacInput},
+        column_pool::{ColumnPool, SynthesisPhase},
         config_builder::ConfigsBuilder,
         embed::Embed,
         F,
@@ -96,7 +93,11 @@ mod tests {
     struct MacCircuit(MacInput<F>);
 
     impl Circuit<F> for MacCircuit {
-        type Config = (ColumnPool<Advice>, MacChip, Column<Instance>);
+        type Config = (
+            ColumnPool<Advice, SynthesisPhase>,
+            MacChip,
+            Column<Instance>,
+        );
         type FloorPlanner = V1;
 
         fn without_witnesses(&self) -> Self {
@@ -112,7 +113,7 @@ mod tests {
             // Create MAC chip.
             let mac = MacChip::new(configs_builder.poseidon_chip());
 
-            (configs_builder.advice_pool(), mac, instance)
+            (configs_builder.finish(), mac, instance)
         }
 
         fn synthesize(
