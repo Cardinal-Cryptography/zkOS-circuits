@@ -10,6 +10,7 @@ use crate::column_pool::ColumnPool;
 use crate::F;
 
 pub mod balance_increase;
+pub mod is_bit;
 pub mod membership;
 pub mod point_add;
 pub mod sum;
