@@ -141,9 +141,10 @@ mod test {
             let instance = meta.instance_column();
             meta.enable_equality(instance);
             // Register Poseidon.
-            let (pool, poseidon) = ConfigsBuilder::new(meta).poseidon().resolve_poseidon();
+            let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
             // Create Shortlist chip.
-            let chip = ShortlistHashChip::new(poseidon, pool.clone());
+            let pool = configs_builder.advice_pool();
+            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip(), pool.clone());
 
             (pool, chip, instance)
         }
