@@ -6,8 +6,6 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
-#[cfg(test)]
-use {crate::embed::Embed, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
@@ -123,6 +121,7 @@ mod tests {
     use std::vec::Vec;
 
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
+    
 
     use super::{LinearEquationGateConfig, LinearEquationGateInput};
     use crate::{
@@ -142,9 +141,9 @@ mod tests {
     }
 
     #[derive(Clone)]
-    enum DecimalSystemEquationConfig {}
+    enum DecimalExampleConfig {}
 
-    impl LinearEquationGateConfig<4> for DecimalSystemEquationConfig {
+    impl LinearEquationGateConfig<4> for DecimalExampleConfig {
         fn coefficients() -> [F; 4] {
             [F::from(100), F::from(10), F::from(1), F::from(1).neg()]
         }
@@ -161,23 +160,21 @@ mod tests {
     #[test]
     fn accepts_valid_solution() {
         assert!(
-            verify::<LinearEquationGate<4, DecimalSystemEquationConfig>, _>(input([1, 2, 3, 123]))
-                .is_ok()
+            verify::<LinearEquationGate<4, DecimalExampleConfig>, _>(input([1, 2, 3, 123])).is_ok()
         );
     }
 
     #[test]
     fn accepts_alternative_valid_solution() {
         assert!(
-            verify::<LinearEquationGate<4, DecimalSystemEquationConfig>, _>(input([1, 2, 3, 123]))
-                .is_ok()
+            verify::<LinearEquationGate<4, DecimalExampleConfig>, _>(input([1, 2, 3, 123])).is_ok()
         );
     }
 
     #[test]
     fn rejects_invalid_solution() {
         let errors =
-            verify::<LinearEquationGate<4, DecimalSystemEquationConfig>, _>(input([1, 2, 4, 123]))
+            verify::<LinearEquationGate<4, DecimalExampleConfig>, _>(input([1, 2, 4, 123]))
                 .expect_err("Verification should fail");
         assert_eq!(errors.len(), 1);
         assert!(errors[0]
@@ -185,9 +182,9 @@ mod tests {
     }
 
     #[derive(Clone)]
-    enum ConstantEquationConfig<const C: u64> {}
+    enum ConstantExampleConfig<const C: u64> {}
 
-    impl<const C: u64> LinearEquationGateConfig<1> for ConstantEquationConfig<C> {
+    impl<const C: u64> LinearEquationGateConfig<1> for ConstantExampleConfig<C> {
         fn coefficients() -> [F; 1] {
             [F::from(1)]
         }
@@ -203,14 +200,12 @@ mod tests {
 
     #[test]
     fn passes_if_constant_term_matched() {
-        assert!(
-            verify::<LinearEquationGate<1, ConstantEquationConfig<42>>, _>(input([42])).is_ok()
-        );
+        assert!(verify::<LinearEquationGate<1, ConstantExampleConfig<42>>, _>(input([42])).is_ok());
     }
 
     #[test]
     fn fails_if_constant_term_unmatched() {
-        let errors = verify::<LinearEquationGate<1, ConstantEquationConfig<42>>, _>(input([43]))
+        let errors = verify::<LinearEquationGate<1, ConstantExampleConfig<42>>, _>(input([43]))
             .expect_err("Verification should fail");
         assert_eq!(errors.len(), 1);
         assert!(errors[0]

@@ -13,8 +13,7 @@ concurrency:
 jobs:
   circuits-benches:
     name: Run benches for shielder-circuits crate
-    # runs-on: [self-hosted, Linux, X64, large]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     env:
       RUSTC_WRAPPER: sccache

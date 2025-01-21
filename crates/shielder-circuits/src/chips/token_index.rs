@@ -128,10 +128,10 @@ impl TokenIndexChip {
             layouter,
             IndexGateInput {
                 variables: array::from_fn(|i| {
-                    if i < NUM_TOKENS {
-                        indicators[i].clone()
-                    } else {
+                    if i == NUM_TOKENS {
                         index_cell.clone()
+                    } else {
+                        indicators[i].clone()
                     }
                 }),
             },
@@ -199,10 +199,10 @@ mod tests {
         plonk::{Advice, Circuit, ConstraintSystem, Error},
     };
 
-    use super::{gates, TokenIndexChip, TokenIndexInstance};
+    use super::{gates, TokenIndexChip, TokenIndexConstraints, TokenIndexInstance};
     use crate::{
         circuits::test_utils::expect_prover_success_and_run_verification, column_pool::ColumnPool,
-        consts::NUM_TOKENS, deposit::DepositConstraints, embed::Embed,
+        consts::NUM_TOKENS, embed::Embed,
         instance_wrapper::InstanceWrapper, test_utils::expect_instance_permutation_failures,
         todo::Todo, F,
     };
@@ -247,14 +247,15 @@ mod tests {
             let indicators =
                 self.indicators
                     .embed(&mut layouter, &chip.advice_pool, "indicators")?;
-            let mut todo = Todo::<DepositConstraints>::new();
+            let mut todo = Todo::<TokenIndexConstraints>::new();
 
             chip.constrain_index_with_intermediates(
                 &mut layouter,
                 &indicators,
                 &mut todo,
                 self.token_index,
-            )
+            )?;
+            todo.assert_done()
         }
     }
 
@@ -269,9 +270,9 @@ mod tests {
     }
 
     #[test]
-    fn nonnative_token_passes() {
-        let circuit = TestCircuit::new([0, 1, 0, 0, 0, 0], 1);
-        let pub_input = [1];
+    fn last_token_passes() {
+        let circuit = TestCircuit::new([0, 0, 0, 0, 0, 1], 5);
+        let pub_input = [5];
 
         assert!(
             expect_prover_success_and_run_verification(circuit, &pub_input.map(F::from)).is_ok()

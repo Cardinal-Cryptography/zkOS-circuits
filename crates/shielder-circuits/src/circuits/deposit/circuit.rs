@@ -29,11 +29,9 @@ impl Circuit<F> for DepositCircuit {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
-            .balances_increase()
-            .sum()
-            .poseidon()
-            .merkle(public_inputs.narrow())
-            .range_check();
+            .with_balances_increase()
+            .with_merkle(public_inputs.narrow())
+            .with_range_check();
 
         let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
         let (_, balances_increase) = configs_builder.resolve_balances_increase_chip();
