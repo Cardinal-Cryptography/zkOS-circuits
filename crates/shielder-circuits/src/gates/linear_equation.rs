@@ -6,8 +6,10 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
+use macros::embeddable;
 
 use crate::{
+    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     AssignedCell, F,
 };
@@ -30,13 +32,10 @@ pub trait LinearEquationGateConfig<const N: usize> {
 }
 
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    test,
-    embeddable(
-        receiver = "LinearEquationGateInput<F, N>",
-        impl_generics = "<const N: usize>",
-        embedded = "LinearEquationGateInput<AssignedCell, N>"
-    )
+#[embeddable(
+    receiver = "LinearEquationGateInput<F, N>",
+    impl_generics = "<const N: usize>",
+    embedded = "LinearEquationGateInput<AssignedCell, N>"
 )]
 pub struct LinearEquationGateInput<T, const N: usize> {
     pub variables: [T; N],
@@ -121,7 +120,6 @@ mod tests {
     use std::vec::Vec;
 
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
-    
 
     use super::{LinearEquationGateConfig, LinearEquationGateInput};
     use crate::{

@@ -4,7 +4,6 @@ use halo2_proofs::{
 };
 
 use crate::{
-    chips::token_index::TokenIndexChip,
     circuits::deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
     config_builder::ConfigsBuilder,
     deposit::{DepositConstraints, DepositInstance},
@@ -31,22 +30,19 @@ impl Circuit<F> for DepositCircuit {
         let configs_builder = ConfigsBuilder::new(meta)
             .with_balances_increase()
             .with_merkle(public_inputs.narrow())
-            .with_range_check();
+            .with_range_check()
+            .with_token_index(public_inputs.narrow());
 
-        let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
-        let (_, balances_increase) = configs_builder.resolve_balances_increase_chip();
-        let range_check = configs_builder.resolve_range_check();
-
-        let token_index = TokenIndexChip::new(meta, advice_pool.clone(), public_inputs.narrow());
+        let advice_pool = configs_builder.advice_pool();
 
         DepositChip {
             advice_pool,
             public_inputs,
-            poseidon,
-            merkle,
-            range_check,
-            balances_increase,
-            token_index,
+            poseidon: configs_builder.poseidon_chip(),
+            merkle: configs_builder.merkle_chip(),
+            range_check: configs_builder.range_check_chip(),
+            balances_increase: configs_builder.balances_increase_chip(),
+            token_index: configs_builder.token_index_chip(),
         }
     }
 

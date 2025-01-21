@@ -10,8 +10,8 @@ use crate::column_pool::ColumnPool;
 use crate::F;
 
 pub mod balance_increase;
-pub mod linear_equation;
 pub mod is_binary;
+pub mod linear_equation;
 pub mod membership;
 pub mod point_add;
 pub mod point_double;

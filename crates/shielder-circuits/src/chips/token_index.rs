@@ -145,7 +145,7 @@ impl TokenIndexChip {
     }
 }
 
-mod gates {
+pub mod gates {
     use core::array;
 
     use halo2_proofs::arithmetic::Field;
@@ -202,9 +202,8 @@ mod tests {
     use super::{gates, TokenIndexChip, TokenIndexConstraints, TokenIndexInstance};
     use crate::{
         circuits::test_utils::expect_prover_success_and_run_verification, column_pool::ColumnPool,
-        consts::NUM_TOKENS, embed::Embed,
-        instance_wrapper::InstanceWrapper, test_utils::expect_instance_permutation_failures,
-        todo::Todo, F,
+        consts::NUM_TOKENS, embed::Embed, instance_wrapper::InstanceWrapper,
+        test_utils::expect_instance_permutation_failures, todo::Todo, F,
     };
 
     #[derive(Clone, Debug, Default)]
