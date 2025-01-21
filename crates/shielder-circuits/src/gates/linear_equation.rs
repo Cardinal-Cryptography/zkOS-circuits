@@ -165,7 +165,8 @@ mod tests {
     #[test]
     fn accepts_alternative_valid_solution() {
         assert!(
-            verify::<LinearEquationGate<4, DecimalExampleConfig>, _>(input([1, 2, 3, 123])).is_ok()
+            verify::<LinearEquationGate<4, DecimalExampleConfig>, _>(input([1, 0, 23, 123]))
+                .is_ok()
         );
     }
 

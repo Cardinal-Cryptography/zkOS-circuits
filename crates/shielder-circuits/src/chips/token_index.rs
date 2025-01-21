@@ -91,6 +91,7 @@ impl TokenIndexChip {
         }
     }
 
+    /// Constrains the token index public input to match the enabled indicator.
     pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
         layouter: &mut impl Layouter<F>,
@@ -100,12 +101,10 @@ impl TokenIndexChip {
         let indicator_values = array::from_fn(|i| indicators[i].value().cloned());
         let index_value = off_circuit::index_from_indicator_values(&indicator_values);
 
-        self.constrain_index_with_intermediates(layouter, indicators, todo, index_value)
+        self.constrain_index_impl(layouter, indicators, todo, index_value)
     }
 
-    fn constrain_index_with_intermediates<
-        Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator,
-    >(
+    fn constrain_index_impl<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
         layouter: &mut impl Layouter<F>,
         indicators: &[AssignedCell; NUM_TOKENS],
@@ -170,10 +169,10 @@ pub mod gates {
     impl LinearEquationGateConfig<NUM_INDEX_GATE_COLUMNS> for IndexGateConfig {
         fn coefficients() -> [F; NUM_INDEX_GATE_COLUMNS] {
             array::from_fn(|i| {
-                if i < NUM_TOKENS {
-                    F::from(i as u64)
-                } else {
+                if i == NUM_TOKENS {
                     F::ONE.neg()
+                } else {
+                    F::from(i as u64)
                 }
             })
         }
@@ -248,12 +247,7 @@ mod tests {
                     .embed(&mut layouter, &chip.advice_pool, "indicators")?;
             let mut todo = Todo::<TokenIndexConstraints>::new();
 
-            chip.constrain_index_with_intermediates(
-                &mut layouter,
-                &indicators,
-                &mut todo,
-                self.token_index,
-            )?;
+            chip.constrain_index_impl(&mut layouter, &indicators, &mut todo, self.token_index)?;
             todo.assert_done()
         }
     }
