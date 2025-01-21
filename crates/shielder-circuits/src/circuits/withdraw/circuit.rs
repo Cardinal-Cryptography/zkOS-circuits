@@ -28,21 +28,16 @@ impl Circuit<F> for WithdrawCircuit {
         let public_inputs = InstanceWrapper::<WithdrawInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
-            .sum()
-            .poseidon()
-            .merkle(public_inputs.narrow())
-            .range_check();
-
-        let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
-        let (_, sum_chip) = configs_builder.resolve_sum_chip();
+            .with_merkle(public_inputs.narrow())
+            .with_range_check();
 
         WithdrawChip {
-            advice_pool,
+            advice_pool: configs_builder.advice_pool(),
             public_inputs,
-            poseidon,
-            merkle,
-            range_check: configs_builder.resolve_range_check(),
-            sum_chip,
+            poseidon: configs_builder.poseidon_chip(),
+            merkle: configs_builder.merkle_chip(),
+            range_check: configs_builder.range_check_chip(),
+            sum_chip: configs_builder.sum_chip(),
         }
     }
 
