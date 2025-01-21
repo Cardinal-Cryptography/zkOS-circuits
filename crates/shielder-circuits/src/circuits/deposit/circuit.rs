@@ -37,14 +37,16 @@ impl Circuit<F> for DepositCircuit {
 
         let (advice_pool, poseidon, merkle) = configs_builder.resolve_merkle();
         let (_, balances_increase) = configs_builder.resolve_balances_increase_chip();
-        let token_index = TokenIndexChip::new(advice_pool.clone(), public_inputs.narrow());
+        let range_check = configs_builder.resolve_range_check();
+
+        let token_index = TokenIndexChip::new(meta, advice_pool.clone(), public_inputs.narrow());
 
         DepositChip {
             advice_pool,
             public_inputs,
             poseidon,
             merkle,
-            range_check: configs_builder.resolve_range_check(),
+            range_check,
             balances_increase,
             token_index,
         }

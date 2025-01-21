@@ -10,6 +10,7 @@ use crate::column_pool::ColumnPool;
 use crate::F;
 
 pub mod balance_increase;
+pub mod linear_equation;
 pub mod membership;
 pub mod sum;
 
