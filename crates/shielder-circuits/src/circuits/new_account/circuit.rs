@@ -1,10 +1,11 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
     circuits::new_account::{chip::NewAccountChip, knowledge::NewAccountProverKnowledge},
+    column_pool::{ColumnPool, SynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
@@ -17,7 +18,7 @@ use crate::{
 pub struct NewAccountCircuit(pub NewAccountProverKnowledge<Value<F>>);
 
 impl Circuit<F> for NewAccountCircuit {
-    type Config = NewAccountChip;
+    type Config = (NewAccountChip, ColumnPool<Advice, SynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -28,25 +29,25 @@ impl Circuit<F> for NewAccountCircuit {
         let public_inputs = InstanceWrapper::<NewAccountInstance>::new(meta);
         let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
 
-        NewAccountChip {
-            advice_pool: configs_builder.advice_pool(),
-            public_inputs,
-            poseidon: configs_builder.poseidon_chip(),
-        }
+        (
+            NewAccountChip {
+                public_inputs,
+                poseidon: configs_builder.poseidon_chip(),
+            },
+            configs_builder.finish(),
+        )
     }
 
     fn synthesize(
         &self,
-        main_chip: Self::Config,
+        (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<NewAccountConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &main_chip.advice_pool,
-            "NewAccountProverKnowledge",
-        )?;
-        main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
+        let knowledge = self
+            .0
+            .embed(&mut layouter, &column_pool, "NewAccountProverKnowledge")?;
+        main_chip.synthesize(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }

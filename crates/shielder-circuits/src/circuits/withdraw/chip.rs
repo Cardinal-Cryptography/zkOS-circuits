@@ -14,7 +14,7 @@ use crate::{
         merkle::{MerkleChip, MerkleProverKnowledge},
         withdraw::knowledge::{IntermediateValues, WithdrawProverKnowledge},
     },
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::RANGE_PROOF_NUM_WORDS,
     instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
@@ -29,7 +29,6 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct WithdrawChip {
-    pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<WithdrawInstance>,
     pub poseidon: PoseidonChip,
     pub merkle: MerkleChip,
@@ -41,17 +40,19 @@ impl WithdrawChip {
     pub fn check_old_note(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let balances = balances_from_native_balance(
             knowledge.account_old_balance.clone(),
             layouter,
-            &self.advice_pool,
+            column_pool,
         )?;
 
-        let old_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
+        let old_note = NoteChip::new(self.poseidon.clone()).note(
             layouter,
+            column_pool,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
@@ -105,6 +106,7 @@ impl WithdrawChip {
     pub fn check_new_note(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         intermediate_values: &IntermediateValues<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
@@ -113,6 +115,7 @@ impl WithdrawChip {
 
         self.range_check.constrain_value::<RANGE_PROOF_NUM_WORDS>(
             &mut layouter.namespace(|| "Range Check"),
+            column_pool,
             new_balance.clone(),
         )?;
         todo.check_off(NewBalanceIsInRange)?;
@@ -131,10 +134,11 @@ impl WithdrawChip {
         )?;
         todo.check_off(WithdrawalValueInstanceIsConstrainedToAdvice)?;
 
-        let balances = balances_from_native_balance(new_balance, layouter, &self.advice_pool)?;
+        let balances = balances_from_native_balance(new_balance, layouter, column_pool)?;
 
-        let new_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
+        let new_note = NoteChip::new(self.poseidon.clone()).note(
             layouter,
+            column_pool,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),

@@ -16,7 +16,7 @@ use crate::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
     },
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     deposit::{
         DepositConstraints::{self, *},
         DepositInstance::{self, HashedNewNote, HashedOldNullifier, *},
@@ -30,7 +30,6 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct DepositChip {
-    pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip,
     pub range_check: RangeCheckChip,
@@ -43,11 +42,13 @@ impl DepositChip {
     pub fn check_old_note(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
-        let old_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
+        let old_note = NoteChip::new(self.poseidon.clone()).note(
             layouter,
+            column_pool,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
@@ -103,6 +104,7 @@ impl DepositChip {
     pub fn check_new_note(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
@@ -112,14 +114,16 @@ impl DepositChip {
 
         let balances_new = self.balances_increase.increase_balances(
             layouter,
+            column_pool,
             &knowledge.balances_old,
             &knowledge.token_indicators,
             &knowledge.deposit_value,
         )?;
         todo.check_off(DepositValueInstanceIsIncludedInTheNewNote)?;
 
-        let new_note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
+        let new_note = NoteChip::new(self.poseidon.clone()).note(
             layouter,
+            column_pool,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
@@ -138,11 +142,16 @@ impl DepositChip {
     pub fn check_token_index(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
-        self.token_index
-            .constrain_index(layouter, &knowledge.token_indicators, todo)?;
+        self.token_index.constrain_index(
+            layouter,
+            column_pool,
+            &knowledge.token_indicators,
+            todo,
+        )?;
         Ok(())
     }
 }

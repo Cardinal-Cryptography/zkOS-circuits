@@ -1,10 +1,11 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
     circuits::withdraw::chip::WithdrawChip,
+    column_pool::{ColumnPool, SynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
@@ -17,7 +18,7 @@ use crate::{
 pub struct WithdrawCircuit(pub WithdrawProverKnowledge<Value<F>>);
 
 impl Circuit<F> for WithdrawCircuit {
-    type Config = WithdrawChip;
+    type Config = (WithdrawChip, ColumnPool<Advice, SynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -31,36 +32,38 @@ impl Circuit<F> for WithdrawCircuit {
             .with_merkle(public_inputs.narrow())
             .with_range_check();
 
-        WithdrawChip {
-            advice_pool: configs_builder.advice_pool(),
-            public_inputs,
-            poseidon: configs_builder.poseidon_chip(),
-            merkle: configs_builder.merkle_chip(),
-            range_check: configs_builder.range_check_chip(),
-            sum_chip: configs_builder.sum_chip(),
-        }
+        (
+            WithdrawChip {
+                public_inputs,
+                poseidon: configs_builder.poseidon_chip(),
+                merkle: configs_builder.merkle_chip(),
+                range_check: configs_builder.range_check_chip(),
+                sum_chip: configs_builder.sum_chip(),
+            },
+            configs_builder.finish(),
+        )
     }
 
     fn synthesize(
         &self,
-        main_chip: Self::Config,
+        (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<WithdrawConstraints>::new();
         let knowledge = self.0.embed(
             &mut layouter,
-            &main_chip.advice_pool,
+            &column_pool,
             "WithdrawProverKnowledge",
         )?;
         let intermediate = self.0.compute_intermediate_values().embed(
             &mut layouter,
-            &main_chip.advice_pool,
+            &column_pool,
             "WithdrawIntermediateValues",
         )?;
 
-        main_chip.check_old_note(&mut layouter, &knowledge, &mut todo)?;
+        main_chip.check_old_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut layouter, &knowledge, &intermediate, &mut todo)?;
+        main_chip.check_new_note(&mut layouter, &column_pool, &knowledge, &intermediate, &mut todo)?;
         main_chip.check_commitment(&mut layouter, &knowledge, &mut todo)?;
         main_chip.check_id_hiding(&mut layouter, &knowledge, &mut todo)?;
 
