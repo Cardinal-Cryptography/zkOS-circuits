@@ -5,19 +5,29 @@ use halo2_proofs::plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed};
 
 use crate::F;
 
-#[derive(Clone, Debug)]
-pub struct ColumnPool<C: ColumnType> {
+pub enum ConfigPhase {}
+pub enum SynthesisPhase {}
+
+#[derive(Debug)]
+pub struct ColumnPool<C: ColumnType, Phase> {
     pool: Rc<RefCell<Vec<Column<C>>>>,
     access_counter: Rc<RefCell<Vec<usize>>>,
 }
 
-impl<C: ColumnType> ColumnPool<C> {
+impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
     /// Create a new empty pool.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            pool: Rc::new(RefCell::new(Vec::new())),
-            access_counter: Rc::new(RefCell::new(Vec::new())),
+            pool: Default::default(),
+            access_counter: Default::default(),
+        }
+    }
+
+    pub fn conclude_configuration(self) -> ColumnPool<Advice, SynthesisPhase> {
+        ColumnPool {
+            pool: self.pool,
+            access_counter: self.access_counter,
         }
     }
 
@@ -27,7 +37,7 @@ impl<C: ColumnType> ColumnPool<C> {
     }
 }
 
-impl ColumnPool<Advice> {
+impl ColumnPool<Advice, ConfigPhase> {
     /// Ensure that there are at least `capacity` advice columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable equality for each of them.
     pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
@@ -39,7 +49,7 @@ impl ColumnPool<Advice> {
     }
 }
 
-impl ColumnPool<Fixed> {
+impl ColumnPool<Fixed, ConfigPhase> {
     /// Ensure that there are at least `capacity` fixed columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable storing constants in each of them.
     pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
@@ -51,7 +61,7 @@ impl ColumnPool<Fixed> {
     }
 }
 
-impl<C: ColumnType> ColumnPool<C> {
+impl<C: ColumnType, Phase> ColumnPool<C, Phase> {
     /// Get some advice column from the pool.
     ///
     /// The index is not guaranteed (some inner load balancing might be applied).

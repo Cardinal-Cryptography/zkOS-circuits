@@ -8,17 +8,17 @@ use halo2_proofs::{
 
 use crate::{
     chips::balances::BalancesChip,
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
     AssignedCell, F,
 };
+
 /// Chip that is able to calculate note hash
 #[derive(Clone, Debug)]
 pub struct NoteChip {
     poseidon: PoseidonChip,
-    advice_pool: ColumnPool<Advice>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -63,17 +63,15 @@ pub mod off_circuit {
 }
 
 impl NoteChip {
-    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
-        Self {
-            poseidon,
-            advice_pool,
-        }
+    pub fn new(poseidon: PoseidonChip) -> Self {
+        Self { poseidon }
     }
 
     fn assign_note_version(
         &self,
         note: &Note<AssignedCell>,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
     ) -> Result<AssignedCell, Error> {
         let note_version: F = note.version.as_field();
 
@@ -82,7 +80,7 @@ impl NoteChip {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "note_version",
-                    self.advice_pool.get_any(),
+                    column_pool.get_any(),
                     0,
                     note_version,
                 )
@@ -95,12 +93,16 @@ impl NoteChip {
     pub fn note(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         note: &Note<AssignedCell>,
     ) -> Result<AssignedCell, Error> {
-        let note_version = self.assign_note_version(note, layouter)?;
+        let note_version = self.assign_note_version(note, layouter, column_pool)?;
 
-        let h_balance = BalancesChip::new(self.poseidon.clone(), self.advice_pool.clone())
-            .hash_balances(layouter, &note.balances)?;
+        let h_balance = BalancesChip::new(self.poseidon.clone()).hash_balances(
+            layouter,
+            column_pool,
+            &note.balances,
+        )?;
 
         let input = [
             note_version,
@@ -124,7 +126,7 @@ impl NoteChip {
 pub fn balances_from_native_balance(
     native_balance: AssignedCell,
     layouter: &mut impl Layouter<F>,
-    advice_pool: &ColumnPool<Advice>,
+    advice_pool: &ColumnPool<Advice, SynthesisPhase>,
 ) -> Result<[AssignedCell; NUM_TOKENS], Error> {
     let zero_cell = layouter.assign_region(
         || "Balance placeholder (zero)",

@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::NUM_TOKENS,
     gates::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
@@ -37,23 +37,21 @@ pub mod off_circuit {
 }
 
 #[derive(Clone, Debug)]
-pub struct BalancesIncreaseChip {
-    pub gate: BalanceIncreaseGate,
-    pub advice_pool: ColumnPool<Advice>,
-}
+pub struct BalancesIncreaseChip(BalanceIncreaseGate);
 
 fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value<F>; N] {
     array::from_fn(|i| cell_array[i].value().copied())
 }
 
 impl BalancesIncreaseChip {
-    pub fn new(gate: BalanceIncreaseGate, advice_pool: ColumnPool<Advice>) -> Self {
-        Self { gate, advice_pool }
+    pub fn new(gate: BalanceIncreaseGate) -> Self {
+        Self(gate)
     }
 
     pub fn increase_balances(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         balances_old: &[AssignedCell; NUM_TOKENS],
         token_indicators: &[AssignedCell; NUM_TOKENS],
         increase_value: &AssignedCell,
@@ -72,7 +70,7 @@ impl BalancesIncreaseChip {
                 |mut region| {
                     region.assign_advice(
                         || "balance_new",
-                        self.advice_pool.get_any(),
+                        column_pool.get_any(),
                         0,
                         || balances_new_values[i],
                     )
@@ -86,7 +84,7 @@ impl BalancesIncreaseChip {
                 token_indicator: token_indicators[i].clone(),
                 balance_new: balances_new[i].clone(),
             };
-            self.gate.apply_in_new_region(layouter, gate_input)?;
+            self.0.apply_in_new_region(layouter, gate_input)?;
         }
         Ok(balances_new.try_into().expect("length must agree"))
     }

@@ -2,7 +2,7 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, ConfigPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
@@ -18,8 +18,8 @@ use crate::{
 
 pub struct ConfigsBuilder<'cs> {
     system: &'cs mut ConstraintSystem<F>,
-    advice_pool: ColumnPool<Advice>,
-    fixed_pool: ColumnPool<Fixed>,
+    advice_pool: ColumnPool<Advice, ConfigPhase>,
+    fixed_pool: ColumnPool<Fixed, ConfigPhase>,
 
     balances_increase: Option<BalancesIncreaseChip>,
     merkle: Option<MerkleChip>,
@@ -40,8 +40,8 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
         Self {
             system,
-            advice_pool: ColumnPool::<Advice>::new(),
-            fixed_pool: ColumnPool::<Fixed>::new(),
+            advice_pool: ColumnPool::<Advice, _>::new(),
+            fixed_pool: ColumnPool::<Fixed, _>::new(),
 
             balances_increase: None,
             merkle: None,
@@ -51,28 +51,21 @@ impl<'cs> ConfigsBuilder<'cs> {
         }
     }
 
-    pub fn advice_pool(&self) -> ColumnPool<Advice> {
-        self.advice_pool.clone()
-    }
-
     pub fn with_balances_increase(mut self) -> Self {
         check_if_cached!(self, balances_increase);
 
-        let advice_pool = self.advice_pool_with_capacity(4).clone();
+        let advice_pool = self.advice_pool_with_capacity(4);
         let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
 
-        self.balances_increase = Some(BalancesIncreaseChip {
-            gate: BalanceIncreaseGate::create_gate(
-                self.system,
-                BalanceIncreaseGateAdvices {
-                    balance_old: gate_advice[0],
-                    increase_value: gate_advice[1],
-                    token_indicator: gate_advice[2],
-                    balance_new: gate_advice[3],
-                },
-            ),
-            advice_pool,
-        });
+        self.balances_increase = Some(BalancesIncreaseChip::new(BalanceIncreaseGate::create_gate(
+            self.system,
+            BalanceIncreaseGateAdvices {
+                balance_old: gate_advice[0],
+                increase_value: gate_advice[1],
+                token_indicator: gate_advice[2],
+                balance_new: gate_advice[3],
+            },
+        )));
         self
     }
 
@@ -114,7 +107,6 @@ impl<'cs> ConfigsBuilder<'cs> {
 
         self.merkle = Some(MerkleChip {
             membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
-            advice_pool,
             public_inputs,
             poseidon: self.poseidon_chip(),
         });
@@ -130,12 +122,9 @@ impl<'cs> ConfigsBuilder<'cs> {
         self = self.with_sum();
 
         let system = &mut self.system;
-        self.advice_pool.ensure_capacity(system, 1);
-        let advice_pool = self.advice_pool.clone();
-
         self.range_check = Some(RangeCheckChip::new(
             system,
-            advice_pool.clone(),
+            &mut self.advice_pool,
             self.sum.clone().unwrap(),
         ));
         self
@@ -149,10 +138,10 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, sum);
 
         let advice_pool = self.advice_pool_with_capacity(3).clone();
-        self.sum = Some(SumChip {
-            gate: SumGate::create_gate(self.system, advice_pool.get_array()),
-            advice: advice_pool.get_any(),
-        });
+        self.sum = Some(SumChip(SumGate::create_gate(
+            self.system,
+            advice_pool.get_array(),
+        )));
         self
     }
 
@@ -160,12 +149,12 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.sum.clone().expect("Sum not configured")
     }
 
-    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice> {
+    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {
         self.advice_pool.ensure_capacity(self.system, capacity);
         &self.advice_pool
     }
 
-    fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed> {
+    fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed, ConfigPhase> {
         self.fixed_pool.ensure_capacity(self.system, capacity);
         &self.fixed_pool
     }

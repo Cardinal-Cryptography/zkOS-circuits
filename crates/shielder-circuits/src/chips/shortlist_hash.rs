@@ -6,7 +6,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::POSEIDON_RATE,
     poseidon::circuit::{hash, PoseidonChip},
     AssignedCell, F,
@@ -18,7 +18,6 @@ const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 #[derive(Clone, Debug)]
 pub struct ShortlistHashChip<const N: usize> {
     poseidon: PoseidonChip,
-    advice_pool: ColumnPool<Advice>,
 }
 
 /// Represents a (short) list of field elements.
@@ -70,11 +69,8 @@ pub mod off_circuit {
 }
 
 impl<const N: usize> ShortlistHashChip<N> {
-    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
-        Self {
-            poseidon,
-            advice_pool,
-        }
+    pub fn new(poseidon: PoseidonChip) -> Self {
+        Self { poseidon }
     }
 
     /// Calculate the shortlist hash by chunking the shortlist by POSEIDON_RATE - 1
@@ -82,6 +78,7 @@ impl<const N: usize> ShortlistHashChip<N> {
     pub fn shortlist_hash(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         shortlist: &Shortlist<AssignedCell, N>,
     ) -> Result<AssignedCell, Error> {
         let zero_cell = layouter.assign_region(
@@ -89,7 +86,7 @@ impl<const N: usize> ShortlistHashChip<N> {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "Shortlist placeholder (zero)",
-                    self.advice_pool.get_any(),
+                    column_pool.get_any(),
                     0,
                     F::zero(),
                 )
@@ -133,7 +130,11 @@ mod test {
     struct ShortlistCircuit<const N: usize>(Shortlist<F, N>);
 
     impl<const N: usize> Circuit<F> for ShortlistCircuit<N> {
-        type Config = (ColumnPool<Advice>, ShortlistHashChip<N>, Column<Instance>);
+        type Config = (
+            ColumnPool<Advice, SynthesisPhase>,
+            ShortlistHashChip<N>,
+            Column<Instance>,
+        );
         type FloorPlanner = V1;
 
         fn configure(meta: &mut halo2_proofs::plonk::ConstraintSystem<F>) -> Self::Config {

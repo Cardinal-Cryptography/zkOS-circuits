@@ -6,7 +6,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::{NUM_TOKENS, POSEIDON_RATE},
     poseidon::circuit::{hash, PoseidonChip},
     AssignedCell, Field, F,
@@ -29,15 +29,11 @@ pub mod off_circuit {
 #[derive(Clone, Debug)]
 pub struct BalancesChip {
     poseidon: PoseidonChip,
-    advice_pool: ColumnPool<Advice>,
 }
 
 impl BalancesChip {
-    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
-        Self {
-            poseidon,
-            advice_pool,
-        }
+    pub fn new(poseidon: PoseidonChip) -> Self {
+        Self { poseidon }
     }
 
     /// Returns a single cell constrained to be the hash of the given balances
@@ -45,6 +41,7 @@ impl BalancesChip {
     pub fn hash_balances(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         balances: &[AssignedCell; NUM_TOKENS],
     ) -> Result<AssignedCell, Error> {
         let zero_cell = layouter.assign_region(
@@ -52,7 +49,7 @@ impl BalancesChip {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "Balance placeholder (zero)",
-                    self.advice_pool.get_any(),
+                    column_pool.get_any(),
                     0,
                     F::ZERO,
                 )
