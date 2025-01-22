@@ -81,21 +81,37 @@ mod tests {
         halo2curves::{group::Group, grumpkin::G1},
     };
 
-    use crate::{curve_operations::point_double, rng};
+    use crate::{
+        curve_operations::{point_double, points_add},
+        rng,
+    };
+
+    #[test]
+    fn adding_random_points() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+        let q = G1::random(rng.clone());
+        let expected = p + q;
+
+        let b3 = G1::b() + G1::b() + G1::b();
+        assert_eq!(
+            [expected.x, expected.y, expected.z],
+            points_add([p.x, p.y, p.z], [q.x, q.y, q.z], b3)
+        );
+    }
 
     #[test]
     fn doubling_random_point() {
         let rng = rng();
 
         let p = G1::random(rng.clone());
-        let s = p + p;
-
         let expected = p + p;
 
         let b3 = G1::b() + G1::b() + G1::b();
         assert_eq!(
             [expected.z, expected.y, expected.z],
-            point_double([s.x, s.y, s.z], b3)
+            point_double([p.x, p.y, p.z], b3)
         );
     }
 }
