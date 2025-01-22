@@ -27,6 +27,8 @@ pub mod withdraw;
 pub mod marshall;
 #[cfg(test)]
 mod test_utils;
+#[cfg(test)]
+pub use test_utils::rng;
 
 pub type AssignedCell = halo2_proofs::circuit::AssignedCell<F, F>;
 

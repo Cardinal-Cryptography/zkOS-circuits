@@ -73,3 +73,29 @@ where
 
     [x3, y3, z3]
 }
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::{
+        arithmetic::CurveExt,
+        halo2curves::{group::Group, grumpkin::G1},
+    };
+
+    use crate::{curve_operations::point_double, rng};
+
+    #[test]
+    fn doubling_random_point() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+        let s = p + p;
+
+        let expected = p + p;
+
+        let b3 = G1::b() + G1::b() + G1::b();
+        assert_eq!(
+            [expected.z, expected.y, expected.z],
+            point_double([s.x, s.y, s.z], b3)
+        );
+    }
+}

@@ -138,14 +138,9 @@ mod tests {
         halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
         plonk::ConstraintSystem,
     };
-    use rand::{rngs::StdRng, SeedableRng};
 
     use super::*;
-    use crate::gates::test_utils::OneGateCircuit;
-
-    fn rng() -> StdRng {
-        StdRng::from_seed(*b"00000000000000000000100001011001")
-    }
+    use crate::{gates::test_utils::OneGateCircuit, rng};
 
     fn input(p: G1, s: G1) -> PointDoubleGateInput<Fr> {
         PointDoubleGateInput {
