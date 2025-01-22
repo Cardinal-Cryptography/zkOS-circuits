@@ -6,6 +6,11 @@ use halo2_proofs::plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed};
 use crate::F;
 
 pub enum ConfigPhase {}
+/// This is kind of an artificial intermediate phase. Since we do some load balancing in the pool,
+/// `ColumnPool` is stateful, and thus we want to prevent cloning it during any phase. However,
+/// the pool will usually be a part of `Circuit::Config` type, which is required to be cloneable
+/// (for example, `Circuit::synthesize` might be called multiple times). Therefore, we allow cloning
+/// the pool only after the configuration phase is concluded and before the synthesis phase starts.
 pub enum PreSynthesisPhase {}
 pub enum SynthesisPhase {}
 
@@ -45,14 +50,9 @@ impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
             _phantom: Default::default(),
         }
     }
-
-    fn add_column(&mut self, column: Column<C>) {
-        self.pool.push(column);
-        self.access_counter.borrow_mut().push(0);
-    }
 }
 
-// ===================== PHASE TRANSITION ======================================================= //
+// ===================== PHASE TRANSITIONS ====================================================== //
 
 impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
     /// Finish the configuration phase and move to the pre-synthesis phase.
@@ -77,6 +77,13 @@ impl<C: ColumnType> ColumnPool<C, PreSynthesisPhase> {
 }
 
 // ===================== CREATING COLUMNS ======================================================= //
+
+impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
+    fn add_column(&mut self, column: Column<C>) {
+        self.pool.push(column);
+        self.access_counter.borrow_mut().push(0);
+    }
+}
 
 impl ColumnPool<Advice, ConfigPhase> {
     /// Ensure that there are at least `capacity` advice columns in the constraint system `cs`,
