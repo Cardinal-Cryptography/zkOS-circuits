@@ -13,7 +13,7 @@ use crate::{
     merkle::{MerkleConstraints, MerkleConstraints::*, MerkleInstance},
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 #[derive(Clone, Debug)]
@@ -29,7 +29,7 @@ impl MerkleChip {
         Constraint: From<MerkleConstraints> + Ord + IntoEnumIterator,
     >(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         knowledge: &MerkleProverKnowledge<TREE_HEIGHT, AssignedCell>,
         todo: &mut Todo<Constraint>,
     ) -> Result<(), Error> {

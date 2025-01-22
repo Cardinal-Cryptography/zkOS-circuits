@@ -24,7 +24,7 @@ use crate::{
         WithdrawConstraints::{self, *},
         WithdrawInstance::{self, *},
     },
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 #[derive(Clone, Debug)]
@@ -39,7 +39,7 @@ pub struct WithdrawChip {
 impl WithdrawChip {
     pub fn check_old_note(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
@@ -72,7 +72,7 @@ impl WithdrawChip {
 
     pub fn check_old_nullifier(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
@@ -90,7 +90,7 @@ impl WithdrawChip {
 
     pub fn check_id_hiding(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
@@ -111,7 +111,7 @@ impl WithdrawChip {
 
     pub fn check_new_note(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         intermediate_values: &IntermediateValues<AssignedCell>,
@@ -162,7 +162,7 @@ impl WithdrawChip {
 
     pub fn check_commitment(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {

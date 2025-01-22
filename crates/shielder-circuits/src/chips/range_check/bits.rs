@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
 
-use halo2_proofs::{circuit::Value, halo2curves::ff::PrimeFieldBits};
+use halo2_proofs::halo2curves::ff::PrimeFieldBits;
 
-use crate::F;
+use crate::{Fr, Value};
 
 /// Splits least significant bits of a field value `value` into `chunks` chunks of size `chunk_size`
 /// each, ensuring any leading bits are zero.
@@ -13,7 +13,7 @@ use crate::F;
 ///
 /// # Returns
 ///
-/// A `Vec<Value<F>>`, where each `Value<F>` corresponds to one chunk, represented as a finite field
+/// A `Vec<Value>`, where each `Value` corresponds to one chunk, represented as a finite field
 /// element. Vector is guaranteed to have `chunks` elements (padded with 0s if necessary).
 ///
 /// # Panics for the Prover (when `value` is known)
@@ -21,7 +21,7 @@ use crate::F;
 /// The function will panic if the input does not contain enough bits (`chunk_size * CHUNKS`).
 /// The function will panic if trailing bits are non-zero.
 /// The function will panic if `chunk_size` is greater than 64.
-pub fn to_chunks(value: Value<F>, chunk_size: usize, chunks: usize) -> Vec<Value<F>> {
+pub fn to_chunks(value: Value, chunk_size: usize, chunks: usize) -> Vec<Value> {
     assert!(chunk_size <= 64, "Chunk size must be <= 64");
 
     // Take LittleEndian bits of the value.
@@ -44,7 +44,7 @@ pub fn to_chunks(value: Value<F>, chunk_size: usize, chunks: usize) -> Vec<Value
     // Convert bit chunks back to the field.
     let bit_chunks = prefix.map(|bits| {
         bits.chunks_exact(chunk_size)
-            .map(|chunk| F::from(bits_to_u64(chunk)))
+            .map(|chunk| Fr::from(bits_to_u64(chunk)))
             .collect::<Vec<_>>()
     });
 

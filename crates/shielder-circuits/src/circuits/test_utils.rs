@@ -5,9 +5,9 @@ use std::{format, string::ToString, vec, vec::Vec};
 
 use halo2_proofs::{
     dev::{FailureLocation, MockProver, VerifyFailure},
+    halo2curves::bn256::Fr,
     plonk::{Any, Circuit},
 };
-use halo2_proofs::halo2curves::bn256::Fr;
 use rand_core::OsRng;
 use regex::Regex;
 use strum::{EnumCount, IntoEnumIterator};
@@ -111,8 +111,7 @@ where
 }
 
 // A prover that outputs useful debug info in case of failing constraints.
-pub fn run_mock_prover<C: Circuit<Fr> + Default>(test_circuit: &C, pub_input: &[Fr])
-{
+pub fn run_mock_prover<C: Circuit<Fr> + Default>(test_circuit: &C, pub_input: &[Fr]) {
     let params = generate_setup_params(MAX_K, &mut OsRng);
 
     let (_, k, _, _) = generate_keys_with_min_k::<C>(params).expect("key generation must succeed");

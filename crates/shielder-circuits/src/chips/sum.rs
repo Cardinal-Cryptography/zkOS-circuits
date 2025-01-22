@@ -9,7 +9,7 @@ use crate::{
         sum::{SumGate, SumGateInput},
         Gate,
     },
-    AssignedCell, Field, F,
+    AssignedCell, Field, Fr,
 };
 
 #[derive(Clone, Debug)]
@@ -23,7 +23,7 @@ impl SumChip {
     /// Constrain cells to satisfy the equation `summand_1 + summand_2 = sum`.
     pub fn constrain_sum(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         summand_1: AssignedCell,
         summand_2: AssignedCell,
         sum: AssignedCell,
@@ -39,7 +39,7 @@ impl SumChip {
     /// Constrain cells to satisfy the equation `left_sock = right_sock`.
     pub fn constrain_equal(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         left_sock: AssignedCell,
         right_sock: AssignedCell,
@@ -55,7 +55,7 @@ impl SumChip {
     /// Constrain cell to satisfy the equation `zero = 0`.
     pub fn constrain_zero(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         zero: AssignedCell,
     ) -> Result<(), Error> {
@@ -65,13 +65,13 @@ impl SumChip {
 
     fn zero(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
     ) -> Result<AssignedCell, Error> {
         layouter.assign_region(
             || "zero",
             |mut region| {
-                region.assign_advice_from_constant(|| "zero", column_pool.get_any(), 0, F::ZERO)
+                region.assign_advice_from_constant(|| "zero", column_pool.get_any(), 0, Fr::ZERO)
             },
         )
     }

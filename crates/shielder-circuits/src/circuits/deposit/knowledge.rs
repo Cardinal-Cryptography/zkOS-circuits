@@ -1,6 +1,5 @@
 use core::array;
 
-use halo2_proofs::circuit::Value;
 use macros::embeddable;
 use rand::Rng;
 use rand_core::RngCore;
@@ -20,7 +19,7 @@ use crate::{
     note_hash,
     poseidon::off_circuit::hash,
     version::NOTE_VERSION,
-    Field, Note, ProverKnowledge, PublicInputProvider, F,
+    Field, Fr, Note, ProverKnowledge, PublicInputProvider, Value,
 };
 
 /// Stores values needed to compute example inputs for `DepositCircuit`. Provides a function
@@ -30,7 +29,7 @@ use crate::{
 /// and some do not appear as inputs at all, but are just intermediate advice values.
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "DepositProverKnowledge<Value<F>>",
+    receiver = "DepositProverKnowledge<Value>",
     impl_generics = "",
     embedded = "DepositProverKnowledge<crate::AssignedCell>"
 )]
@@ -58,19 +57,19 @@ pub struct DepositProverKnowledge<F> {
     pub deposit_value: F,
 }
 
-impl ProverKnowledge for DepositProverKnowledge<F> {
+impl ProverKnowledge for DepositProverKnowledge<Fr> {
     type Circuit = DepositCircuit;
     type PublicInput = DepositInstance;
 
     /// Creates a random example with correct inputs. All values are random except for the deposit
     /// amount and the old account balances.
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
-        let id = F::random(&mut *rng);
-        let nonce = F::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
+        let id = Fr::random(&mut *rng);
+        let nonce = Fr::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
 
-        let nullifier_old = F::random(&mut *rng);
-        let trapdoor_old = F::random(&mut *rng);
-        let balances_old = Shortlist::new(array::from_fn(|i| F::from((i + 10) as u64)));
+        let nullifier_old = Fr::random(&mut *rng);
+        let trapdoor_old = Fr::random(&mut *rng);
+        let balances_old = Shortlist::new(array::from_fn(|i| Fr::from((i + 10) as u64)));
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
@@ -79,7 +78,7 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
             balances: balances_old,
         });
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
-        let token_indicators = array::from_fn(|i| F::from((i == 0) as u64));
+        let token_indicators = array::from_fn(|i| Fr::from((i == 0) as u64));
         Self {
             id,
             nonce,
@@ -87,9 +86,9 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
             trapdoor_old,
             balances_old,
             path,
-            nullifier_new: F::random(&mut *rng),
-            trapdoor_new: F::random(rng),
-            deposit_value: F::ONE,
+            nullifier_new: Fr::random(&mut *rng),
+            trapdoor_new: Fr::random(rng),
+            deposit_value: Fr::ONE,
             token_indicators,
         }
     }
@@ -110,8 +109,8 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
     }
 }
 
-impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<F> {
-    fn compute_public_input(&self, instance_id: DepositInstance) -> F {
+impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
+    fn compute_public_input(&self, instance_id: DepositInstance) -> Fr {
         match instance_id {
             DepositInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
             DepositInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
