@@ -5,7 +5,7 @@ use halo2_proofs::{
 
 use crate::{
     circuits::new_account::{chip::NewAccountChip, knowledge::NewAccountProverKnowledge},
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
@@ -18,7 +18,7 @@ use crate::{
 pub struct NewAccountCircuit(pub NewAccountProverKnowledge<Value<F>>);
 
 impl Circuit<F> for NewAccountCircuit {
-    type Config = (NewAccountChip, ColumnPool<Advice, SynthesisPhase>);
+    type Config = (NewAccountChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -43,6 +43,7 @@ impl Circuit<F> for NewAccountCircuit {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
+        let column_pool = column_pool.start_synthesis();
         let mut todo = Todo::<NewAccountConstraints>::new();
         let knowledge = self
             .0

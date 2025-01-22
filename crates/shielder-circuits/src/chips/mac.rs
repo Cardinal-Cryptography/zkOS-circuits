@@ -83,7 +83,7 @@ mod tests {
 
     use crate::{
         chips::mac::{off_circuit, Mac, MacChip, MacInput},
-        column_pool::{ColumnPool, SynthesisPhase},
+        column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         embed::Embed,
         F,
@@ -94,7 +94,7 @@ mod tests {
 
     impl Circuit<F> for MacCircuit {
         type Config = (
-            ColumnPool<Advice, SynthesisPhase>,
+            ColumnPool<Advice, PreSynthesisPhase>,
             MacChip,
             Column<Instance>,
         );
@@ -121,6 +121,7 @@ mod tests {
             (pool, mac_chip, instance): Self::Config,
             mut layouter: impl Layouter<F>,
         ) -> Result<(), Error> {
+            let pool = pool.start_synthesis();
             // 1. Embed key and r.
             let key = self.0.key.embed(&mut layouter, &pool, "key")?;
             let r = self.0.r.embed(&mut layouter, &pool, "r")?;

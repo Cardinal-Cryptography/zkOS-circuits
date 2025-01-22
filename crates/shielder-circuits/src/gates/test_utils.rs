@@ -12,7 +12,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     embed::Embed,
     gates::Gate,
     F,
@@ -48,7 +48,7 @@ impl<Gate, Input> OneGateCircuit<Gate, Input> {
 impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Circuit<F>
     for OneGateCircuit<G, Input>
 {
-    type Config = (ColumnPool<Advice, SynthesisPhase>, G);
+    type Config = (ColumnPool<Advice, PreSynthesisPhase>, G);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -72,9 +72,10 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
     /// Embed the input and apply the gate.
     fn synthesize(
         &self,
-        (advice_pool, gate): (ColumnPool<Advice, SynthesisPhase>, G),
+        (advice_pool, gate): (ColumnPool<Advice, PreSynthesisPhase>, G),
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
+        let advice_pool = advice_pool.start_synthesis();
         let embedded_input = self.input.embed(&mut layouter, &advice_pool, "input")?;
         gate.apply_in_new_region(&mut layouter, embedded_input)
     }

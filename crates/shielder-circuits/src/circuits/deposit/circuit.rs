@@ -6,7 +6,7 @@ use halo2_proofs::{
 use crate::{
     chips::token_index::TokenIndexChip,
     circuits::deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     deposit::{DepositConstraints, DepositInstance},
     embed::Embed,
@@ -19,7 +19,7 @@ use crate::{
 pub struct DepositCircuit(pub DepositProverKnowledge<Value<F>>);
 
 impl Circuit<F> for DepositCircuit {
-    type Config = (DepositChip, ColumnPool<Advice, SynthesisPhase>);
+    type Config = (DepositChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -54,6 +54,7 @@ impl Circuit<F> for DepositCircuit {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
+        let column_pool = column_pool.start_synthesis();
         let mut todo = Todo::<DepositConstraints>::new();
         let knowledge = self
             .0
@@ -70,7 +71,6 @@ impl Circuit<F> for DepositCircuit {
 
 #[cfg(test)]
 mod tests {
-
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;

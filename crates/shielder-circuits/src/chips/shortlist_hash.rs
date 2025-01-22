@@ -151,14 +151,16 @@ mod test {
     };
 
     use super::*;
-    use crate::{config_builder::ConfigsBuilder, embed::Embed, poseidon, F};
+    use crate::{
+        column_pool::PreSynthesisPhase, config_builder::ConfigsBuilder, embed::Embed, poseidon, F,
+    };
 
     #[derive(Clone, Debug, Default)]
     struct ShortlistCircuit<const N: usize>(Shortlist<F, N>);
 
     impl<const N: usize> Circuit<F> for ShortlistCircuit<N> {
         type Config = (
-            ColumnPool<Advice, SynthesisPhase>,
+            ColumnPool<Advice, PreSynthesisPhase>,
             ShortlistHashChip<N>,
             Column<Instance>,
         );
@@ -185,6 +187,7 @@ mod test {
             (pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<F>,
         ) -> Result<(), Error> {
+            let pool = pool.start_synthesis();
             // 1. Embed shortlist items and hash.
             let items: [AssignedCell; N] = self
                 .0

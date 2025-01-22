@@ -2,7 +2,7 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
-    column_pool::{ColumnPool, ConfigPhase, SynthesisPhase},
+    column_pool::{ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
@@ -51,7 +51,7 @@ impl<'cs> ConfigsBuilder<'cs> {
         }
     }
 
-    pub fn finish(self) -> ColumnPool<Advice, SynthesisPhase> {
+    pub fn finish(self) -> ColumnPool<Advice, PreSynthesisPhase> {
         self.advice_pool.conclude_configuration()
     }
 

@@ -6,8 +6,17 @@ use halo2_proofs::plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed};
 use crate::F;
 
 pub enum ConfigPhase {}
+pub enum PreSynthesisPhase {}
 pub enum SynthesisPhase {}
 
+/// Column management for the constraint system.
+///
+/// Depending on the circuit building phase, different operations are allowed:
+/// - In the configuration phase, columns can be added to the pool and accessed. Pool cannot be
+///   cloned.
+/// - In the pre-synthesis phase, pool can be cloned, but it is not possible to add nor access
+///   columns.
+/// - In the synthesis phase, pool cannot be cloned. Columns can be accessed, but not added.
 #[derive(Debug)]
 pub struct ColumnPool<C: ColumnType, Phase> {
     pool: Vec<Column<C>>,
@@ -15,7 +24,8 @@ pub struct ColumnPool<C: ColumnType, Phase> {
     _phantom: PhantomData<Phase>,
 }
 
-impl<C: ColumnType> Clone for ColumnPool<C, SynthesisPhase> {
+/// Pool can be cloned only during pre-synthesis phase.
+impl<C: ColumnType> Clone for ColumnPool<C, PreSynthesisPhase> {
     fn clone(&self) -> Self {
         Self {
             pool: self.pool.clone(),
@@ -26,7 +36,7 @@ impl<C: ColumnType> Clone for ColumnPool<C, SynthesisPhase> {
 }
 
 impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
-    /// Create a new empty pool.
+    /// Create a new empty pool for the configuration phase.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
@@ -36,19 +46,37 @@ impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
         }
     }
 
-    pub fn conclude_configuration(self) -> ColumnPool<C, SynthesisPhase> {
+    fn add_column(&mut self, column: Column<C>) {
+        self.pool.push(column);
+        self.access_counter.borrow_mut().push(0);
+    }
+}
+
+// ===================== PHASE TRANSITION ======================================================= //
+
+impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
+    /// Finish the configuration phase and move to the pre-synthesis phase.
+    pub fn conclude_configuration(self) -> ColumnPool<C, PreSynthesisPhase> {
         ColumnPool {
             pool: self.pool,
             access_counter: self.access_counter,
             _phantom: Default::default(),
         }
     }
+}
 
-    fn add_column(&mut self, column: Column<C>) {
-        self.pool.push(column);
-        self.access_counter.borrow_mut().push(0);
+impl<C: ColumnType> ColumnPool<C, PreSynthesisPhase> {
+    /// Move to the synthesis phase.
+    pub fn start_synthesis(self) -> ColumnPool<C, SynthesisPhase> {
+        ColumnPool {
+            pool: self.pool,
+            access_counter: self.access_counter,
+            _phantom: Default::default(),
+        }
     }
 }
+
+// ===================== CREATING COLUMNS ======================================================= //
 
 impl ColumnPool<Advice, ConfigPhase> {
     /// Ensure that there are at least `capacity` advice columns in the constraint system `cs`,
@@ -74,7 +102,14 @@ impl ColumnPool<Fixed, ConfigPhase> {
     }
 }
 
-impl<C: ColumnType, Phase> ColumnPool<C, Phase> {
+// ===================== ACCESSING COLUMNS ====================================================== //
+
+trait PhaseWithAccess {}
+impl PhaseWithAccess for ConfigPhase {}
+impl PhaseWithAccess for SynthesisPhase {}
+
+#[allow(private_bounds)]
+impl<C: ColumnType, Phase: PhaseWithAccess> ColumnPool<C, Phase> {
     /// Get some advice column from the pool.
     ///
     /// The index is not guaranteed (some inner load balancing might be applied).

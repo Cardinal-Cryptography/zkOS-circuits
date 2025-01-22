@@ -5,7 +5,7 @@ use halo2_proofs::{
 
 use crate::{
     circuits::withdraw::chip::WithdrawChip,
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
@@ -18,7 +18,7 @@ use crate::{
 pub struct WithdrawCircuit(pub WithdrawProverKnowledge<Value<F>>);
 
 impl Circuit<F> for WithdrawCircuit {
-    type Config = (WithdrawChip, ColumnPool<Advice, SynthesisPhase>);
+    type Config = (WithdrawChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -49,6 +49,7 @@ impl Circuit<F> for WithdrawCircuit {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
+        let column_pool = column_pool.start_synthesis();
         let mut todo = Todo::<WithdrawConstraints>::new();
         let knowledge = self
             .0

@@ -5,7 +5,7 @@ use halo2_proofs::{
 
 use crate::{
     circuits::merkle::knowledge::MerkleProverKnowledge,
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
@@ -20,7 +20,7 @@ pub struct MerkleCircuit<const TREE_HEIGHT: usize>(
 );
 
 impl<const TREE_HEIGHT: usize> Circuit<F> for MerkleCircuit<TREE_HEIGHT> {
-    type Config = (MerkleChip, ColumnPool<Advice, SynthesisPhase>);
+    type Config = (MerkleChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -39,9 +39,11 @@ impl<const TREE_HEIGHT: usize> Circuit<F> for MerkleCircuit<TREE_HEIGHT> {
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
         let mut todo = Todo::<MerkleConstraints>::new();
-        let knowledge = self
-            .0
-            .embed(&mut layouter, &column_pool, "MerkleProverKnowledge")?;
+        let knowledge = self.0.embed(
+            &mut layouter,
+            &column_pool.start_synthesis(),
+            "MerkleProverKnowledge",
+        )?;
         main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
         todo.assert_done()
     }
