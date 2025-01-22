@@ -205,7 +205,7 @@ mod tests {
         // Manually verify the new note hash used in the circuit.
         let mut hash_input = [Fr::ZERO; 7];
         for i in 0..6 {
-            hash_input[i] = pk.balances_old[i];
+            hash_input[i] = pk.balances_old.items()[i];
         }
         hash_input[1] += pk.deposit_value;
         let new_balances_hash = hash(&hash_input);
