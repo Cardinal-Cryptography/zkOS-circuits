@@ -106,9 +106,7 @@ mod tests {
     };
 
     use super::{PointsAddChip, PointsAddChipInput, PointsAddChipOutput};
-    use crate::{
-        column_pool::ColumnPool, config_builder::ConfigsBuilder, curve_operations, embed::Embed,
-    };
+    use crate::{column_pool::ColumnPool, config_builder::ConfigsBuilder, embed::Embed};
 
     #[derive(Clone, Debug, Default)]
     struct PointsAddCircuit(PointsAddChipInput<Fr>);

@@ -14,6 +14,7 @@ use {
 };
 
 use crate::{
+    curve_operations,
     gates::{ensure_unique_columns, Gate},
     AssignedCell,
 };
@@ -46,35 +47,6 @@ const SELECTOR_OFFSET: i32 = 0;
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "Point double gate";
 
-/// Algorithm 9, https://eprint.iacr.org/2015/1060.pdf
-fn double(
-    x: Expression<Fr>,
-    y: Expression<Fr>,
-    z: Expression<Fr>,
-) -> (Expression<Fr>, Expression<Fr>, Expression<Fr>) {
-    let b3 = G1::b() + G1::b() + G1::b();
-    let t0 = y.clone() * y.clone();
-    let z3 = t0.clone() + t0.clone();
-    let z3 = z3.clone() + z3;
-    let z3 = z3.clone() + z3;
-    let t1 = y.clone() * z.clone();
-    let t2 = z.clone() * z;
-    let t2 = t2 * b3;
-    let x3 = t2.clone() * z3.clone();
-    let y3 = t0.clone() + t2.clone();
-    let z3 = t1 * z3;
-    let t1 = t2.clone() + t2.clone();
-    let t2 = t1 + t2;
-    let t0 = t0 - t2;
-    let y3 = t0.clone() * y3;
-    let y3 = x3 + y3;
-    let t1 = x * y;
-    let x3 = t0 * t1;
-    let x3 = x3.clone() + x3;
-
-    (x3, y3, z3)
-}
-
 impl Gate for PointDoubleGate {
     type Input = PointDoubleGateInput<AssignedCell>;
 
@@ -98,7 +70,9 @@ impl Gate for PointDoubleGate {
             let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET));
             let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET));
 
-            let (res_x3, res_y3, res_z3) = double(x, y, z);
+            let b3 = G1::b() + G1::b() + G1::b();
+            let [res_x3, res_y3, res_z3] =
+                curve_operations::point_double([x, y, z], Expression::Constant(b3));
 
             Constraints::with_selector(selector, vec![res_x3 - x3, res_y3 - y3, res_z3 - z3])
         });
