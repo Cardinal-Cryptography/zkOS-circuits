@@ -11,12 +11,12 @@ use strum::IntoEnumIterator;
 
 use crate::{
     column_pool::ColumnPool,
+    curve_operations,
     gates::{
         point_double::PointDoubleGate,
         points_add::{PointsAddGate, PointsAddGateInput},
         Gate,
     },
-    grumpkin::curve_operations,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
     AssignedCell, F,
@@ -85,7 +85,7 @@ impl PointsAddChip {
             panic!("Expected a Vec of length {} but it was {}", 3, v.len())
         });
 
-        let gate_input = PointAddGateInput {
+        let gate_input = PointsAddGateInput {
             p: input.p.clone(),
             q: input.q.clone(),
             s: s.clone(),

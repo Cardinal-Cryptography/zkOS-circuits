@@ -1,5 +1,4 @@
 use alloc::vec;
-use core::ops::{Add, Mul, Sub};
 
 use halo2_proofs::{
     arithmetic::CurveExt,
@@ -15,8 +14,8 @@ use {
 };
 
 use crate::{
+    curve_operations,
     gates::{ensure_unique_columns, Gate},
-    grumpkin::curve_operations::points_add,
     AssignedCell,
 };
 
@@ -80,7 +79,7 @@ impl Gate for PointsAddGate {
 
             let b3 = G1::b() + G1::b() + G1::b();
             let [res_x3, res_y3, res_z3] =
-                points_add([x1, y1, z1], [x2, y2, z2], Expression::Constant(b3));
+                curve_operations::points_add([x1, y1, z1], [x2, y2, z2], Expression::Constant(b3));
 
             Constraints::with_selector(selector, vec![res_x3 - x3, res_y3 - y3, res_z3 - z3])
         });
