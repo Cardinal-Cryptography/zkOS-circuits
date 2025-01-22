@@ -174,9 +174,21 @@ impl<'cs> ConfigsBuilder<'cs> {
             gate: PointsAddGate::create_gate(
                 self.system,
                 (
-                    advice_pool.get_array(),
-                    advice_pool.get_array(),
-                    advice_pool.get_array(),
+                    [
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                    ],
+                    [
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                    ],
+                    [
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                    ],
                 ),
             ),
             advice_pool,

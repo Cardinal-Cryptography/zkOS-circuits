@@ -1,24 +1,19 @@
-use alloc::{vec, vec::Vec};
-use core::{array, borrow::Borrow};
+use alloc::vec::Vec;
 
 use halo2_proofs::{
     arithmetic::CurveExt,
     circuit::{Layouter, Value},
-    halo2curves::{bn256::Fr, grumpkin::G1},
-    plonk::{Advice, Error, Expression},
+    halo2curves::grumpkin::G1,
+    plonk::{Advice, Error},
 };
-use strum::IntoEnumIterator;
 
 use crate::{
     column_pool::ColumnPool,
     curve_operations,
     gates::{
-        point_double::PointDoubleGate,
         points_add::{PointsAddGate, PointsAddGateInput},
         Gate,
     },
-    instance_wrapper::InstanceWrapper,
-    todo::Todo,
     AssignedCell, F,
 };
 
@@ -100,14 +95,10 @@ impl PointsAddChip {
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        string::{String, ToString},
-        vec,
-        vec::Vec,
-    };
+    use std::{vec, vec::Vec};
 
     use halo2_proofs::{
-        arithmetic::{CurveExt, Field},
+        arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, grumpkin::G1},
@@ -117,7 +108,6 @@ mod tests {
     use super::{PointsAddChip, PointsAddChipInput, PointsAddChipOutput};
     use crate::{
         column_pool::ColumnPool, config_builder::ConfigsBuilder, curve_operations, embed::Embed,
-        gates::points_add::PointsAddGate, F,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -180,7 +170,7 @@ mod tests {
     ) -> Result<(), Vec<VerifyFailure>> {
         let circuit = PointsAddCircuit(input);
         MockProver::run(
-            3,
+            4,
             &circuit,
             vec![vec![expected.s[0], expected.s[1], expected.s[2]]],
         )
@@ -200,20 +190,11 @@ mod tests {
             y: Fr::ONE,
             z: Fr::ZERO,
         };
+        let s = p + q;
 
         let input = input(p, q);
-        let b3 = G1::b();
-        let expected = curve_operations::points_add([p.x, p.y, p.z], [q.x, q.y, q.z], b3);
-        let output = PointsAddChipOutput { s: expected };
+        let output = PointsAddChipOutput { s: [s.x, s.y, s.z] };
 
         assert!(verify(input, output).is_ok());
     }
-
-    // #[test]
-    // fn correct_input_passes() {
-    //     let input = input(41, 42);
-    //     let mac = off_circuit::mac(&input);
-
-    //     assert!(verify(input, mac).is_ok());
-    // }
 }
