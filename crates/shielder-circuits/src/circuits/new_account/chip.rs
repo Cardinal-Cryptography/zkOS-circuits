@@ -6,7 +6,7 @@ use halo2_proofs::{
 use crate::{
     chips::note::{balances_from_native_balance, Note, NoteChip},
     circuits::new_account::knowledge::NewAccountProverKnowledge,
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     instance_wrapper::InstanceWrapper,
     new_account::{
         NewAccountConstraints::{self, *},
@@ -20,7 +20,6 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct NewAccountChip {
-    pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
     pub poseidon: PoseidonChip,
 }
@@ -29,6 +28,7 @@ impl NewAccountChip {
     pub fn synthesize(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
         todo: &mut Todo<NewAccountConstraints>,
     ) -> Result<(), Error> {
@@ -43,14 +43,12 @@ impl NewAccountChip {
         let h_id = hash(layouter, self.poseidon.clone(), [knowledge.id.clone()])?;
         todo.check_off(HashedIdIsCorrect)?;
 
-        let balances = balances_from_native_balance(
-            knowledge.initial_deposit.clone(),
-            layouter,
-            &self.advice_pool,
-        )?;
+        let balances =
+            balances_from_native_balance(knowledge.initial_deposit.clone(), layouter, column_pool)?;
 
-        let note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
+        let note = NoteChip::new(self.poseidon.clone()).note(
             layouter,
+            column_pool,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),

@@ -6,6 +6,8 @@ use halo2_proofs::{
     poly::Rotation,
 };
 
+#[cfg(test)]
+use crate::column_pool::{ColumnPool, ConfigPhase};
 use crate::{gates::Gate, AssignedCell, F};
 
 /// Represents the relation: `x * (1-x) = 0`.
@@ -56,7 +58,7 @@ impl Gate for IsBinaryGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);

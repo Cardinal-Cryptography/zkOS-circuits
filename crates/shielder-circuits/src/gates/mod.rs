@@ -6,7 +6,7 @@ use halo2_proofs::{
 };
 
 #[cfg(test)]
-use crate::column_pool::ColumnPool;
+use crate::column_pool::{ColumnPool, ConfigPhase};
 use crate::F;
 
 pub mod balance_increase;
@@ -47,7 +47,7 @@ pub trait Gate: Sized {
     /// govern advice columns.
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut ColumnPool<Advice>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices;
 }

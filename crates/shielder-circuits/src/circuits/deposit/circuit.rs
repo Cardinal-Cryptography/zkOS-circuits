@@ -1,11 +1,12 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
     chips::token_index::TokenIndexChip,
     circuits::deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     deposit::{DepositConstraints, DepositInstance},
     embed::Embed,
@@ -18,7 +19,7 @@ use crate::{
 pub struct DepositCircuit(pub DepositProverKnowledge<Value<F>>);
 
 impl Circuit<F> for DepositCircuit {
-    type Config = DepositChip;
+    type Config = (DepositChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -33,44 +34,43 @@ impl Circuit<F> for DepositCircuit {
             .with_merkle(public_inputs.narrow())
             .with_range_check();
 
-        let advice_pool = configs_builder.advice_pool();
-        let token_index = TokenIndexChip::new(advice_pool.clone(), public_inputs.narrow());
+        let token_index = TokenIndexChip::new(public_inputs.narrow());
 
-        DepositChip {
-            advice_pool,
-            public_inputs,
-            poseidon: configs_builder.poseidon_chip(),
-            merkle: configs_builder.merkle_chip(),
-            range_check: configs_builder.range_check_chip(),
-            balances_increase: configs_builder.balances_increase_chip(),
-            token_index,
-        }
+        (
+            DepositChip {
+                public_inputs,
+                poseidon: configs_builder.poseidon_chip(),
+                merkle: configs_builder.merkle_chip(),
+                range_check: configs_builder.range_check_chip(),
+                balances_increase: configs_builder.balances_increase_chip(),
+                token_index,
+            },
+            configs_builder.finish(),
+        )
     }
 
     fn synthesize(
         &self,
-        main_chip: Self::Config,
+        (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
+        let column_pool = column_pool.start_synthesis();
         let mut todo = Todo::<DepositConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &main_chip.advice_pool,
-            "DepositProverKnowledge",
-        )?;
+        let knowledge = self
+            .0
+            .embed(&mut layouter, &column_pool, "DepositProverKnowledge")?;
 
-        main_chip.check_old_note(&mut layouter, &knowledge, &mut todo)?;
+        main_chip.check_old_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_token_index(&mut layouter, &knowledge, &mut todo)?;
+        main_chip.check_new_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
+        main_chip.check_id_hiding(&mut layouter, &column_pool, &knowledge, &mut todo)?;
+        main_chip.check_token_index(&mut layouter, &column_pool, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;

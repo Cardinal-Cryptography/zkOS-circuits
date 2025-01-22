@@ -7,6 +7,8 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
+#[cfg(test)]
+use crate::column_pool::{ColumnPool, ConfigPhase};
 use crate::{
     consts::RANGE_PROOF_CHUNK_SIZE, embed::Embed, gates::Gate, range_table::RangeTable,
     AssignedCell, F,
@@ -96,7 +98,7 @@ impl Gate for RangeCheckGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);

@@ -6,7 +6,7 @@ use halo2_proofs::{
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, macros::embeddable};
+use {crate::column_pool::ConfigPhase, crate::embed::Embed, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
@@ -87,7 +87,7 @@ impl Gate for SumGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 3);

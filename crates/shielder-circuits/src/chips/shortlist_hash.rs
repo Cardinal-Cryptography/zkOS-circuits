@@ -6,7 +6,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::POSEIDON_RATE,
     embed::Embed,
     poseidon::circuit::{hash, PoseidonChip},
@@ -19,7 +19,6 @@ const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 #[derive(Clone, Debug)]
 pub struct ShortlistHashChip<const N: usize> {
     poseidon: PoseidonChip,
-    advice_pool: ColumnPool<Advice>,
 }
 
 /// Represents a (short) list of field elements.
@@ -36,7 +35,7 @@ impl<const N: usize> Embed for Shortlist<Value<F>, N> {
     fn embed(
         &self,
         layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<alloc::string::String>,
     ) -> Result<Self::Embedded, Error> {
         let items = self.items.embed(layouter, advice_pool, annotation)?;
@@ -97,11 +96,8 @@ pub mod off_circuit {
 }
 
 impl<const N: usize> ShortlistHashChip<N> {
-    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
-        Self {
-            poseidon,
-            advice_pool,
-        }
+    pub fn new(poseidon: PoseidonChip) -> Self {
+        Self { poseidon }
     }
 
     /// Calculate the shortlist hash by chunking the shortlist by POSEIDON_RATE - 1
@@ -109,6 +105,7 @@ impl<const N: usize> ShortlistHashChip<N> {
     pub fn shortlist_hash(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         shortlist: &Shortlist<AssignedCell, N>,
     ) -> Result<AssignedCell, Error> {
         let zero_cell = layouter.assign_region(
@@ -116,7 +113,7 @@ impl<const N: usize> ShortlistHashChip<N> {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "Shortlist placeholder (zero)",
-                    self.advice_pool.get_any(),
+                    column_pool.get_any(),
                     0,
                     F::zero(),
                 )
@@ -154,14 +151,24 @@ mod test {
     };
 
     use super::*;
-    use crate::{config_builder::ConfigsBuilder, embed::Embed, poseidon, F};
+    use crate::{
+        column_pool::PreSynthesisPhase, config_builder::ConfigsBuilder, embed::Embed, poseidon, F,
+    };
 
     #[derive(Clone, Debug, Default)]
     struct ShortlistCircuit<const N: usize>(Shortlist<F, N>);
 
     impl<const N: usize> Circuit<F> for ShortlistCircuit<N> {
-        type Config = (ColumnPool<Advice>, ShortlistHashChip<N>, Column<Instance>);
+        type Config = (
+            ColumnPool<Advice, PreSynthesisPhase>,
+            ShortlistHashChip<N>,
+            Column<Instance>,
+        );
         type FloorPlanner = V1;
+
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
 
         fn configure(meta: &mut halo2_proofs::plonk::ConstraintSystem<F>) -> Self::Config {
             // Enable public input.
@@ -170,14 +177,9 @@ mod test {
             // Register Poseidon.
             let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
             // Create Shortlist chip.
-            let pool = configs_builder.advice_pool();
-            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip(), pool.clone());
+            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip());
 
-            (pool, chip, instance)
-        }
-
-        fn without_witnesses(&self) -> Self {
-            Self::default()
+            (configs_builder.finish(), chip, instance)
         }
 
         fn synthesize(
@@ -185,13 +187,14 @@ mod test {
             (pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<F>,
         ) -> Result<(), Error> {
+            let pool = pool.start_synthesis();
             // 1. Embed shortlist items and hash.
             let items: [AssignedCell; N] = self
                 .0
                 .items
                 .map(|balance| balance.embed(&mut layouter, &pool, "balance").unwrap());
             let shortlist = Shortlist { items };
-            let embedded_hash = chip.shortlist_hash(&mut layouter, &shortlist)?;
+            let embedded_hash = chip.shortlist_hash(&mut layouter, &pool, &shortlist)?;
 
             // 2. Compare hash with public input.
             layouter.constrain_instance(embedded_hash.cell(), instance, 0)
