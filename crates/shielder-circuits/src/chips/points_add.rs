@@ -23,6 +23,7 @@ pub struct PointsAddChipInput<T> {
     pub q: [T; 3],
 }
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct PointsAddChipOutput<T> {
     pub s: [T; 3],
