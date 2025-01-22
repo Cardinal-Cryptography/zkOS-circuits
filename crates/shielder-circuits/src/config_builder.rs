@@ -1,12 +1,16 @@
 use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
-    chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
+    chips::{
+        balances_increase::BalancesIncreaseChip, point_add::PointAddChip,
+        range_check::RangeCheckChip, sum::SumChip,
+    },
     column_pool::ColumnPool,
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
         membership::MembershipGate,
+        point_add::PointAddGate,
         sum::SumGate,
         Gate,
     },
@@ -26,6 +30,7 @@ pub struct ConfigsBuilder<'cs> {
     poseidon: Option<PoseidonChip>,
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
+    point_add: Option<PointAddChip>,
 }
 
 macro_rules! check_if_cached {
@@ -48,6 +53,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             poseidon: None,
             range_check: None,
             sum: None,
+            point_add: None,
         }
     }
 
@@ -158,6 +164,28 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn sum_chip(&self) -> SumChip {
         self.sum.clone().expect("Sum not configured")
+    }
+
+    pub fn with_point_add_chip(mut self) -> Self {
+        check_if_cached!(self, point_add);
+
+        let advice_pool = self.advice_pool_with_capacity(9).clone();
+        self.point_add = Some(PointAddChip {
+            gate: PointAddGate::create_gate(
+                self.system,
+                (
+                    advice_pool.get_array(),
+                    advice_pool.get_array(),
+                    advice_pool.get_array(),
+                ),
+            ),
+            advice_pool,
+        });
+        self
+    }
+
+    pub fn point_add(&self) -> PointAddChip {
+        self.point_add.clone().expect("PointAddChip not configured")
     }
 
     fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice> {

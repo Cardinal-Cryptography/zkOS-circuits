@@ -1,4 +1,5 @@
 use alloc::vec;
+use core::ops::{Add, Mul, Sub};
 
 use halo2_proofs::{
     arithmetic::CurveExt,
@@ -49,11 +50,16 @@ const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "Point add gate";
 
 /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
-fn add(p: [Expression<Fr>; 3], q: [Expression<Fr>; 3]) -> [Expression<Fr>; 3] {
+pub fn add<T>(p: [T; 3], q: [T; 3], b3: T) -> [T; 3]
+where
+    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone,
+    // T: Mul<Fr, Output = T>,
+{
     let [x1, y1, z1] = p;
     let [x2, y2, z2] = q;
 
-    let b3 = G1::b() + G1::b() + G1::b();
+    // let b3 = G1::b() + G1::b() + G1::b();
+
     let t0 = x1.clone() * x2.clone();
     let t1 = y1.clone() * y2.clone();
     let t2 = z1.clone() * z2.clone();
@@ -74,7 +80,7 @@ fn add(p: [Expression<Fr>; 3], q: [Expression<Fr>; 3]) -> [Expression<Fr>; 3] {
     let y3 = x3 - y3;
     let x3 = t0.clone() + t0.clone();
     let t0 = x3 + t0;
-    let t2 = t2 * b3;
+    let t2 = t2 * b3.clone();
     let z3 = t1.clone() + t2.clone();
     let t1 = t1 - t2;
     let y3 = y3 * b3;
@@ -119,7 +125,9 @@ impl Gate for PointAddGate {
             let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET));
             let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET));
 
-            let [res_x3, res_y3, res_z3] = add([x1, y1, z1], [x2, y2, z2]);
+            let b3 = G1::b() + G1::b() + G1::b();
+            let [res_x3, res_y3, res_z3] =
+                add([x1, y1, z1], [x2, y2, z2], Expression::Constant(b3));
 
             Constraints::with_selector(selector, vec![res_x3 - x3, res_y3 - y3, res_z3 - z3])
         });
