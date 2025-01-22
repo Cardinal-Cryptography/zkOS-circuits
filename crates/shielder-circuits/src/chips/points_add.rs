@@ -113,8 +113,11 @@ mod tests {
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
-    use super::{PointsAddChip, PointsAddChipInput};
-    use crate::{column_pool::ColumnPool, config_builder::ConfigsBuilder, embed::Embed};
+    use super::{PointsAddChip, PointsAddChipInput, PointsAddChipOutput};
+    use crate::{
+        column_pool::ColumnPool, config_builder::ConfigsBuilder, embed::Embed,
+        gates::points_add::PointsAddGate, F,
+    };
 
     #[derive(Clone, Debug, Default)]
     struct PointAddCircuit(PointsAddChipInput<Fr>);
@@ -132,19 +135,34 @@ mod tests {
             // public input column
             let instance = meta.instance_column();
             meta.enable_equality(instance);
+            // register point add chip
+            let configs_builder = ConfigsBuilder::new(meta).with_point_add_chip();
 
-            // TODO: register point add chip
-            let configs_builder = ConfigsBuilder::new(meta);
-
-            todo!()
+            (
+                configs_builder.advice_pool(),
+                configs_builder.points_add_chip(),
+                instance,
+            )
         }
 
         fn synthesize(
             &self,
-            config: Self::Config,
-            layouter: impl Layouter<Fr>,
+            (advice_pool, chip, instance): Self::Config,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            todo!()
+            let PointsAddChipInput { p, q } = self.0;
+
+            let p = p.embed(&mut layouter, &advice_pool, "P")?;
+            let q = q.embed(&mut layouter, &advice_pool, "Q")?;
+
+            let PointsAddChipOutput { s } =
+                chip.point_add(&mut layouter, &PointsAddChipInput { p, q })?;
+
+            layouter.constrain_instance(s[0].cell(), instance, 0)?;
+            layouter.constrain_instance(s[1].cell(), instance, 1)?;
+            layouter.constrain_instance(s[2].cell(), instance, 2)?;
+
+            Ok(())
         }
     }
 }

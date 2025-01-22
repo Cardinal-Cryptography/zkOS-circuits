@@ -184,7 +184,7 @@ impl<'cs> ConfigsBuilder<'cs> {
         self
     }
 
-    pub fn point_add(&self) -> PointsAddChip {
+    pub fn points_add_chip(&self) -> PointsAddChip {
         self.point_add.clone().expect("PointAddChip not configured")
     }
 
