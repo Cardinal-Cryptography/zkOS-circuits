@@ -189,10 +189,8 @@ mod test {
         ) -> Result<(), Error> {
             let pool = pool.start_synthesis();
             // 1. Embed shortlist items and hash.
-            let items: [AssignedCell; N] = self
-                .0
-                .items
-                .map(|balance| balance.embed(&mut layouter, &pool, "balance").unwrap());
+            let items: [AssignedCell; N] =
+                self.0.items.embed(&mut layouter, &pool, "balance").unwrap();
             let shortlist = Shortlist { items };
             let embedded_hash = chip.shortlist_hash(&mut layouter, &pool, &shortlist)?;
 
