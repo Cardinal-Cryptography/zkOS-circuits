@@ -33,28 +33,28 @@ use crate::{
     impl_generics = "",
     embedded = "DepositProverKnowledge<crate::AssignedCell>"
 )]
-pub struct DepositProverKnowledge<F> {
+pub struct DepositProverKnowledge<T> {
     // Old note
-    pub id: F,
-    pub nullifier_old: F,
-    pub trapdoor_old: F,
-    pub balances_old: Shortlist<F, NUM_TOKENS>,
+    pub id: T,
+    pub nullifier_old: T,
+    pub trapdoor_old: T,
+    pub balances_old: Shortlist<T, NUM_TOKENS>,
 
     // Merkle proof
-    pub path: [[F; ARITY]; NOTE_TREE_HEIGHT],
+    pub path: [[T; ARITY]; NOTE_TREE_HEIGHT],
 
     // New note
-    pub nullifier_new: F,
-    pub trapdoor_new: F,
+    pub nullifier_new: T,
+    pub trapdoor_new: T,
 
     // `token_indicators[i] = 1` if token i is deposited, 0 otherwise.
     // Exactly one entry is 1, the rest are 0.
-    pub token_indicators: [F; NUM_TOKENS],
+    pub token_indicators: [T; NUM_TOKENS],
 
     // Nonce for id_hiding
-    pub nonce: F,
+    pub nonce: T,
 
-    pub deposit_value: F,
+    pub deposit_value: T,
 }
 
 impl ProverKnowledge for DepositProverKnowledge<Fr> {

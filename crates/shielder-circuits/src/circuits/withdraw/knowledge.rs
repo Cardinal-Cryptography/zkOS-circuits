@@ -24,27 +24,27 @@ use crate::{
     impl_generics = "",
     embedded = "WithdrawProverKnowledge<crate::AssignedCell>"
 )]
-pub struct WithdrawProverKnowledge<F> {
-    pub withdrawal_value: F,
+pub struct WithdrawProverKnowledge<T> {
+    pub withdrawal_value: T,
 
     // Additional public parameters that need to be included in proof
-    pub commitment: F,
+    pub commitment: T,
 
     // Old note
-    pub id: F,
-    pub nullifier_old: F,
-    pub trapdoor_old: F,
-    pub account_old_balance: F,
+    pub id: T,
+    pub nullifier_old: T,
+    pub trapdoor_old: T,
+    pub account_old_balance: T,
 
     // Merkle proof
-    pub path: [[F; ARITY]; NOTE_TREE_HEIGHT],
+    pub path: [[T; ARITY]; NOTE_TREE_HEIGHT],
 
     // New note
-    pub nullifier_new: F,
-    pub trapdoor_new: F,
+    pub nullifier_new: T,
+    pub trapdoor_new: T,
 
     // nonce for id_hiding
-    pub nonce: F,
+    pub nonce: T,
 }
 
 impl WithdrawProverKnowledge<Value> {
@@ -148,7 +148,7 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
     impl_generics = "",
     embedded = "IntermediateValues<crate::AssignedCell>"
 )]
-pub struct IntermediateValues<F> {
+pub struct IntermediateValues<T> {
     /// Account balance after the withdrawal is made.
-    pub new_account_balance: F,
+    pub new_account_balance: T,
 }
