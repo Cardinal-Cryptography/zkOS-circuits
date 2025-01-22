@@ -107,22 +107,23 @@ mod tests {
     };
 
     use halo2_proofs::{
+        arithmetic::{CurveExt, Field},
         circuit::{floor_planner::V1, Layouter},
-        dev::MockProver,
-        halo2curves::bn256::Fr,
+        dev::{MockProver, VerifyFailure},
+        halo2curves::{bn256::Fr, grumpkin::G1},
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
     use super::{PointsAddChip, PointsAddChipInput, PointsAddChipOutput};
     use crate::{
-        column_pool::ColumnPool, config_builder::ConfigsBuilder, embed::Embed,
+        column_pool::ColumnPool, config_builder::ConfigsBuilder, curve_operations, embed::Embed,
         gates::points_add::PointsAddGate, F,
     };
 
     #[derive(Clone, Debug, Default)]
-    struct PointAddCircuit(PointsAddChipInput<Fr>);
+    struct PointsAddCircuit(PointsAddChipInput<Fr>);
 
-    impl Circuit<Fr> for PointAddCircuit {
+    impl Circuit<Fr> for PointsAddCircuit {
         type Config = (ColumnPool<Advice>, PointsAddChip, Column<Instance>);
 
         type FloorPlanner = V1;
@@ -165,4 +166,54 @@ mod tests {
             Ok(())
         }
     }
+
+    fn input(p: G1, q: G1) -> PointsAddChipInput<Fr> {
+        PointsAddChipInput {
+            p: [p.x, p.y, p.z],
+            q: [q.x, q.y, q.z],
+        }
+    }
+
+    fn verify(
+        input: PointsAddChipInput<Fr>,
+        expected: PointsAddChipOutput<Fr>,
+    ) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = PointsAddCircuit(input);
+        MockProver::run(
+            3,
+            &circuit,
+            vec![vec![expected.s[0], expected.s[1], expected.s[2]]],
+        )
+        .expect("Mock prover should run")
+        .verify()
+    }
+
+    #[test]
+    fn adding_points_at_infinity() {
+        let p = G1 {
+            x: Fr::ZERO,
+            y: Fr::ONE,
+            z: Fr::ZERO,
+        };
+        let q = G1 {
+            x: Fr::ZERO,
+            y: Fr::ONE,
+            z: Fr::ZERO,
+        };
+
+        let input = input(p, q);
+        let b3 = G1::b();
+        let expected = curve_operations::points_add([p.x, p.y, p.z], [q.x, q.y, q.z], b3);
+        let output = PointsAddChipOutput { s: expected };
+
+        assert!(verify(input, output).is_ok());
+    }
+
+    // #[test]
+    // fn correct_input_passes() {
+    //     let input = input(41, 42);
+    //     let mac = off_circuit::mac(&input);
+
+    //     assert!(verify(input, mac).is_ok());
+    // }
 }
