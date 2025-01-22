@@ -101,12 +101,12 @@ mod tests {
         arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, grumpkin::G1},
+        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
     use super::{PointsAddChip, PointsAddChipInput, PointsAddChipOutput};
-    use crate::{column_pool::ColumnPool, config_builder::ConfigsBuilder, embed::Embed};
+    use crate::{column_pool::ColumnPool, config_builder::ConfigsBuilder, embed::Embed, rng};
 
     #[derive(Clone, Debug, Default)]
     struct PointsAddCircuit(PointsAddChipInput<Fr>);
@@ -188,7 +188,39 @@ mod tests {
             y: Fr::ONE,
             z: Fr::ZERO,
         };
-        let s = p + q;
+        let expected = p + q;
+
+        let input = input(p, q);
+        let output = PointsAddChipOutput {
+            s: [expected.x, expected.y, expected.z],
+        };
+
+        assert!(verify(input, output).is_ok());
+    }
+
+    #[test]
+    fn adding_random_points() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+        let q = G1::random(rng.clone());
+        let expected = p + q;
+
+        let input = input(p, q);
+        let output = PointsAddChipOutput {
+            s: [expected.x, expected.y, expected.z],
+        };
+
+        assert!(verify(input, output).is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+        let q = G1::random(rng.clone());
+        let s = G1::random(rng.clone());
 
         let input = input(p, q);
         let output = PointsAddChipOutput { s: [s.x, s.y, s.z] };
