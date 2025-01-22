@@ -55,9 +55,9 @@ mod tests {
         let result = running_sum(value, CHUNK_SIZE, CHUNKS);
 
         assert_eq!(result.len(), 4);
-        for i in 0..4 {
-            result[i].assert_if_known(|v| *v == Fr::ZERO);
-        }
+        result
+            .iter()
+            .for_each(|v| v.assert_if_known(|v| *v == Fr::ZERO));
     }
 
     #[test]
