@@ -29,7 +29,7 @@ pub struct PointsAddChipOutput<T> {
     pub s: [T; 3],
 }
 
-/// Chip that adds two points on a Grumpkin EC.
+/// Chip that adds two points on a Grumpkin curve.
 ///
 /// P + Q = S
 #[derive(Clone, Debug)]
