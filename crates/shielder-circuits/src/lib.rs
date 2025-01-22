@@ -23,6 +23,7 @@ use alloc::{fmt::Debug, vec::Vec};
 pub use chips::note::{off_circuit::note_hash, Note};
 pub use circuits::*;
 pub use consts::MAX_K;
+use halo2_proofs::halo2curves::bn256::Fr;
 pub use halo2_proofs::{
     arithmetic::Field,
     dev::CircuitCost,
@@ -39,6 +40,9 @@ pub use version::NoteVersion;
 // which we expect to be more expensive than the difference in call data size.
 // For our benchmarks, the sizes were 5447 and 3367 for Raw and Processed, respectively.
 pub const SERDE_FORMAT: SerdeFormat = SerdeFormat::RawBytes;
+
+pub type AssignedCell = halo2_proofs::circuit::AssignedCell<F, F>;
+pub type F = Fr;
 
 pub trait ProverKnowledge: Clone + PublicInputProvider<Self::PublicInput> {
     /// Associated type for the circuit.

@@ -28,15 +28,12 @@ pub mod marshall;
 #[cfg(test)]
 mod test_utils;
 
-pub type AssignedCell = halo2_proofs::circuit::AssignedCell<F, F>;
-
 pub type Params = ParamsKZG<Bn256>;
 pub type ProvingKey = halo2_proofs::plonk::ProvingKey<G1Affine>;
 pub type VerifyingKey = halo2_proofs::plonk::VerifyingKey<G1Affine>;
 pub type CommitmentScheme = KZGCommitmentScheme<Bn256>;
 pub type Prover<'a> = ProverSHPLONK<'a, Bn256>;
 pub type Verifier<'a> = VerifierSHPLONK<'a, Bn256>;
-pub type F = Fr;
 
 // Generates setup parameters with given `k`. This restricts the circuit to at most `2^k` rows.
 pub fn generate_setup_params<R: RngCore>(k: u32, rng: &mut R) -> Params {
@@ -47,7 +44,7 @@ pub fn generate_setup_params<R: RngCore>(k: u32, rng: &mut R) -> Params {
 // for which key generation succeeds. The passed `circuit` is allowed to be empty.
 //
 // Returns modified `params`, minimal `k`, and both the keys, or an error if no valid `k` is found.
-pub fn generate_keys_with_min_k<C: Circuit<F> + Default>(
+pub fn generate_keys_with_min_k<C: Circuit<Fr> + Default>(
     params: Params,
 ) -> Result<(Params, u32, ProvingKey, VerifyingKey), Error> {
     let circuit = C::default();
@@ -69,10 +66,7 @@ pub fn generate_keys_with_min_k<C: Circuit<F> + Default>(
 }
 
 // Runs the mock prover and panics in case of an error.
-pub fn run_mock_prover<C>(k: u32, circuit: &C, pub_input: Vec<F>)
-where
-    C: Circuit<F>,
-{
+pub fn run_mock_prover<C: Circuit<Fr>>(k: u32, circuit: &C, pub_input: Vec<Fr>) {
     let prover = MockProver::run(k, circuit, vec![pub_input]).expect("Mock prover should run");
     let res = prover.verify();
     match res {
@@ -81,11 +75,11 @@ where
     }
 }
 
-pub fn generate_proof<C: Circuit<F>>(
+pub fn generate_proof<C: Circuit<Fr>>(
     params: &Params,
     pk: &ProvingKey,
     circuit: C,
-    pub_input: &[F],
+    pub_input: &[Fr],
     rng: &mut impl RngCore,
 ) -> Vec<u8> {
     let mut transcript = Keccak256Transcript::new(Vec::new());
@@ -107,7 +101,7 @@ pub fn verify(
     params: &Params,
     vk: &VerifyingKey,
     transcript: &[u8],
-    instance: &[F],
+    instance: &[Fr],
 ) -> Result<(), Error> {
     let mut transcript = Keccak256Transcript::new(transcript);
 
