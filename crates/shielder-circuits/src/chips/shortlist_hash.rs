@@ -1,13 +1,14 @@
 use core::array;
 
 use halo2_proofs::{
-    circuit::Layouter,
+    circuit::{Layouter, Value},
     plonk::{Advice, Error},
 };
 
 use crate::{
     column_pool::ColumnPool,
     consts::POSEIDON_RATE,
+    embed::Embed,
     poseidon::circuit::{hash, PoseidonChip},
     AssignedCell, F,
 };
@@ -29,21 +30,47 @@ pub struct Shortlist<T, const N: usize> {
     items: [T; N],
 }
 
-impl<const N: usize> Shortlist<F, N> {
-    pub fn new(items: [F; N]) -> Self {
+impl<const N: usize> Embed for Shortlist<Value<F>, N> {
+    type Embedded = Shortlist<AssignedCell, N>;
+
+    fn embed(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        advice_pool: &ColumnPool<Advice>,
+        annotation: impl Into<alloc::string::String>,
+    ) -> Result<Self::Embedded, Error> {
+        let items = self.items.embed(layouter, advice_pool, annotation)?;
+        Ok(Shortlist { items })
+    }
+}
+
+impl<T, const N: usize> From<[T; N]> for Shortlist<T, N> {
+    fn from(items: [T; N]) -> Self {
+        Self { items }
+    }
+}
+
+impl<T: Default, const N: usize> Default for Shortlist<T, N> {
+    fn default() -> Self {
+        Self {
+            items: array::from_fn(|_| T::default()),
+        }
+    }
+}
+
+impl<T, const N: usize> Shortlist<T, N> {
+    pub fn new(items: [T; N]) -> Self {
         const { assert!(N > 0 && N % CHUNK_SIZE == 0) };
         Self { items }
     }
 
-    pub fn items(&self) -> &[F; N] {
+    pub fn items(&self) -> &[T; N] {
         &self.items
     }
-}
 
-impl<const N: usize> Default for Shortlist<F, N> {
-    fn default() -> Self {
-        Self {
-            items: array::from_fn(|_| F::default()),
+    pub fn map<R>(self, f: impl Fn(T) -> R) -> Shortlist<R, N> {
+        Shortlist {
+            items: self.items.map(f),
         }
     }
 }

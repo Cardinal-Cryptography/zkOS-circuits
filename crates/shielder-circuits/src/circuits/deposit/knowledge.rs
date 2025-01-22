@@ -7,7 +7,7 @@ use rand_core::RngCore;
 
 use crate::{
     chips::{
-        balances_increase::off_circuit::increase_balances,
+        balances_increase::off_circuit::increase_balances, shortlist_hash::Shortlist,
         token_index::off_circuit::index_from_indicators,
     },
     consts::{
@@ -39,7 +39,7 @@ pub struct DepositProverKnowledge<F> {
     pub id: F,
     pub nullifier_old: F,
     pub trapdoor_old: F,
-    pub balances_old: [F; NUM_TOKENS],
+    pub balances_old: Shortlist<F, NUM_TOKENS>,
 
     // Merkle proof
     pub path: [[F; ARITY]; NOTE_TREE_HEIGHT],
@@ -70,7 +70,7 @@ impl ProverKnowledge for DepositProverKnowledge<F> {
 
         let nullifier_old = F::random(&mut *rng);
         let trapdoor_old = F::random(&mut *rng);
-        let balances_old = array::from_fn(|i| F::from((i + 10) as u64));
+        let balances_old = Shortlist::new(array::from_fn(|i| F::from((i + 10) as u64)));
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
