@@ -5,12 +5,8 @@ use crate::{
         balances_increase::BalancesIncreaseChip,
         range_check::RangeCheckChip,
         sum::SumChip,
-        token_index::{self, TokenIndexChip, TokenIndexInstance},
+        token_index::{TokenIndexChip, TokenIndexInstance},
     },
-    column_pool::ColumnPool,
-    chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
-    column_pool::ColumnPool,
-    chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
     column_pool::{ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
@@ -162,11 +158,11 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
         check_if_cached!(self, token_index);
 
-        let advice_pool = self
-            .advice_pool_with_capacity(token_index::gates::NUM_INDEX_GATE_COLUMNS)
-            .clone();
-
-        self.token_index = Some(TokenIndexChip::new(self.system, advice_pool, public_inputs));
+        self.token_index = Some(TokenIndexChip::new(
+            self.system,
+            &mut self.advice_pool,
+            public_inputs,
+        ));
         self
     }
 

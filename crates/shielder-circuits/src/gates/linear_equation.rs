@@ -8,6 +8,8 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
+#[cfg(test)]
+use crate::column_pool::ConfigPhase;
 use crate::{
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
@@ -107,7 +109,7 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
+        pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<F>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, N);

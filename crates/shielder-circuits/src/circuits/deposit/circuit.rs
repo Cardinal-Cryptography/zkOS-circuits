@@ -34,8 +34,6 @@ impl Circuit<F> for DepositCircuit {
             .with_range_check()
             .with_token_index(public_inputs.narrow());
 
-        let advice_pool = configs_builder.advice_pool();
-
         (
             DepositChip {
                 public_inputs,
@@ -43,7 +41,7 @@ impl Circuit<F> for DepositCircuit {
                 merkle: configs_builder.merkle_chip(),
                 range_check: configs_builder.range_check_chip(),
                 balances_increase: configs_builder.balances_increase_chip(),
-            token_index: configs_builder.token_index_chip(),
+                token_index: configs_builder.token_index_chip(),
             },
             configs_builder.finish(),
         )
