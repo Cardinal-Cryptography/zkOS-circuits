@@ -14,7 +14,7 @@ use {
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 /// Represents the relation: `(needle - haystack_1) · … · (needle - haystack_N) = 0`.
@@ -29,7 +29,7 @@ pub struct MembershipGate<const N: usize> {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "MembershipGateInput<F, N>",
+        receiver = "MembershipGateInput<Fr, N>",
         impl_generics = "<const N: usize>",
         embedded = "MembershipGateInput<AssignedCell, N>"
     )
@@ -53,7 +53,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
     /// `(needle[x] - haystack_1[x]) · … · (needle[x] - haystack_N[x]) = 0`, where `x` is the row
     /// where the gate is enabled.
     fn create_gate(
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
         (needle_advice, haystack_advice): Self::Advices,
     ) -> Self {
         ensure_unique_columns(&[haystack_advice.to_vec(), vec![needle_advice]].concat());
@@ -78,7 +78,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         input: Self::Input,
     ) -> Result<(), Error> {
         layouter.assign_region(
@@ -110,7 +110,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
     #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, N + 1);
         let haystack_advice = pool.get_array();

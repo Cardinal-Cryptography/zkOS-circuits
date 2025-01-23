@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 use strum::IntoEnumIterator;
 
-use crate::{AssignedCell, F};
+use crate::{AssignedCell, Fr};
 
 #[derive(Clone, Debug)]
 pub struct InstanceWrapper<Identifier> {
@@ -18,7 +18,7 @@ pub struct InstanceWrapper<Identifier> {
 impl<Identifier: IntoEnumIterator + Ord> InstanceWrapper<Identifier> {
     /// This MUST be called once per circuit. If its components require subset of instance, use
     /// `narrow`.
-    pub fn new(meta: &mut ConstraintSystem<F>) -> Self {
+    pub fn new(meta: &mut ConstraintSystem<Fr>) -> Self {
         let offsets = BTreeMap::from_iter(Identifier::iter().enumerate().map(|(i, id)| (id, i)));
 
         let column = meta.instance_column();
@@ -31,7 +31,7 @@ impl<Identifier: IntoEnumIterator + Ord> InstanceWrapper<Identifier> {
 impl<Identifier: IntoEnumIterator + Ord + Debug> InstanceWrapper<Identifier> {
     pub fn copy_as_advice(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         target_column: Column<Advice>,
         instance: impl Borrow<Identifier>,
     ) -> Result<AssignedCell, Error> {
@@ -48,7 +48,7 @@ impl<Identifier: IntoEnumIterator + Ord + Debug> InstanceWrapper<Identifier> {
     /// `instance_id`.
     pub fn constrain_cells(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         cells: impl IntoIterator<Item = (AssignedCell, Identifier)>,
     ) -> Result<(), Error> {
         for (assigned_cell, instance_id) in cells {

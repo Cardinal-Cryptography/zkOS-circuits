@@ -9,8 +9,8 @@ use shielder_circuits::{
         new_account::NewAccountProverKnowledge, withdraw::WithdrawProverKnowledge, Params,
     },
     consts::merkle_constants::NOTE_TREE_HEIGHT,
-    generate_keys_with_min_k, generate_proof, generate_setup_params, ProverKnowledge, F, G1, MAX_K,
-    SERDE_FORMAT,
+    generate_keys_with_min_k, generate_proof, generate_setup_params, Fr, ProverKnowledge, G1,
+    MAX_K, SERDE_FORMAT,
 };
 
 static PARAMS: Lazy<Params> =
@@ -52,8 +52,8 @@ fn measure_circuit<PK: ProverKnowledge>(circuit_name: &str) {
 }
 
 fn main() {
-    measure_circuit::<NewAccountProverKnowledge<F>>("New account");
-    measure_circuit::<DepositProverKnowledge<F>>("Deposit");
-    measure_circuit::<WithdrawProverKnowledge<F>>("Withdraw");
-    measure_circuit::<MerkleProverKnowledge<NOTE_TREE_HEIGHT, F>>("Merkle");
+    measure_circuit::<NewAccountProverKnowledge<Fr>>("New account");
+    measure_circuit::<DepositProverKnowledge<Fr>>("Deposit");
+    measure_circuit::<WithdrawProverKnowledge<Fr>>("Withdraw");
+    measure_circuit::<MerkleProverKnowledge<NOTE_TREE_HEIGHT, Fr>>("Merkle");
 }

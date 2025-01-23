@@ -1,14 +1,13 @@
 use alloc::{format, string::String, vec, vec::Vec};
 
 use halo2_proofs::{
-    circuit::{Layouter, Value},
-    halo2curves::bn256::Fr,
+    circuit::Layouter,
     plonk::{Advice, Error},
 };
 
 use crate::{
     column_pool::{ColumnPool, SynthesisPhase},
-    AssignedCell, F,
+    AssignedCell, Fr, Value,
 };
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
@@ -19,7 +18,7 @@ pub trait Embed {
     /// Embeds the instance into the circuit.
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error>;
@@ -44,7 +43,7 @@ impl<E: Embed> Embed for &E {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
@@ -52,12 +51,12 @@ impl<E: Embed> Embed for &E {
     }
 }
 
-impl Embed for Value<F> {
+impl Embed for Value {
     type Embedded = AssignedCell;
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
@@ -74,7 +73,7 @@ impl<E: Embed, const N: usize> Embed for [E; N] {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
@@ -93,7 +92,7 @@ impl<E: Embed> Embed for Vec<E> {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {

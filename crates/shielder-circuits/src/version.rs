@@ -1,4 +1,4 @@
-use crate::F;
+use crate::Fr;
 
 pub const NOTE_VERSION: NoteVersion = NoteVersion(0);
 
@@ -9,7 +9,7 @@ impl NoteVersion {
     pub fn new(note_version: u8) -> Self {
         Self(note_version)
     }
-    pub fn as_field(&self) -> F {
-        F::from(self.0 as u64)
+    pub fn as_field(&self) -> Fr {
+        Fr::from(self.0 as u64)
     }
 }

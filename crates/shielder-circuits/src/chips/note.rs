@@ -13,7 +13,7 @@ use crate::{
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 /// Chip that is able to calculate note hash
@@ -42,10 +42,10 @@ pub mod off_circuit {
         },
         consts::NUM_TOKENS,
         poseidon::off_circuit::hash,
-        F,
+        Fr,
     };
 
-    pub fn note_hash(note: &Note<F>) -> F {
+    pub fn note_hash(note: &Note<Fr>) -> Fr {
         let input = [
             note.version.as_field(),
             note.id,
@@ -59,8 +59,8 @@ pub mod off_circuit {
 
     /// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
     /// Produces the balance shortlist tuple from a single native balance.
-    pub fn balances_from_native_balance(native_balance: F) -> Shortlist<F, NUM_TOKENS> {
-        let mut balances = [F::ZERO; NUM_TOKENS];
+    pub fn balances_from_native_balance(native_balance: Fr) -> Shortlist<Fr, NUM_TOKENS> {
+        let mut balances = [Fr::ZERO; NUM_TOKENS];
         balances[0] = native_balance;
         Shortlist::new(balances)
     }
@@ -74,10 +74,10 @@ impl NoteChip {
     fn assign_note_version(
         &self,
         note: &Note<AssignedCell>,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
     ) -> Result<AssignedCell, Error> {
-        let note_version: F = note.version.as_field();
+        let note_version: Fr = note.version.as_field();
 
         layouter.assign_region(
             || "note_version",
@@ -96,7 +96,7 @@ impl NoteChip {
     /// note_hash = Hash(NOTE_VERSION, note.id, note.nullifier, note.trapdoor, hash(note.balance))
     pub fn note(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         note: &Note<AssignedCell>,
     ) -> Result<AssignedCell, Error> {
@@ -129,7 +129,7 @@ impl NoteChip {
 /// constrained to 0.
 pub fn balances_from_native_balance(
     native_balance: AssignedCell,
-    layouter: &mut impl Layouter<F>,
+    layouter: &mut impl Layouter<Fr>,
     advice_pool: &ColumnPool<Advice, SynthesisPhase>,
 ) -> Result<Shortlist<AssignedCell, NUM_TOKENS>, Error> {
     let zero_cell = layouter.assign_region(
@@ -139,7 +139,7 @@ pub fn balances_from_native_balance(
                 || "Balance placeholder (zero)",
                 advice_pool.get_any(),
                 0,
-                F::ZERO,
+                Fr::ZERO,
             )
         },
     )?;

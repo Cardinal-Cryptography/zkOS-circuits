@@ -10,7 +10,7 @@ use {crate::column_pool::ConfigPhase, crate::embed::Embed, macros::embeddable};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 /// Represents the relation: `a + b = c`.
@@ -24,7 +24,7 @@ pub struct SumGate {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "SumGateInput<F>",
+        receiver = "SumGateInput<Fr>",
         impl_generics = "",
         embedded = "SumGateInput<AssignedCell>"
     )
@@ -45,7 +45,7 @@ impl Gate for SumGate {
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
     /// `A[x] + B[x] = C[x]`, where `x` is the row where the gate is enabled.
-    fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self {
         ensure_unique_columns(&advice);
         let selector = cs.selector();
 
@@ -61,7 +61,7 @@ impl Gate for SumGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         input: Self::Input,
     ) -> Result<(), Error> {
         layouter.assign_region(
@@ -88,7 +88,7 @@ impl Gate for SumGate {
     #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 3);
         pool.get_array()
