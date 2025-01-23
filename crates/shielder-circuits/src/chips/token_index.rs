@@ -2,7 +2,7 @@ use core::array;
 
 use gates::{IndexGate, IndexGateInput, NUM_INDEX_GATE_COLUMNS};
 use halo2_proofs::{
-    circuit::{Layouter, Value},
+    circuit::Layouter,
     plonk::{Advice, ConstraintSystem, Error},
 };
 use strum::IntoEnumIterator;
@@ -14,7 +14,7 @@ use crate::{
     gates::Gate,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
-    AssignedCell, Fr,
+    AssignedCell, Fr, Value,
 };
 
 pub mod off_circuit {
@@ -83,7 +83,7 @@ pub struct TokenIndexChip {
 
 impl TokenIndexChip {
     pub fn new(
-        system: &mut ConstraintSystem<F>,
+        system: &mut ConstraintSystem<Fr>,
         advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
@@ -112,11 +112,11 @@ impl TokenIndexChip {
 
     fn constrain_index_impl<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
-        index_value: Value<F>,
+        index_value: Value,
     ) -> Result<(), Error> {
         let index_cell = layouter.assign_region(
             || "Token index",
@@ -156,7 +156,7 @@ pub mod gates {
         gates::linear_equation::{
             LinearEquationGate, LinearEquationGateConfig, LinearEquationGateInput,
         },
-        AssignedCell, F,
+        AssignedCell, Fr,
     };
 
     pub const NUM_INDEX_GATE_COLUMNS: usize = NUM_TOKENS + 1;
@@ -169,18 +169,18 @@ pub mod gates {
     pub enum IndexGateConfig {}
 
     impl LinearEquationGateConfig<NUM_INDEX_GATE_COLUMNS> for IndexGateConfig {
-        fn coefficients() -> [F; NUM_INDEX_GATE_COLUMNS] {
+        fn coefficients() -> [Fr; NUM_INDEX_GATE_COLUMNS] {
             array::from_fn(|i| {
                 if i == NUM_TOKENS {
-                    F::ONE.neg()
+                    Fr::ONE.neg()
                 } else {
-                    F::from(i as u64)
+                    Fr::from(i as u64)
                 }
             })
         }
 
-        fn constant_term() -> F {
-            F::ZERO
+        fn constant_term() -> Fr {
+            Fr::ZERO
         }
 
         fn gate_name() -> &'static str {
@@ -192,7 +192,7 @@ pub mod gates {
 #[cfg(test)]
 mod tests {
     use halo2_proofs::{
-        circuit::{floor_planner, Layouter, Value},
+        circuit::{floor_planner, Layouter},
         dev::{
             metadata::{Constraint, Gate},
             VerifyFailure,
@@ -209,18 +209,18 @@ mod tests {
         instance_wrapper::InstanceWrapper,
         test_utils::expect_instance_permutation_failures,
         todo::Todo,
-        F,
+        Fr, Value,
     };
 
     #[derive(Clone, Debug, Default)]
     struct TestCircuit {
-        pub indicators: [Value<F>; NUM_TOKENS],
+        pub indicators: [Value; NUM_TOKENS],
 
-        pub token_index: Value<F>,
+        pub token_index: Value,
     }
 
     impl TestCircuit {
-        pub fn new(indicators: [impl Into<F>; NUM_TOKENS], token_index: impl Into<F>) -> Self {
+        pub fn new(indicators: [impl Into<Fr>; NUM_TOKENS], token_index: impl Into<Fr>) -> Self {
             Self {
                 indicators: indicators.map(|v| Value::known(v.into())),
                 token_index: Value::known(token_index.into()),
@@ -228,7 +228,7 @@ mod tests {
         }
     }
 
-    impl Circuit<F> for TestCircuit {
+    impl Circuit<Fr> for TestCircuit {
         type Config = (TokenIndexChip, ColumnPool<Advice, PreSynthesisPhase>);
         type FloorPlanner = floor_planner::V1;
 
@@ -236,7 +236,7 @@ mod tests {
             Self::default()
         }
 
-        fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+        fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
             let mut advice_pool = ColumnPool::<Advice, ConfigPhase>::new();
             advice_pool.ensure_capacity(meta, gates::NUM_INDEX_GATE_COLUMNS);
             let public_inputs = InstanceWrapper::<TokenIndexInstance>::new(meta);
@@ -250,7 +250,7 @@ mod tests {
         fn synthesize(
             &self,
             (chip, advice_pool): Self::Config,
-            mut layouter: impl Layouter<F>,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
             let advice_pool = advice_pool.start_synthesis();
 
@@ -276,7 +276,7 @@ mod tests {
         let pub_input = [0];
 
         assert!(
-            expect_prover_success_and_run_verification(circuit, &pub_input.map(F::from)).is_ok()
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from)).is_ok()
         );
     }
 
@@ -286,7 +286,7 @@ mod tests {
         let pub_input = [5];
 
         assert!(
-            expect_prover_success_and_run_verification(circuit, &pub_input.map(F::from)).is_ok()
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from)).is_ok()
         );
     }
 
@@ -295,8 +295,9 @@ mod tests {
         let circuit = TestCircuit::new([1, 0, 0, 0, 0, 0], 1);
         let pub_input = [1];
 
-        let failures = expect_prover_success_and_run_verification(circuit, &pub_input.map(F::from))
-            .expect_err("Verification must fail");
+        let failures =
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
+                .expect_err("Verification must fail");
 
         assert_eq!(1, failures.len());
         match &failures[0] {
@@ -315,8 +316,9 @@ mod tests {
         let circuit = TestCircuit::new([1, 0, 0, 0, 0, 0], 0);
         let pub_input = [1];
 
-        let failures = expect_prover_success_and_run_verification(circuit, &pub_input.map(F::from))
-            .expect_err("Verification must fail");
+        let failures =
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
+                .expect_err("Verification must fail");
 
         expect_instance_permutation_failures(&failures, "Token index", 0);
     }

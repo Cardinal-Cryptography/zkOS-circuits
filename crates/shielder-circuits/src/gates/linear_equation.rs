@@ -13,7 +13,7 @@ use crate::column_pool::ConfigPhase;
 use crate::{
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 /// Equation `Σ a_i * x_i = c`.
@@ -28,14 +28,14 @@ where
 }
 
 pub trait LinearEquationGateConfig<const N: usize> {
-    fn coefficients() -> [F; N]; // `a_i`
-    fn constant_term() -> F; // `c`
+    fn coefficients() -> [Fr; N]; // `a_i`
+    fn constant_term() -> Fr; // `c`
     fn gate_name() -> &'static str;
 }
 
 #[derive(Clone, Debug)]
 #[embeddable(
-    receiver = "LinearEquationGateInput<F, N>",
+    receiver = "LinearEquationGateInput<Fr, N>",
     impl_generics = "<const N: usize>",
     embedded = "LinearEquationGateInput<AssignedCell, N>"
 )]
@@ -43,10 +43,10 @@ pub struct LinearEquationGateInput<T, const N: usize> {
     pub variables: [T; N],
 }
 
-impl<const N: usize> Default for LinearEquationGateInput<F, N> {
+impl<const N: usize> Default for LinearEquationGateInput<Fr, N> {
     fn default() -> Self {
         Self {
-            variables: [F::default(); N],
+            variables: [Fr::default(); N],
         }
     }
 }
@@ -58,7 +58,7 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
     type Input = LinearEquationGateInput<AssignedCell, N>;
     type Advices = [Column<Advice>; N];
 
-    fn create_gate(cs: &mut ConstraintSystem<F>, variables: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, variables: Self::Advices) -> Self {
         ensure_unique_columns(&variables);
 
         let coefficients = Config::coefficients();
@@ -85,7 +85,7 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         input: Self::Input,
     ) -> Result<(), Error> {
         layouter.assign_region(
@@ -110,7 +110,7 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
     #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, N);
         pool.get_array()
@@ -121,12 +121,12 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
 mod tests {
     use std::vec::Vec;
 
-    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::ConstraintSystem};
+    use halo2_proofs::{arithmetic::Field, plonk::ConstraintSystem};
 
     use super::{LinearEquationGateConfig, LinearEquationGateInput};
     use crate::{
         gates::{linear_equation::LinearEquationGate, test_utils::verify, Gate},
-        F,
+        Fr,
     };
 
     fn input<const N: usize>(variables: [impl Into<Fr>; N]) -> LinearEquationGateInput<Fr, N> {
@@ -144,12 +144,12 @@ mod tests {
     enum DecimalExampleConfig {}
 
     impl LinearEquationGateConfig<4> for DecimalExampleConfig {
-        fn coefficients() -> [F; 4] {
-            [F::from(100), F::from(10), F::from(1), F::from(1).neg()]
+        fn coefficients() -> [Fr; 4] {
+            [Fr::from(100), Fr::from(10), Fr::from(1), Fr::from(1).neg()]
         }
 
-        fn constant_term() -> F {
-            F::ZERO
+        fn constant_term() -> Fr {
+            Fr::ZERO
         }
 
         fn gate_name() -> &'static str {
@@ -200,12 +200,12 @@ mod tests {
     enum ConstantExampleConfig<const C: u64> {}
 
     impl<const C: u64> LinearEquationGateConfig<1> for ConstantExampleConfig<C> {
-        fn coefficients() -> [F; 1] {
-            [F::from(1)]
+        fn coefficients() -> [Fr; 1] {
+            [Fr::from(1)]
         }
 
-        fn constant_term() -> F {
-            F::from(C)
+        fn constant_term() -> Fr {
+            Fr::from(C)
         }
 
         fn gate_name() -> &'static str {
