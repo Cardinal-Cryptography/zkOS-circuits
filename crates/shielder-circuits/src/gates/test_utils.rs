@@ -11,7 +11,12 @@ use halo2_proofs::{
     plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
-use crate::{column_pool::ColumnPool, embed::Embed, gates::Gate, F};
+use crate::{
+    column_pool::{ColumnPool, PreSynthesisPhase},
+    embed::Embed,
+    gates::Gate,
+    F,
+};
 
 /// The minimal circuit that uses a single gate. It represents a single application of the gate to
 /// the input.
@@ -43,7 +48,7 @@ impl<Gate, Input> OneGateCircuit<Gate, Input> {
 impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Circuit<F>
     for OneGateCircuit<G, Input>
 {
-    type Config = (ColumnPool<Advice>, G);
+    type Config = (ColumnPool<Advice, PreSynthesisPhase>, G);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
@@ -56,17 +61,21 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
     /// Our only goal is to register gate `G`. Firstly, we organize sufficient advice area and then
     /// we create the gate instance.
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-        let mut advice_pool = ColumnPool::<Advice>::new();
+        let mut advice_pool = ColumnPool::<Advice, _>::new();
         let advice = G::organize_advice_columns(&mut advice_pool, meta);
-        (advice_pool, G::create_gate(meta, advice))
+        (
+            advice_pool.conclude_configuration(),
+            G::create_gate(meta, advice),
+        )
     }
 
     /// Embed the input and apply the gate.
     fn synthesize(
         &self,
-        (advice_pool, gate): (ColumnPool<Advice>, G),
+        (advice_pool, gate): (ColumnPool<Advice, PreSynthesisPhase>, G),
         mut layouter: impl Layouter<F>,
     ) -> Result<(), Error> {
+        let advice_pool = advice_pool.start_synthesis();
         let embedded_input = self.input.embed(&mut layouter, &advice_pool, "input")?;
         gate.apply_in_new_region(&mut layouter, embedded_input)
     }

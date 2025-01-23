@@ -9,8 +9,11 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    column_pool::ColumnPool, consts::NUM_TOKENS, gates::Gate, instance_wrapper::InstanceWrapper,
-    todo::Todo, AssignedCell, F,
+    column_pool::{ColumnPool, SynthesisPhase},
+    consts::NUM_TOKENS,
+    instance_wrapper::InstanceWrapper,
+    todo::Todo,
+    AssignedCell, F,
 };
 
 pub mod off_circuit {
@@ -73,14 +76,13 @@ pub enum TokenIndexConstraints {
 #[derive(Clone, Debug)]
 pub struct TokenIndexChip {
     index_gate: IndexGate,
-    advice_pool: ColumnPool<Advice>,
     public_inputs: InstanceWrapper<TokenIndexInstance>,
 }
 
 impl TokenIndexChip {
     pub fn new(
         system: &mut ConstraintSystem<F>,
-        advice_pool: ColumnPool<Advice>,
+        advice_pool: ColumnPool<Advice, ConfigPhase>,
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
         let index_gate = IndexGate::create_gate(system, advice_pool.get_array());
@@ -95,6 +97,7 @@ impl TokenIndexChip {
     pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
         layouter: &mut impl Layouter<F>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {

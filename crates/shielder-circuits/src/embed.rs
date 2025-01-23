@@ -6,7 +6,10 @@ use halo2_proofs::{
     plonk::{Advice, Error},
 };
 
-use crate::{column_pool::ColumnPool, AssignedCell, F};
+use crate::{
+    column_pool::{ColumnPool, SynthesisPhase},
+    AssignedCell, F,
+};
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
 pub trait Embed {
@@ -17,7 +20,7 @@ pub trait Embed {
     fn embed(
         &self,
         layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error>;
 }
@@ -28,7 +31,7 @@ impl Embed for Fr {
     fn embed(
         &self,
         layouter: &mut impl Layouter<Fr>,
-        advice_pool: &ColumnPool<Advice>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         let value = Value::known(*self);
@@ -42,7 +45,7 @@ impl<E: Embed> Embed for &E {
     fn embed(
         &self,
         layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         (*self).embed(layouter, advice_pool, annotation)
@@ -55,7 +58,7 @@ impl Embed for Value<F> {
     fn embed(
         &self,
         layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         let annotation = annotation.into();
@@ -72,7 +75,7 @@ impl<E: Embed, const N: usize> Embed for [E; N] {
     fn embed(
         &self,
         layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         Ok(self
@@ -91,7 +94,7 @@ impl<E: Embed> Embed for Vec<E> {
     fn embed(
         &self,
         layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         let annotation = annotation.into();
