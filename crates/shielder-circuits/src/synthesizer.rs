@@ -11,16 +11,24 @@ use crate::{
 };
 
 /// A `Synthesizer` is a layouter that can also access advice columns with some inner load balancing.
+///
+/// Under this trait there are 2 methods for namespacing:
+/// - `namespace` from `Layouter` trait: it will create `NamespacedLayouter` within a new namespace.
+///   This, however, won't implement `Synthesizer` trait (it will lack `ColumnPool` access).
+/// - `namespaced` from `Synthesizer` trait: it will create a new `Synthesizer` within a new
+///   namespace. This will implement `Synthesizer` trait and is recommended.
 pub trait Synthesizer: Layouter<Fr> + AccessColumn<Advice> {
     /// Creates a new namespace for the synthesizer. Analogous to `Layouter::namespace`.
     fn namespaced(&mut self, name: impl Into<String>) -> impl Synthesizer;
 
+    /// Assign single value to a cell in a dedicated region.
     fn assign_value(
         &mut self,
         name: impl Into<String>,
         value: Value,
     ) -> Result<AssignedCell, Error>;
 
+    /// Assign a constant to a cell in a dedicated region.
     fn assign_constant(
         &mut self,
         name: impl Into<String>,
