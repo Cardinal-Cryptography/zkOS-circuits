@@ -14,33 +14,33 @@ use crate::{
     gates::Gate,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 pub mod off_circuit {
     use core::array;
 
-    use halo2_proofs::{arithmetic::Field, circuit::Value};
+    use halo2_proofs::arithmetic::Field;
 
-    use crate::{consts::NUM_TOKENS, F};
+    use crate::{consts::NUM_TOKENS, Fr, Value};
 
-    pub fn index_from_indicators(indicators: &[F; NUM_TOKENS]) -> F {
+    pub fn index_from_indicators(indicators: &[Fr; NUM_TOKENS]) -> Fr {
         // All `indicators` must be from {0, 1}.
-        assert!(indicators.iter().all(|&x| x == F::ZERO || x == F::ONE));
+        assert!(indicators.iter().all(|&x| x == Fr::ZERO || x == Fr::ONE));
         // Exactly one indicator must be equal to 1.
-        assert_eq!(1, indicators.iter().filter(|&&x| x == F::ONE).count());
+        assert_eq!(1, indicators.iter().filter(|&&x| x == Fr::ONE).count());
 
         let index = indicators
             .iter()
-            .position(|&x| x == F::ONE)
+            .position(|&x| x == Fr::ONE)
             .expect("at least 1 positive indicator");
-        F::from(index as u64)
+        Fr::from(index as u64)
     }
 
-    pub fn index_from_indicator_values(indicators: &[Value<F>; NUM_TOKENS]) -> Value<F> {
+    pub fn index_from_indicator_values(indicators: &[Value; NUM_TOKENS]) -> Value {
         // All indicators must be from {0, 1}.
         for indicator in indicators.iter() {
-            indicator.assert_if_known(|v| *v == F::ZERO || *v == F::ONE);
+            indicator.assert_if_known(|v| *v == Fr::ZERO || *v == Fr::ONE);
         }
         // Exactly one indicator must be equal to 1.
         indicators
@@ -48,11 +48,11 @@ pub mod off_circuit {
             .copied()
             .reduce(|a, b| a + b)
             .expect("at least one indicator")
-            .assert_if_known(|v| *v == F::ONE);
+            .assert_if_known(|v| *v == Fr::ONE);
 
         // Produce the index by calculating Σ i * indicators[i].
-        let multiplied_indicators: [Value<F>; NUM_TOKENS] =
-            array::from_fn(|i| indicators[i].map(|v| v * F::from(i as u64)));
+        let multiplied_indicators: [Value; NUM_TOKENS] =
+            array::from_fn(|i| indicators[i].map(|v| v * Fr::from(i as u64)));
         multiplied_indicators
             .iter()
             .copied()
@@ -99,7 +99,7 @@ impl TokenIndexChip {
     /// Constrains the token index public input to match the enabled indicator.
     pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,

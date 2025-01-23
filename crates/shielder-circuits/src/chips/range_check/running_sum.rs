@@ -1,8 +1,6 @@
 use alloc::{vec, vec::Vec};
 
-use halo2_proofs::circuit::Value;
-
-use crate::{chips::range_check::bits::to_chunks, Field, F};
+use crate::{chips::range_check::bits::to_chunks, Field, Fr, Value};
 
 /// Computes the running sum of a value. The sum will consist of `chunks + 1` values, satisfying:
 ///  - `z_i = 2^chunk_size * z_{i + 1} + a_i`
@@ -15,11 +13,11 @@ use crate::{chips::range_check::bits::to_chunks, Field, F};
 ///
 /// The function will panic if the input value is greater or equal than `2^(chunk_size * chunks)`.
 /// The function will panic, if `F` has less than `chunk_size * chunks` bits in its representation.
-pub fn running_sum(value: Value<F>, chunk_size: usize, chunks: usize) -> Vec<Value<F>> {
+pub fn running_sum(value: Value, chunk_size: usize, chunks: usize) -> Vec<Value> {
     let chunks = to_chunks(value, chunk_size, chunks);
 
     // Precompute the inverse of `2^CHUNK_SIZE`.
-    let inv_two_pow = F::from(2).pow([chunk_size as u64]).invert().unwrap();
+    let inv_two_pow = Fr::from(2).pow([chunk_size as u64]).invert().unwrap();
 
     let mut current_sum = value;
     let mut running_sum = vec![current_sum];
@@ -33,7 +31,7 @@ pub fn running_sum(value: Value<F>, chunk_size: usize, chunks: usize) -> Vec<Val
     }
 
     // Sanity check for the prover, that we have generated correct running sum.
-    current_sum.assert_if_known(|v| *v == F::ZERO);
+    current_sum.assert_if_known(|v| *v == Fr::ZERO);
 
     running_sum
 }
@@ -43,7 +41,7 @@ mod tests {
     use halo2_proofs::halo2curves::bn256::Fr;
 
     use super::*;
-    use crate::Field;
+    use crate::{Field, Value};
 
     const CHUNK_SIZE: usize = 3;
     const CHUNKS: usize = 3;

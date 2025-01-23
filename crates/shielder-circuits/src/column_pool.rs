@@ -3,7 +3,7 @@ use core::{cell::RefCell, marker::PhantomData};
 
 use halo2_proofs::plonk::{Advice, Column, ColumnType, ConstraintSystem, Fixed};
 
-use crate::F;
+use crate::Fr;
 
 pub enum ConfigPhase {}
 /// This is kind of an artificial intermediate phase. Since we do some load balancing in the pool,
@@ -88,7 +88,7 @@ impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
 impl ColumnPool<Advice, ConfigPhase> {
     /// Ensure that there are at least `capacity` advice columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable equality for each of them.
-    pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
+    pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<Fr>, capacity: usize) {
         for _ in self.len()..capacity {
             let column = cs.advice_column();
             cs.enable_equality(column);
@@ -100,7 +100,7 @@ impl ColumnPool<Advice, ConfigPhase> {
 impl ColumnPool<Fixed, ConfigPhase> {
     /// Ensure that there are at least `capacity` fixed columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable storing constants in each of them.
-    pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<F>, capacity: usize) {
+    pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<Fr>, capacity: usize) {
         for _ in self.len()..capacity {
             let column = cs.fixed_column();
             cs.enable_constant(column);

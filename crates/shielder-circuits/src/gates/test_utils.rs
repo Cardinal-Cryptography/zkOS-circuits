@@ -15,7 +15,7 @@ use crate::{
     column_pool::{ColumnPool, PreSynthesisPhase},
     embed::Embed,
     gates::Gate,
-    F,
+    Fr,
 };
 
 /// The minimal circuit that uses a single gate. It represents a single application of the gate to
@@ -45,7 +45,7 @@ impl<Gate, Input> OneGateCircuit<Gate, Input> {
     }
 }
 
-impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Circuit<F>
+impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Circuit<Fr>
     for OneGateCircuit<G, Input>
 {
     type Config = (ColumnPool<Advice, PreSynthesisPhase>, G);
@@ -60,7 +60,7 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
 
     /// Our only goal is to register gate `G`. Firstly, we organize sufficient advice area and then
     /// we create the gate instance.
-    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+    fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let mut advice_pool = ColumnPool::<Advice, _>::new();
         let advice = G::organize_advice_columns(&mut advice_pool, meta);
         (
@@ -73,7 +73,7 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
     fn synthesize(
         &self,
         (advice_pool, gate): (ColumnPool<Advice, PreSynthesisPhase>, G),
-        mut layouter: impl Layouter<F>,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
         let advice_pool = advice_pool.start_synthesis();
         let embedded_input = self.input.embed(&mut layouter, &advice_pool, "input")?;

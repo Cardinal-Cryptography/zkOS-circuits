@@ -7,7 +7,7 @@ use halo2_proofs::{
 
 #[cfg(test)]
 use crate::column_pool::{ColumnPool, ConfigPhase};
-use crate::F;
+use crate::Fr;
 
 pub mod balance_increase;
 pub mod is_binary;
@@ -31,14 +31,14 @@ pub trait Gate: Sized {
     type Advices;
 
     /// Register the gate in the `ConstraintSystem`. It should create a new gate instance.
-    fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self;
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self;
 
     /// Apply the gate in a new region. The gate MUST enable its selector, copy (constrained if
     /// applicable) the inputs to the region and return new `Gate::Values` struct with the newly
     /// created assigned cells.
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         input: Self::Input,
     ) -> Result<(), Error>;
 
@@ -49,7 +49,7 @@ pub trait Gate: Sized {
     #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices;
 }
 

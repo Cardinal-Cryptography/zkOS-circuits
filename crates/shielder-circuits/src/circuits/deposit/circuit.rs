@@ -1,5 +1,5 @@
 use halo2_proofs::{
-    circuit::{floor_planner::V1, Layouter, Value},
+    circuit::{floor_planner::V1, Layouter},
     plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
@@ -11,13 +11,13 @@ use crate::{
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
-    F,
+    Fr, Value,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct DepositCircuit(pub DepositProverKnowledge<Value<F>>);
+pub struct DepositCircuit(pub DepositProverKnowledge<Value>);
 
-impl Circuit<F> for DepositCircuit {
+impl Circuit<Fr> for DepositCircuit {
     type Config = (DepositChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
@@ -25,7 +25,7 @@ impl Circuit<F> for DepositCircuit {
         Self::default()
     }
 
-    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+    fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
@@ -50,7 +50,7 @@ impl Circuit<F> for DepositCircuit {
     fn synthesize(
         &self,
         (main_chip, column_pool): Self::Config,
-        mut layouter: impl Layouter<F>,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
         let column_pool = column_pool.start_synthesis();
         let mut todo = Todo::<DepositConstraints>::new();

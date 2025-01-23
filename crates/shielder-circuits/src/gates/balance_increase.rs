@@ -14,7 +14,7 @@ use {
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 const SELECTOR_OFFSET: usize = 0;
@@ -41,7 +41,7 @@ pub struct BalanceIncreaseGateAdvices {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "BalanceIncreaseGateInput<F>",
+        receiver = "BalanceIncreaseGateInput<Fr>",
         impl_generics = "",
         embedded = "BalanceIncreaseGateInput<crate::AssignedCell>"
     )
@@ -57,7 +57,7 @@ impl Gate for BalanceIncreaseGate {
     type Input = BalanceIncreaseGateInput<AssignedCell>;
     type Advices = BalanceIncreaseGateAdvices;
 
-    fn create_gate(cs: &mut ConstraintSystem<F>, advices: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advices: Self::Advices) -> Self {
         ensure_unique_columns(&[
             advices.balance_old,
             advices.increase_value,
@@ -81,7 +81,7 @@ impl Gate for BalanceIncreaseGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         input: Self::Input,
     ) -> Result<(), Error> {
         layouter.assign_region(
@@ -122,7 +122,7 @@ impl Gate for BalanceIncreaseGate {
     #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
         let columns = pool.get_array::<NUM_ADVICE_COLUMNS>();

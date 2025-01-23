@@ -25,24 +25,24 @@ mod embed;
 /// use crate::embeddable;
 ///
 /// #[embeddable(
-///     receiver = "IntermediateValues<Value<F>>",
+///     receiver = "IntermediateValues<Value>",
 ///     impl_generics = "",
 ///     embedded = "IntermediateValues<crate::AssignedCell>"
 /// )]
-/// pub struct IntermediateValues<F> {
+/// pub struct IntermediateValues<Fr> {
 ///     /// Account balance after the deposit is made.
-///     pub account_new_balance: F,
+///     pub account_new_balance: Fr,
 /// }
 /// ```
 ///
 /// This will generate the following code:
 ///
 /// ```rust, no_run
-/// impl Embed for IntermediateValues<Value<F>> {
+/// impl Embed for IntermediateValues<Value> {
 ///     type Embedded = IntermediateValues<crate::AssignedCell>;
 ///     fn embed(
 ///         &self,
-///         layouter: &mut impl halo2_proofs::circuit::Layouter<F>,
+///         layouter: &mut impl halo2_proofs::circuit::Layouter<Fr>,
 ///         advice_pool: &crate::column_pool::ColumnPool<halo2_proofs::plonk::Advice>,
 ///         annotation: impl Into<alloc::string::String>,
 ///     ) -> Result<Self::Embedded, halo2_proofs::plonk::Error> {

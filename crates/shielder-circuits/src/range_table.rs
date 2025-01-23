@@ -6,7 +6,7 @@ use halo2_proofs::{
     plonk::{ConstraintSystem, Error, TableColumn, TableError},
 };
 
-use crate::F;
+use crate::Fr;
 
 /// Represents a set of field elements between `0` and `2^RANGE_LOG`. Can be used for lookups.
 #[derive(Clone, Debug)]
@@ -16,9 +16,9 @@ pub struct RangeTable<const RANGE_LOG: usize> {
 
 impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
     /// Creates a new range table by creating a new dedicated lookup table column.
-    pub fn new(cs: &mut ConstraintSystem<F>) -> Self {
+    pub fn new(cs: &mut ConstraintSystem<Fr>) -> Self {
         assert!(
-            RANGE_LOG <= F::CAPACITY as usize,
+            RANGE_LOG <= Fr::CAPACITY as usize,
             "RANGE_LOG is too large for the field"
         );
         Self {
@@ -32,7 +32,7 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
     }
 
     /// Initializes the range table if it has not been initialized yet. Otherwise, does nothing.
-    pub fn ensure_initialized(&self, layouter: &mut impl Layouter<F>) -> Result<(), Error> {
+    pub fn ensure_initialized(&self, layouter: &mut impl Layouter<Fr>) -> Result<(), Error> {
         layouter.assign_table(
             || "Range table",
             |mut table| {
@@ -51,7 +51,7 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
     }
 
     /// Checks if the table has already been initialized by trying initializing the first cell.
-    fn check_initialization(&self, table: &mut Table<F>) -> Result<bool, Error> {
+    fn check_initialization(&self, table: &mut Table<Fr>) -> Result<bool, Error> {
         match Self::initialize_cell(table, self.column, 0) {
             Ok(_) => Ok(false), // Not yet initialized
             Err(Error::TableError(TableError::UsedColumn(_))) => Ok(true), // Already initialized
@@ -60,7 +60,7 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
     }
 
     fn initialize_cell(
-        table: &mut Table<F>,
+        table: &mut Table<Fr>,
         column: TableColumn,
         index: usize,
     ) -> Result<(), Error> {
@@ -68,7 +68,7 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
             || format!("cell with {index}"),
             column,
             index,
-            || Value::known(F::from(index as u64)),
+            || Value::known(Fr::from(index as u64)),
         )
     }
 }

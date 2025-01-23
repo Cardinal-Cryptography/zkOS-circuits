@@ -1,5 +1,5 @@
 use halo2_proofs::{
-    circuit::{floor_planner::V1, Layouter, Value},
+    circuit::{floor_planner::V1, Layouter},
     plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
@@ -11,13 +11,13 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     todo::Todo,
     withdraw::{WithdrawConstraints, WithdrawInstance, WithdrawProverKnowledge},
-    F,
+    Fr, Value,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct WithdrawCircuit(pub WithdrawProverKnowledge<Value<F>>);
+pub struct WithdrawCircuit(pub WithdrawProverKnowledge<Value>);
 
-impl Circuit<F> for WithdrawCircuit {
+impl Circuit<Fr> for WithdrawCircuit {
     type Config = (WithdrawChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
@@ -25,7 +25,7 @@ impl Circuit<F> for WithdrawCircuit {
         Default::default()
     }
 
-    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+    fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let public_inputs = InstanceWrapper::<WithdrawInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
@@ -47,7 +47,7 @@ impl Circuit<F> for WithdrawCircuit {
     fn synthesize(
         &self,
         (main_chip, column_pool): Self::Config,
-        mut layouter: impl Layouter<F>,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
         let column_pool = column_pool.start_synthesis();
         let mut todo = Todo::<WithdrawConstraints>::new();
@@ -99,12 +99,12 @@ mod tests {
             circuit::WithdrawCircuit,
             WithdrawInstance::{self, *},
         },
-        Field, Note, ProverKnowledge, PublicInputProvider, F, MAX_K,
+        Field, Note, ProverKnowledge, PublicInputProvider, MAX_K,
     };
 
     #[test]
     fn passes_if_inputs_correct() {
-        run_full_pipeline::<WithdrawProverKnowledge<F>>();
+        run_full_pipeline::<WithdrawProverKnowledge<Fr>>();
     }
 
     #[test]
@@ -148,7 +148,7 @@ mod tests {
         // First we break the witness and expect verification failure, then we run with correct
         // witnesses and expect verification success. If we just did the former, it would be easy
         // to introduce a bug to this test and the test would pass without checking anything.
-        for (modification, verify_is_expected_to_pass) in [(F::ONE, false), (F::ZERO, true)] {
+        for (modification, verify_is_expected_to_pass) in [(Fr::ONE, false), (Fr::ZERO, true)] {
             let mut pk = WithdrawProverKnowledge::random_correct_example(&mut rng);
 
             // Build the old note.
@@ -208,7 +208,7 @@ mod tests {
         )
         .is_ok());
 
-        let verify_public_input = pk.with_substitution(Commitment, |c| c + F::ONE);
+        let verify_public_input = pk.with_substitution(Commitment, |c| c + Fr::ONE);
         assert!(
             expect_prover_success_and_run_verification_on_separate_pub_input(
                 pk.create_circuit(),
@@ -225,7 +225,7 @@ mod tests {
         let mut pk = WithdrawProverKnowledge::random_correct_example(&mut OsRng);
 
         // `F::-1` should fail the range check.
-        pk.withdrawal_value = -F::ONE;
+        pk.withdrawal_value = -Fr::ONE;
 
         let params = generate_setup_params(MAX_K, &mut OsRng);
         let (params, _, key, _) = generate_keys_with_min_k::<WithdrawCircuit>(params).unwrap();

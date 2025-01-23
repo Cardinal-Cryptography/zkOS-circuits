@@ -1,7 +1,7 @@
 use rand_core::RngCore;
 use strum_macros::{EnumCount, EnumIter};
 
-use crate::{consts::merkle_constants::ARITY, poseidon::off_circuit::hash, Field, F};
+use crate::{consts::merkle_constants::ARITY, poseidon::off_circuit::hash, Field, Fr};
 
 mod chip;
 mod circuit;
@@ -27,11 +27,11 @@ pub enum MerkleConstraints {
 }
 
 pub fn generate_example_path_with_given_leaf<const TREE_HEIGHT: usize>(
-    leaf: F,
+    leaf: Fr,
     rng: &mut impl RngCore,
-) -> (F, [[F; ARITY]; TREE_HEIGHT]) {
-    let mut path: [[F; ARITY]; TREE_HEIGHT] =
-        [(); TREE_HEIGHT].map(|_| [(); ARITY].map(|_| F::random(&mut *rng)));
+) -> (Fr, [[Fr; ARITY]; TREE_HEIGHT]) {
+    let mut path: [[Fr; ARITY]; TREE_HEIGHT] =
+        [(); TREE_HEIGHT].map(|_| [(); ARITY].map(|_| Fr::random(&mut *rng)));
     path[0][0] = leaf;
 
     for i in 1..TREE_HEIGHT {
