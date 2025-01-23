@@ -63,23 +63,7 @@ impl PointsAddChip {
             b3,
         );
 
-        let s: Vec<AssignedCell> = s_value
-            .into_iter()
-            .map(|value| {
-                layouter
-                    .assign_region(
-                        || "s",
-                        |mut region| {
-                            region.assign_advice(|| "s", column_pool.get_any(), 0, || value)
-                        },
-                    )
-                    .expect("can assign advice from a value")
-            })
-            .collect();
-
-        let s: [AssignedCell; 3] = s.try_into().unwrap_or_else(|v: Vec<AssignedCell>| {
-            panic!("Expected a Vec of length {} but it was {}", 3, v.len())
-        });
+        let s = s_value.embed(layouter, column_pool, "S")?;
 
         let gate_input = PointsAddGateInput {
             p: input.p.clone(),
