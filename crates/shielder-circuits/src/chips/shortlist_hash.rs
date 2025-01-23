@@ -170,9 +170,10 @@ mod test {
         fn synthesize(
             &self,
             (pool, chip, instance): Self::Config,
-            layouter: impl Layouter<Fr>,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            let mut synthesizer = create_synthesizer(layouter, pool);
+            let pool = pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed shortlist items and hash.
             let items: [AssignedCell; N] = self.0.items.embed(&mut synthesizer, "balance").unwrap();
             let shortlist = Shortlist { items };

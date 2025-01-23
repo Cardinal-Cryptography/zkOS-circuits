@@ -121,9 +121,10 @@ mod tests {
         fn synthesize(
             &self,
             (pool, mac_chip, instance): Self::Config,
-            layouter: impl Layouter<Fr>,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            let mut synthesizer = create_synthesizer(layouter, pool);
+            let pool = pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed key and r.
             let key = self.0.key.embed(&mut synthesizer, "key")?;
             let r = self.0.r.embed(&mut synthesizer, "r")?;

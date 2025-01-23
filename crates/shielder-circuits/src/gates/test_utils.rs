@@ -74,9 +74,10 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
     fn synthesize(
         &self,
         (advice_pool, gate): (ColumnPool<Advice, PreSynthesisPhase>, G),
-        layouter: impl Layouter<Fr>,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let mut synthesizer = create_synthesizer(layouter, advice_pool);
+        let pool = advice_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let embedded_input = self.input.embed(&mut synthesizer, "input")?;
         gate.apply_in_new_region(&mut synthesizer, embedded_input)
     }
