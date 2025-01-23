@@ -1,11 +1,10 @@
 use alloc::{vec, vec::Vec};
 use core::array;
 
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use super::shortlist_hash::Shortlist;
 use crate::{
-    column_pool::AccessColumn,
     consts::NUM_TOKENS,
     gates::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
@@ -63,17 +62,8 @@ impl BalancesIncreaseChip {
         let mut balances_new: Vec<AssignedCell> = vec![];
 
         for i in 0..NUM_TOKENS {
-            let balance_new = synthesizer.assign_region(
-                || "balance_new",
-                |mut region| {
-                    region.assign_advice(
-                        || "balance_new",
-                        synthesizer.get_any_advice(),
-                        0,
-                        || balances_new_values.items()[i],
-                    )
-                },
-            )?;
+            let balance_new =
+                synthesizer.assign_value("balance_new", balances_new_values.items()[i])?;
             balances_new.push(balance_new);
 
             let gate_input = BalanceIncreaseGateInput {

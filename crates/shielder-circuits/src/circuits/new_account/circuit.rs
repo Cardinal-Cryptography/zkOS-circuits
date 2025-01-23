@@ -42,9 +42,10 @@ impl Circuit<Fr> for NewAccountCircuit {
     fn synthesize(
         &self,
         (main_chip, column_pool): Self::Config,
-        layouter: impl Layouter<Fr>,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let mut synthesizer = create_synthesizer(layouter, column_pool);
+        let pool = column_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let mut todo = Todo::<NewAccountConstraints>::new();
         let knowledge = self
             .0

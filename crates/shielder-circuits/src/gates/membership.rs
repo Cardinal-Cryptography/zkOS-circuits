@@ -1,7 +1,6 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };

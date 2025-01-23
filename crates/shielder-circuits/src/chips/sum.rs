@@ -1,7 +1,6 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use crate::{
-    column_pool::AccessColumn,
     gates::{
         sum::{SumGate, SumGateInput},
         Gate,
@@ -60,16 +59,6 @@ impl SumChip {
     }
 
     fn zero(&self, synthesizer: &mut impl Synthesizer) -> Result<AssignedCell, Error> {
-        synthesizer.assign_region(
-            || "zero",
-            |mut region| {
-                region.assign_advice_from_constant(
-                    || "zero",
-                    synthesizer.get_any_advice(),
-                    0,
-                    Fr::ZERO,
-                )
-            },
-        )
+        synthesizer.assign_constant("zero", Fr::ZERO)
     }
 }

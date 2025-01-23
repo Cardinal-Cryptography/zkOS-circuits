@@ -1,11 +1,10 @@
 use core::array;
 
-use halo2_proofs::{arithmetic::Field, circuit::Layouter, plonk::Error};
+use halo2_proofs::{arithmetic::Field, plonk::Error};
 
 use super::shortlist_hash::Shortlist;
 use crate::{
     chips::shortlist_hash::ShortlistHashChip,
-    column_pool::AccessColumn,
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
@@ -73,18 +72,7 @@ impl NoteChip {
         synthesizer: &mut impl Synthesizer,
     ) -> Result<AssignedCell, Error> {
         let note_version: Fr = note.version.as_field();
-
-        synthesizer.assign_region(
-            || "note_version",
-            |mut region| {
-                region.assign_advice_from_constant(
-                    || "note_version",
-                    synthesizer.get_any_advice(),
-                    0,
-                    note_version,
-                )
-            },
-        )
+        synthesizer.assign_constant("note_version", note_version)
     }
 
     /// Calculate the note_hash as follows:
@@ -107,11 +95,7 @@ impl NoteChip {
             h_balance,
         ];
 
-        hash(
-            &mut synthesizer.namespace(|| "Note Hash"),
-            self.poseidon.clone(),
-            input,
-        )
+        hash(synthesizer, self.poseidon.clone(), input)
     }
 }
 
@@ -122,18 +106,7 @@ pub fn balances_from_native_balance(
     native_balance: AssignedCell,
     synthesizer: &mut impl Synthesizer,
 ) -> Result<Shortlist<AssignedCell, NUM_TOKENS>, Error> {
-    let zero_cell = synthesizer.assign_region(
-        || "Balance placeholder (zero)",
-        |mut region| {
-            region.assign_advice_from_constant(
-                || "Balance placeholder (zero)",
-                synthesizer.get_any_advice(),
-                0,
-                Fr::ZERO,
-            )
-        },
-    )?;
-
+    let zero_cell = synthesizer.assign_constant("Balance placeholder (zero)", Fr::ZERO)?;
     Ok(Shortlist::new(array::from_fn(|i| {
         if i == 0 {
             native_balance.clone()

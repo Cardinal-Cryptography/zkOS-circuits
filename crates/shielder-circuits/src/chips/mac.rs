@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use crate::{
     poseidon::circuit::{hash, PoseidonChip},
@@ -56,7 +56,7 @@ impl MacChip {
         input: &MacInput<AssignedCell>,
     ) -> Result<Mac<AssignedCell>, Error> {
         let commitment = hash(
-            &mut synthesizer.namespace(|| "MAC"),
+            synthesizer,
             self.poseidon.clone(),
             [input.r.clone(), input.key.clone()],
         )?;

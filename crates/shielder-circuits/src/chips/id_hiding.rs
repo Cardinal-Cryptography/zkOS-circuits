@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use crate::{
     chips::range_check::RangeCheckChip,
@@ -33,10 +33,7 @@ impl IdHidingChip {
     ) -> Result<AssignedCell, Error> {
         // Constrain `nonce` to be smaller than `2^{CHUNK_SIZE * NONCE_RANGE_PROOF_NUM_WORDS}`.
         self.range_check
-            .constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS>(
-                &mut synthesizer.namespace(|| "Range Check for nonce"),
-                nonce.clone(),
-            )?;
+            .constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS>(synthesizer, nonce.clone())?;
 
         let h_id = hash(synthesizer, self.poseidon.clone(), [id])?;
         hash(synthesizer, self.poseidon.clone(), [h_id, nonce])

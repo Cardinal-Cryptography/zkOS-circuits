@@ -1,9 +1,8 @@
 use core::array;
 
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use crate::{
-    column_pool::AccessColumn,
     consts::POSEIDON_RATE,
     embed::Embed,
     poseidon::circuit::{hash, PoseidonChip},
@@ -104,18 +103,7 @@ impl<const N: usize> ShortlistHashChip<N> {
         synthesizer: &mut impl Synthesizer,
         shortlist: &Shortlist<AssignedCell, N>,
     ) -> Result<AssignedCell, Error> {
-        let zero_cell = synthesizer.assign_region(
-            || "Shortlist placeholder (zero)",
-            |mut region| {
-                region.assign_advice_from_constant(
-                    || "Shortlist placeholder (zero)",
-                    synthesizer.get_any_advice(),
-                    0,
-                    Fr::zero(),
-                )
-            },
-        )?;
-
+        let zero_cell = synthesizer.assign_constant("Shortlist placeholder (zero)", Fr::zero())?;
         let mut last = zero_cell.clone();
         let items = &shortlist.items[..];
 
@@ -124,11 +112,7 @@ impl<const N: usize> ShortlistHashChip<N> {
             let size = input.len() - 1;
             input[size] = last;
             input[0..size].clone_from_slice(chunk);
-            last = hash(
-                &mut synthesizer.namespace(|| "Shortlist Hash"),
-                self.poseidon.clone(),
-                input,
-            )?;
+            last = hash(synthesizer, self.poseidon.clone(), input)?;
         }
 
         Ok(last)
@@ -141,7 +125,7 @@ mod test {
 
     use assert2::assert;
     use halo2_proofs::{
-        circuit::floor_planner::V1,
+        circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
         plonk::{Advice, Circuit, Column, Instance},
     };

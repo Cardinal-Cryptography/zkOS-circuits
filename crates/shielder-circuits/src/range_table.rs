@@ -1,7 +1,7 @@
 use alloc::format;
 
 use halo2_proofs::{
-    circuit::{Layouter, Table, Value},
+    circuit::{Table, Value},
     halo2curves::ff::PrimeField,
     plonk::{ConstraintSystem, Error, TableColumn, TableError},
 };

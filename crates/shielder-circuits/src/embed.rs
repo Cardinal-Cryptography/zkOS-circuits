@@ -1,8 +1,8 @@
 use alloc::{format, string::String, vec, vec::Vec};
 
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
-use crate::{column_pool::AccessColumn, synthesizer::Synthesizer, AssignedCell, Fr, Value};
+use crate::{synthesizer::Synthesizer, AssignedCell, Fr, Value};
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
 pub trait Embed {
@@ -50,13 +50,7 @@ impl Embed for Value {
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
-        let annotation = annotation.into();
-        synthesizer.assign_region(
-            || &annotation,
-            |mut region| {
-                region.assign_advice(|| &annotation, synthesizer.get_any_advice(), 0, || *self)
-            },
-        )
+        synthesizer.assign_value(annotation, *self)
     }
 }
 

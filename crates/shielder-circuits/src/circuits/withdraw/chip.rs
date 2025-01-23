@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use crate::{
     chips::{
@@ -69,7 +69,7 @@ impl WithdrawChip {
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
-            &mut synthesizer.namespace(|| "Old nullifier Hash"),
+            synthesizer,
             self.poseidon.clone(),
             [knowledge.nullifier_old.clone()],
         )?;
@@ -106,10 +106,8 @@ impl WithdrawChip {
     ) -> Result<(), Error> {
         let new_balance = intermediate_values.new_account_balance.clone();
 
-        self.range_check.constrain_value::<RANGE_PROOF_NUM_WORDS>(
-            &mut synthesizer.namespace(|| "Range Check"),
-            new_balance.clone(),
-        )?;
+        self.range_check
+            .constrain_value::<RANGE_PROOF_NUM_WORDS>(synthesizer, new_balance.clone())?;
         todo.check_off(NewBalanceIsInRange)?;
 
         self.sum_chip.constrain_sum(

@@ -1,37 +1,86 @@
 use alloc::string::String;
 
 use halo2_proofs::{
-    circuit::{Cell, Layouter, Region, Table, Value},
+    circuit::{Cell, Layouter, NamespacedLayouter, Region, Table},
     plonk::{Advice, Challenge, Column, Error, Instance},
 };
 
 use crate::{
-    column_pool::{AccessColumn, ColumnPool, PreSynthesisPhase, SynthesisPhase},
-    Fr,
+    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
+    AssignedCell, Fr, Value,
 };
 
 /// A `Synthesizer` is a layouter that can also access advice columns with some inner load balancing.
-pub trait Synthesizer: Layouter<Fr> + AccessColumn<Advice> {}
-impl<S: Layouter<Fr> + AccessColumn<Advice>> Synthesizer for S {}
+pub trait Synthesizer: Layouter<Fr> + AccessColumn<Advice> {
+    /// Creates a new namespace for the synthesizer. Analogous to `Layouter::namespace`.
+    fn namespaced(&mut self, name: impl Into<String>) -> impl Synthesizer;
+
+    fn assign_value(
+        &mut self,
+        name: impl Into<String>,
+        value: Value,
+    ) -> Result<AssignedCell, Error>;
+
+    fn assign_constant(
+        &mut self,
+        name: impl Into<String>,
+        constant: Fr,
+    ) -> Result<AssignedCell, Error>;
+}
 
 /// Creates a new synthesizer from a layouter and an advice pool.
-pub fn create_synthesizer<L: Layouter<Fr>>(
-    layouter: L,
-    advice_pool: ColumnPool<Advice, PreSynthesisPhase>,
-) -> impl Synthesizer {
+pub fn create_synthesizer<'a, L: Layouter<Fr>>(
+    layouter: &'a mut L,
+    advice_pool: &'a ColumnPool<Advice, SynthesisPhase>,
+) -> impl Synthesizer + 'a {
     SynthesizerImpl {
-        layouter,
-        advice_pool: advice_pool.start_synthesis(),
+        layouter: layouter.namespace(|| "synthesizer"),
+        advice_pool,
     }
 }
 
-struct SynthesizerImpl<L: Layouter<Fr>> {
-    layouter: L,
-    advice_pool: ColumnPool<Advice, SynthesisPhase>,
+struct SynthesizerImpl<'a, L: Layouter<Fr>> {
+    layouter: NamespacedLayouter<'a, Fr, L>,
+    advice_pool: &'a ColumnPool<Advice, SynthesisPhase>,
+}
+
+impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
+    fn namespaced(&mut self, name: impl Into<String>) -> impl Synthesizer {
+        SynthesizerImpl {
+            layouter: self.layouter.namespace(|| name),
+            advice_pool: self.advice_pool,
+        }
+    }
+
+    fn assign_value(
+        &mut self,
+        name: impl Into<String>,
+        value: Value,
+    ) -> Result<AssignedCell, Error> {
+        let name = &name.into();
+        let advice = self.get_any_advice();
+        self.assign_region(
+            || name,
+            |mut region| region.assign_advice(|| name, advice, 0, || value),
+        )
+    }
+
+    fn assign_constant(
+        &mut self,
+        name: impl Into<String>,
+        constant: Fr,
+    ) -> Result<AssignedCell, Error> {
+        let name = name.into();
+        let advice = self.get_any_advice();
+        self.assign_region(
+            || name.clone(),
+            |mut region| region.assign_advice_from_constant(|| name.clone(), advice, 0, constant),
+        )
+    }
 }
 
 /// Delegate `Layouter` implementation to the inner layouter.
-impl<L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<L> {
+impl<'a, L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<'a, L> {
     type Root = L::Root;
 
     fn assign_region<A, AR, N, NR>(&mut self, name: N, assignment: A) -> Result<AR, Error>
@@ -61,7 +110,7 @@ impl<L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<L> {
         self.layouter.constrain_instance(cell, column, row)
     }
 
-    fn get_challenge(&self, challenge: Challenge) -> Value<Fr> {
+    fn get_challenge(&self, challenge: Challenge) -> Value {
         self.layouter.get_challenge(challenge)
     }
 
@@ -79,7 +128,7 @@ impl<L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<L> {
 }
 
 /// Delegate `AccessColumn` implementation to the inner advice pool.
-impl<L: Layouter<Fr>> AccessColumn<Advice> for SynthesizerImpl<L> {
+impl<'a, L: Layouter<Fr>> AccessColumn<Advice> for SynthesizerImpl<'a, L> {
     fn get_any_advice(&self) -> Column<Advice> {
         self.advice_pool.get_any_advice()
     }

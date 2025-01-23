@@ -1,10 +1,7 @@
 use alloc::{collections::BTreeMap, format};
 use core::{borrow::Borrow, fmt::Debug};
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Column, ConstraintSystem, Error, Instance},
-};
+use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error, Instance};
 use strum::IntoEnumIterator;
 
 use crate::{synthesizer::Synthesizer, AssignedCell, Fr};

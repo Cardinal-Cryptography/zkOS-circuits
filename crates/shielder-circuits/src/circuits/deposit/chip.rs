@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 use DepositInstance::DepositValue;
 
 use crate::{
@@ -68,7 +68,7 @@ impl DepositChip {
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
-            &mut synthesizer.namespace(|| "Old nullifier Hash"),
+            synthesizer,
             self.poseidon.clone(),
             [knowledge.nullifier_old.clone()],
         )?;
