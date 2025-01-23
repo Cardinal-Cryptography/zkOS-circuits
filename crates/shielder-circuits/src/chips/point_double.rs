@@ -95,7 +95,7 @@ mod tests {
         arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
