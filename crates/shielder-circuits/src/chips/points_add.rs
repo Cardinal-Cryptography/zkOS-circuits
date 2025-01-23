@@ -126,7 +126,7 @@ mod tests {
             let instance = meta.instance_column();
             meta.enable_equality(instance);
             // register point add chip
-            let configs_builder = ConfigsBuilder::new(meta).with_point_add_chip();
+            let configs_builder = ConfigsBuilder::new(meta).with_points_add_chip();
 
             (
                 configs_builder.advice_pool(),

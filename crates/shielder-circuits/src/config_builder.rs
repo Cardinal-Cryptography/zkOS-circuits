@@ -2,14 +2,15 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
-        balances_increase::BalancesIncreaseChip, points_add::PointsAddChip,
-        range_check::RangeCheckChip, sum::SumChip,
+        balances_increase::BalancesIncreaseChip, point_double::PointDoubleChip,
+        points_add::PointsAddChip, range_check::RangeCheckChip, sum::SumChip,
     },
     column_pool::ColumnPool,
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
         membership::MembershipGate,
+        point_double::PointDoubleGate,
         points_add::PointsAddGate,
         sum::SumGate,
         Gate,
@@ -30,7 +31,8 @@ pub struct ConfigsBuilder<'cs> {
     poseidon: Option<PoseidonChip>,
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
-    point_add: Option<PointsAddChip>,
+    points_add: Option<PointsAddChip>,
+    point_double: Option<PointDoubleChip>,
 }
 
 macro_rules! check_if_cached {
@@ -53,7 +55,8 @@ impl<'cs> ConfigsBuilder<'cs> {
             poseidon: None,
             range_check: None,
             sum: None,
-            point_add: None,
+            points_add: None,
+            point_double: None,
         }
     }
 
@@ -166,11 +169,11 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.sum.clone().expect("Sum not configured")
     }
 
-    pub fn with_point_add_chip(mut self) -> Self {
-        check_if_cached!(self, point_add);
+    pub fn with_points_add_chip(mut self) -> Self {
+        check_if_cached!(self, points_add);
 
         let advice_pool = self.advice_pool_with_capacity(9).clone();
-        self.point_add = Some(PointsAddChip {
+        self.points_add = Some(PointsAddChip {
             gate: PointsAddGate::create_gate(
                 self.system,
                 (
@@ -197,7 +200,40 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn points_add_chip(&self) -> PointsAddChip {
-        self.point_add.clone().expect("PointAddChip not configured")
+        self.points_add
+            .clone()
+            .expect("PointAddChip not configured")
+    }
+
+    pub fn with_point_double_chip(mut self) -> Self {
+        check_if_cached!(self, points_add);
+
+        let advice_pool = self.advice_pool_with_capacity(6).clone();
+        self.point_double = Some(PointDoubleChip {
+            gate: PointDoubleGate::create_gate(
+                self.system,
+                (
+                    [
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                    ],
+                    [
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                        advice_pool.get_any(),
+                    ],
+                ),
+            ),
+            advice_pool,
+        });
+        self
+    }
+
+    pub fn point_double_chip(&self) -> PointDoubleChip {
+        self.point_double
+            .clone()
+            .expect("PointDoubleChip not configured")
     }
 
     fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice> {

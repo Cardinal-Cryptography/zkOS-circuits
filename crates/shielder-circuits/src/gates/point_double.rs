@@ -39,8 +39,8 @@ pub struct PointDoubleGate {
     )
 )]
 pub struct PointDoubleGateInput<T> {
-    p: [T; 3], // x1,y1,z1
-    s: [T; 3], // x2,y2,z2
+    pub p: [T; 3], // x1,y1,z1
+    pub s: [T; 3], // x2,y2,z2
 }
 
 const SELECTOR_OFFSET: i32 = 0;
