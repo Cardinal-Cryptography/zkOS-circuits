@@ -2,13 +2,25 @@ use core::array;
 
 use gates::{IndexGate, IndexGateInput, NUM_INDEX_GATE_COLUMNS};
 use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
+use gates::{IndexGate, IndexGateInput, NUM_INDEX_GATE_COLUMNS};
+use halo2_proofs::{
+    circuit::Layouter,
+    plonk::{Advice, ConstraintSystem, Error},
+};
+use gates::{
+    IndexGate, IndexGateInput, IndicatorSumGate, IndicatorSumGateInput, NUM_INDEX_GATE_COLUMNS,
+};
+use halo2_proofs::{
+    circuit::Layouter,
+    plonk::{Advice, ConstraintSystem, Error},
+};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::NUM_TOKENS,
-    gates::Gate,
+    gates::{is_binary::IsBinaryGate, Gate},
     instance_wrapper::InstanceWrapper,
     synthesizer::Synthesizer,
     todo::Todo,
@@ -23,31 +35,14 @@ pub mod off_circuit {
     use crate::{consts::NUM_TOKENS, Fr, Value};
 
     pub fn index_from_indicators(indicators: &[Fr; NUM_TOKENS]) -> Fr {
-        // All `indicators` must be from {0, 1}.
-        assert!(indicators.iter().all(|&x| x == Fr::ZERO || x == Fr::ONE));
-        // Exactly one indicator must be equal to 1.
-        assert_eq!(1, indicators.iter().filter(|&&x| x == Fr::ONE).count());
-
         let index = indicators
             .iter()
             .position(|&x| x == Fr::ONE)
-            .expect("at least 1 positive indicator");
+            .expect("at least 1 indicator equal to 1");
         Fr::from(index as u64)
     }
 
     pub fn index_from_indicator_values(indicators: &[Value; NUM_TOKENS]) -> Value {
-        // All indicators must be from {0, 1}.
-        for indicator in indicators.iter() {
-            indicator.assert_if_known(|v| *v == Fr::ZERO || *v == Fr::ONE);
-        }
-        // Exactly one indicator must be equal to 1.
-        indicators
-            .iter()
-            .copied()
-            .reduce(|a, b| a + b)
-            .expect("at least one indicator")
-            .assert_if_known(|v| *v == Fr::ONE);
-
         // Produce the index by calculating Σ i * indicators[i].
         let multiplied_indicators: [Value; NUM_TOKENS] =
             array::from_fn(|i| indicators[i].map(|v| v * Fr::from(i as u64)));
@@ -66,6 +61,7 @@ pub enum TokenIndexInstance {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 pub enum TokenIndexConstraints {
+    TokenIndicatorsAreCorrect,
     TokenIndexInstanceIsConstrainedToAdvice,
 }
 
@@ -75,6 +71,8 @@ pub enum TokenIndexConstraints {
 // Assumes that the indicator variables are binary and their sum is exactly 1.
 #[derive(Clone, Debug)]
 pub struct TokenIndexChip {
+    is_binary_gate: IsBinaryGate,
+    indicator_sum_gate: IndicatorSumGate,
     index_gate: IndexGate,
     public_inputs: InstanceWrapper<TokenIndexInstance>,
 }
@@ -85,13 +83,46 @@ impl TokenIndexChip {
         advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
+        advice_pool.ensure_capacity(system, 1);
+        let is_binary_gate_advice = advice_pool.get_any();
+
+        advice_pool.ensure_capacity(system, NUM_TOKENS);
+        let indicator_sum_gate_advices = advice_pool.get_array::<NUM_TOKENS>();
+
         advice_pool.ensure_capacity(system, NUM_INDEX_GATE_COLUMNS);
-        let advices = advice_pool.get_column_array::<NUM_INDEX_GATE_COLUMNS>();
+        let index_gate_advices = advice_pool.get_column_array::<NUM_INDEX_GATE_COLUMNS>();
 
         Self {
-            index_gate: IndexGate::create_gate(system, advices),
+            is_binary_gate: IsBinaryGate::create_gate(system, is_binary_gate_advice),
+            indicator_sum_gate: IndicatorSumGate::create_gate(system, indicator_sum_gate_advices),
+            index_gate: IndexGate::create_gate(system, index_gate_advices),
             public_inputs,
         }
+    }
+
+    pub fn constrain_indicators<
+        Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator,
+    >(
+        &self,
+        layouter: &mut impl Layouter<Fr>,
+        indicators: &[AssignedCell; NUM_TOKENS],
+        todo: &mut Todo<Constraints>,
+    ) -> Result<(), Error> {
+        for indicator in indicators.iter() {
+            self.is_binary_gate
+                .apply_in_new_region(layouter, indicator.clone())?;
+        }
+
+        self.indicator_sum_gate.apply_in_new_region(
+            layouter,
+            IndicatorSumGateInput {
+                variables: indicators.clone(),
+            },
+        )?;
+
+        todo.check_off(Constraints::from(
+            TokenIndexConstraints::TokenIndicatorsAreCorrect,
+        ))
     }
 
     /// Constrains the token index public input to match the enabled indicator.
@@ -177,16 +208,35 @@ pub mod gates {
             "Token index gate"
         }
     }
+
+    /// `indicators[0] + indicators[1] + ... = 1`.
+    pub type IndicatorSumGate = LinearEquationGate<NUM_TOKENS, IndicatorSumGateConfig>;
+    pub type IndicatorSumGateInput = LinearEquationGateInput<NUM_TOKENS, AssignedCell>;
+
+    #[derive(Clone, Debug)]
+    pub enum IndicatorSumGateConfig {}
+
+    impl LinearEquationGateConfig<NUM_TOKENS> for IndicatorSumGateConfig {
+        fn coefficients() -> [Fr; NUM_TOKENS] {
+            [Fr::ONE; NUM_TOKENS]
+        }
+
+        fn constant_term() -> Fr {
+            Fr::ONE
+        }
+
+        fn gate_name() -> &'static str {
+            "Indicator sum gate"
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
     use halo2_proofs::{
+        arithmetic::Field,
         circuit::{floor_planner, Layouter},
-        dev::{
-            metadata::{Constraint, Gate},
-            VerifyFailure,
-        },
         plonk::{Advice, Circuit, ConstraintSystem, Error},
     };
 
@@ -199,6 +249,8 @@ mod tests {
         instance_wrapper::InstanceWrapper,
         synthesizer::create_synthesizer,
         test_utils::expect_instance_permutation_failures,
+        test_utils::expect_instance_permutation_failures,
+        test_utils::{expect_gate_failure, expect_instance_permutation_failures},
         todo::Todo,
         Fr, Value,
     };
@@ -249,6 +301,8 @@ mod tests {
             let indicators = self.indicators.embed(&mut synthesizer, "indicators")?;
             let mut todo = Todo::<TokenIndexConstraints>::new();
 
+            chip.constrain_indicators(&mut synthesizer, &indicators, &mut todo)?;
+
             chip.constrain_index_impl(&mut synthesizer, &indicators, &mut todo, self.token_index)?;
             todo.assert_done()
         }
@@ -275,6 +329,45 @@ mod tests {
     }
 
     #[test]
+    fn indicators_are_constrained_to_be_binary() {
+        // This test targets the `IsBinary` gate while keeping all other constraints satisfied.
+        let indicators = [
+            Fr::from(2),
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ONE.neg(),
+        ];
+
+        let circuit = TestCircuit::new(indicators, Fr::from(5).neg());
+        let pub_input = [Fr::from(5).neg()];
+
+        let failures =
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
+                .expect_err("Verification must fail");
+
+        assert_eq!(failures.len(), 2); // 2 indicators are incorrect.
+
+        for failure in failures {
+            expect_gate_failure(&failure, "IsBinary gate");
+        }
+    }
+
+    #[test]
+    fn indicators_are_constrained_to_sum_to_one() {
+        let circuit = TestCircuit::new([0, 0, 0, 0, 0, 0], 0);
+        let pub_input = [0];
+
+        let failures =
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
+                .expect_err("Verification must fail");
+
+        assert_eq!(failures.len(), 1);
+        expect_gate_failure(&failures[0], "Indicator sum gate");
+    }
+
+    #[test]
     fn index_witness_is_constrained() {
         let circuit = TestCircuit::new([1, 0, 0, 0, 0, 0], 1);
         let pub_input = [1];
@@ -283,16 +376,8 @@ mod tests {
             expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
                 .expect_err("Verification must fail");
 
-        assert_eq!(1, failures.len());
-        match &failures[0] {
-            VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
-                assert_eq!(
-                    &Constraint::from((Gate::from((0, "Token index gate")), 0, "")),
-                    constraint
-                );
-            }
-            _ => panic!("Unexpected error"),
-        }
+        assert_eq!(failures.len(), 1);
+        expect_gate_failure(&failures[0], "Token index gate");
     }
 
     #[test]

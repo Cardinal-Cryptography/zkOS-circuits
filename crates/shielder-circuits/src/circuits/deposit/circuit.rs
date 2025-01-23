@@ -62,6 +62,7 @@ impl Circuit<Fr> for DepositCircuit {
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_token_indicators(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_token_index(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
@@ -69,6 +70,7 @@ impl Circuit<Fr> for DepositCircuit {
 
 #[cfg(test)]
 mod tests {
+
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;
@@ -89,6 +91,7 @@ mod tests {
         deposit::DepositInstance::{self, *},
         note_hash,
         poseidon::off_circuit::hash,
+        test_utils::expect_gate_failure,
         version::NOTE_VERSION,
         Note, ProverKnowledge, PublicInputProvider,
     };
@@ -218,6 +221,34 @@ mod tests {
 
         // Verify the token index.
         assert_eq!(Fr::ONE, pub_input[5]);
+    }
+
+    #[test]
+    fn fails_if_token_indicators_incorrect() {
+        // This test ensures that all constraints are satisfied except the `IsBinary` gate.
+        let mut rng = SmallRng::from_seed([42; 32]);
+
+        let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
+        assert_eq!(Fr::ZERO, pk.compute_public_input(TokenIndex));
+        pk.token_indicators = [
+            Fr::from(1),
+            Fr::from(1).neg(),
+            Fr::from(2),
+            Fr::from(1).neg(),
+            Fr::ZERO,
+            Fr::ZERO,
+        ];
+
+        let failures = expect_prover_success_and_run_verification(
+            pk.create_circuit(),
+            &pk.serialize_public_input(),
+        )
+        .expect_err("Verification must fail");
+
+        assert_eq!(3, failures.len());
+        for failure in failures {
+            expect_gate_failure(&failure, "IsBinary gate");
+        }
     }
 
     #[test]
