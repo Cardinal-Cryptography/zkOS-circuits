@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use halo2_proofs::{
     arithmetic::CurveExt,
     circuit::{Layouter, Value},
-    halo2curves::grumpkin::G1,
+    halo2curves::{bn256::Fr, grumpkin::G1},
     plonk::{Advice, Error},
 };
 
@@ -14,7 +14,7 @@ use crate::{
         points_add::{PointsAddGate, PointsAddGateInput},
         Gate,
     },
-    AssignedCell, F,
+    AssignedCell,
 };
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -44,7 +44,7 @@ impl PointsAddChip {
 
     pub fn point_add(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         input: &PointsAddChipInput<AssignedCell>,
     ) -> Result<PointsAddChipOutput<AssignedCell>, Error> {
