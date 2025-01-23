@@ -81,11 +81,11 @@ impl Gate for RangeCheckGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         RangeCheckGateInput { base, shifted }: Self::Input,
     ) -> Result<(), Error> {
         self.table.ensure_initialized(layouter)?;
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, 0)?;
@@ -102,7 +102,7 @@ impl Gate for RangeCheckGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);
-        pool.get_any()
+        pool.get_any_advice()
     }
 }
 

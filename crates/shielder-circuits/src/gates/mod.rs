@@ -1,13 +1,10 @@
 use alloc::collections::BTreeSet;
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Column, ConstraintSystem, Error},
-};
+use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error};
 
 #[cfg(test)]
 use crate::column_pool::{ColumnPool, ConfigPhase};
-use crate::Fr;
+use crate::{synthesizer::Synthesizer, Fr};
 
 pub mod balance_increase;
 pub mod is_binary;
@@ -37,7 +34,7 @@ pub trait Gate: Sized {
     /// created assigned cells.
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error>;
 

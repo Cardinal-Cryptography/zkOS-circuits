@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 use strum::IntoEnumIterator;
 use MerkleInstance::MerkleRoot;
 
@@ -13,7 +13,7 @@ use crate::{
     merkle::{MerkleConstraints, MerkleConstraints::*, MerkleInstance},
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
-    AssignedCell, Fr,
+    AssignedCell,
 };
 
 #[derive(Clone, Debug)]
@@ -29,7 +29,7 @@ impl MerkleChip {
         Constraint: From<MerkleConstraints> + Ord + IntoEnumIterator,
     >(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         knowledge: &MerkleProverKnowledge<TREE_HEIGHT, AssignedCell>,
         todo: &mut Todo<Constraint>,
     ) -> Result<(), Error> {
@@ -38,7 +38,7 @@ impl MerkleChip {
         for (id, level) in knowledge.path.clone().into_iter().enumerate() {
             // 1. Check if the new level contains the current root.
             self.membership_gate.apply_in_new_region(
-                layouter,
+                synthesizer,
                 MembershipGateInput {
                     needle: current_root,
                     haystack: level.clone(),
@@ -49,12 +49,12 @@ impl MerkleChip {
             }
 
             // 2. Compute new root.
-            current_root = hash(layouter, self.poseidon.clone(), level)?;
+            current_root = hash(synthesizer, self.poseidon.clone(), level)?;
         }
         todo.check_off(Constraint::from(MembershipProofIsCorrect))?;
 
         self.public_inputs
-            .constrain_cells(layouter, [(current_root, MerkleRoot)])?;
+            .constrain_cells(synthesizer, [(current_root, MerkleRoot)])?;
         todo.check_off(Constraint::from(MerkleRootInstanceIsConstrainedToAdvice))
     }
 }

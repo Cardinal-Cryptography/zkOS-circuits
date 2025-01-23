@@ -2,17 +2,17 @@ use core::array;
 
 use halo2_proofs::{
     circuit::Layouter,
-    plonk::{Advice, Error},
+    plonk::Error,
 };
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
+    column_pool::AccessColumn,
     consts::NUM_TOKENS,
     instance_wrapper::InstanceWrapper,
     todo::Todo,
-    AssignedCell, Fr,
+    AssignedCell,
 };
 
 pub mod off_circuit {
@@ -88,21 +88,22 @@ impl TokenIndexChip {
     /// but for now it just produces a cell with an unconstrained value.
     pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {
         let values = array::from_fn(|i| indicators[i].value().cloned());
         let index = off_circuit::index_from_indicator_values(&values);
 
-        let cell = layouter.assign_region(
+        let cell = synthesizer.assign_region(
             || "Token index",
-            |mut region| region.assign_advice(|| "Token index", advice_pool.get_any(), 0, || index),
+            |mut region| {
+                region.assign_advice(|| "Token index", advice_pool.get_any_advice(), 0, || index)
+            },
         )?;
 
         self.public_inputs
-            .constrain_cells(layouter, [(cell, TokenIndexInstance::TokenIndex)])?;
+            .constrain_cells(synthesizer, [(cell, TokenIndexInstance::TokenIndex)])?;
         todo.check_off(Constraints::from(
             TokenIndexConstraints::TokenIndexInstanceIsConstrainedToAdvice,
         ))

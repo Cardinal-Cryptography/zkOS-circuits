@@ -3,15 +3,16 @@ use core::array;
 use halo2_proofs::{
     arithmetic::Field,
     circuit::Layouter,
-    plonk::{Advice, Error},
+    plonk::Error,
 };
 
 use super::shortlist_hash::Shortlist;
 use crate::{
     chips::shortlist_hash::ShortlistHashChip,
-    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
+    column_pool::AccessColumn,
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     version::NoteVersion,
     AssignedCell, Fr,
 };
@@ -32,7 +33,6 @@ pub struct Note<T> {
 }
 
 pub mod off_circuit {
-
     use halo2_proofs::arithmetic::Field;
 
     use crate::{
@@ -74,17 +74,16 @@ impl NoteChip {
     fn assign_note_version(
         &self,
         note: &Note<AssignedCell>,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
     ) -> Result<AssignedCell, Error> {
         let note_version: Fr = note.version.as_field();
 
-        layouter.assign_region(
+        synthesizer.assign_region(
             || "note_version",
             |mut region| {
                 region.assign_advice_from_constant(
                     || "note_version",
-                    column_pool.get_any(),
+                    column_pool.get_any_advice(),
                     0,
                     note_version,
                 )
@@ -96,17 +95,13 @@ impl NoteChip {
     /// note_hash = Hash(NOTE_VERSION, note.id, note.nullifier, note.trapdoor, hash(note.balance))
     pub fn note(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         note: &Note<AssignedCell>,
     ) -> Result<AssignedCell, Error> {
-        let note_version = self.assign_note_version(note, layouter, column_pool)?;
+        let note_version = self.assign_note_version(note, synthesizer)?;
 
-        let h_balance = ShortlistHashChip::new(self.poseidon.clone()).shortlist_hash(
-            layouter,
-            column_pool,
-            &note.balances,
-        )?;
+        let h_balance = ShortlistHashChip::new(self.poseidon.clone())
+            .shortlist_hash(synthesizer, &note.balances)?;
 
         let input = [
             note_version,
@@ -117,7 +112,7 @@ impl NoteChip {
         ];
 
         hash(
-            &mut layouter.namespace(|| "Note Hash"),
+            &mut synthesizer.namespace(|| "Note Hash"),
             self.poseidon.clone(),
             input,
         )
@@ -129,15 +124,14 @@ impl NoteChip {
 /// constrained to 0.
 pub fn balances_from_native_balance(
     native_balance: AssignedCell,
-    layouter: &mut impl Layouter<Fr>,
-    advice_pool: &ColumnPool<Advice, SynthesisPhase>,
+    synthesizer: &mut impl Synthesizer,
 ) -> Result<Shortlist<AssignedCell, NUM_TOKENS>, Error> {
-    let zero_cell = layouter.assign_region(
+    let zero_cell = synthesizer.assign_region(
         || "Balance placeholder (zero)",
         |mut region| {
             region.assign_advice_from_constant(
                 || "Balance placeholder (zero)",
-                advice_pool.get_any(),
+                advice_pool.get_any_advice(),
                 0,
                 Fr::ZERO,
             )

@@ -14,6 +14,7 @@ use {
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
+    synthesizer::Synthesizer,
     AssignedCell, Fr,
 };
 
@@ -78,10 +79,10 @@ impl<const N: usize> Gate for MembershipGate<N> {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
@@ -113,8 +114,8 @@ impl<const N: usize> Gate for MembershipGate<N> {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, N + 1);
-        let haystack_advice = pool.get_array();
-        let needle_advice = pool.get(N);
+        let haystack_advice = pool.get_advice_array();
+        let needle_advice = pool.get_advice(N);
         (needle_advice, haystack_advice)
     }
 }

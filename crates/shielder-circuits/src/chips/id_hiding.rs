@@ -1,14 +1,15 @@
 use halo2_proofs::{
     circuit::Layouter,
-    plonk::{Advice, Error},
+    plonk::Error,
 };
 
 use crate::{
-    chips::range_check::RangeCheckChip,
-    column_pool::{ColumnPool, SynthesisPhase},
+    chips::range_check::RangeCheckChip
+    ,
     consts::NONCE_RANGE_PROOF_NUM_WORDS,
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, Fr,
+    synthesizer::Synthesizer,
+    AssignedCell,
 };
 
 #[derive(Clone, Debug)]
@@ -30,20 +31,18 @@ impl IdHidingChip {
     /// id_hiding = Hash(Hash(id), nonce)
     pub fn id_hiding(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         id: AssignedCell,
         nonce: AssignedCell,
     ) -> Result<AssignedCell, Error> {
         // Constrain `nonce` to be smaller than `2^{CHUNK_SIZE * NONCE_RANGE_PROOF_NUM_WORDS}`.
         self.range_check
             .constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS>(
-                &mut layouter.namespace(|| "Range Check for nonce"),
-                column_pool,
+                &mut synthesizer.namespace(|| "Range Check for nonce"),
                 nonce.clone(),
             )?;
 
-        let h_id = hash(layouter, self.poseidon.clone(), [id])?;
-        hash(layouter, self.poseidon.clone(), [h_id, nonce])
+        let h_id = hash(synthesizer, self.poseidon.clone(), [id])?;
+        hash(synthesizer, self.poseidon.clone(), [h_id, nonce])
     }
 }

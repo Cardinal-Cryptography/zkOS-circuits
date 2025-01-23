@@ -10,22 +10,28 @@ use crate::{
     Fr,
 };
 
-pub struct Synthesizer<L: Layouter<Fr>> {
+/// A `Synthesizer` is a layouter that can also access advice columns with some inner load balancing.
+pub trait Synthesizer: Layouter<Fr> + AccessColumn<Advice> {}
+impl<S: Layouter<Fr> + AccessColumn<Advice>> Synthesizer for S {}
+
+/// Creates a new synthesizer from a layouter and an advice pool.
+pub fn create_synthesizer<L: Layouter<Fr>>(
+    layouter: L,
+    advice_pool: ColumnPool<Advice, PreSynthesisPhase>,
+) -> impl Synthesizer {
+    SynthesizerImpl {
+        layouter,
+        advice_pool: advice_pool.start_synthesis(),
+    }
+}
+
+struct SynthesizerImpl<L: Layouter<Fr>> {
     layouter: L,
     advice_pool: ColumnPool<Advice, SynthesisPhase>,
 }
 
-impl<L: Layouter<Fr>> Synthesizer<L> {
-    pub fn new(layouter: L, advice_pool: ColumnPool<Advice, PreSynthesisPhase>) -> Self {
-        Self {
-            layouter,
-            advice_pool: advice_pool.start_synthesis(),
-        }
-    }
-}
-
 /// Delegate `Layouter` implementation to the inner layouter.
-impl<L: Layouter<Fr>> Layouter<Fr> for Synthesizer<L> {
+impl<L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<L> {
     type Root = L::Root;
 
     fn assign_region<A, AR, N, NR>(&mut self, name: N, assignment: A) -> Result<AR, Error>
@@ -73,16 +79,16 @@ impl<L: Layouter<Fr>> Layouter<Fr> for Synthesizer<L> {
 }
 
 /// Delegate `AccessColumn` implementation to the inner advice pool.
-impl<L: Layouter<Fr>> AccessColumn<Advice> for Synthesizer<L> {
-    fn get_any(&self) -> Column<Advice> {
-        self.advice_pool.get_any()
+impl<L: Layouter<Fr>> AccessColumn<Advice> for SynthesizerImpl<L> {
+    fn get_any_advice(&self) -> Column<Advice> {
+        self.advice_pool.get_any_advice()
     }
 
-    fn get(&self, index: usize) -> Column<Advice> {
-        self.advice_pool.get(index)
+    fn get_advice(&self, index: usize) -> Column<Advice> {
+        self.advice_pool.get_advice(index)
     }
 
-    fn get_array<const N: usize>(&self) -> [Column<Advice>; N] {
-        self.advice_pool.get_array()
+    fn get_advice_array<const N: usize>(&self) -> [Column<Advice>; N] {
+        self.advice_pool.get_advice_array()
     }
 }

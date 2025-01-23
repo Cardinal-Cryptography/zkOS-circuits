@@ -3,18 +3,19 @@ use core::array;
 
 use halo2_proofs::{
     circuit::Layouter,
-    plonk::{Advice, Error},
+    plonk::Error,
 };
 
 use super::shortlist_hash::Shortlist;
 use crate::{
-    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
+    column_pool::AccessColumn,
     consts::NUM_TOKENS,
     gates::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
         Gate,
     },
-    AssignedCell, Fr, Value,
+    synthesizer::Synthesizer,
+    AssignedCell, Value,
 };
 
 pub mod off_circuit {
@@ -51,8 +52,7 @@ impl BalancesIncreaseChip {
 
     pub fn increase_balances(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         balances_old: &Shortlist<AssignedCell, NUM_TOKENS>,
         token_indicators: &[AssignedCell; NUM_TOKENS],
         increase_value: &AssignedCell,
@@ -66,12 +66,12 @@ impl BalancesIncreaseChip {
         let mut balances_new: Vec<AssignedCell> = vec![];
 
         for i in 0..NUM_TOKENS {
-            let balance_new = layouter.assign_region(
+            let balance_new = synthesizer.assign_region(
                 || "balance_new",
                 |mut region| {
                     region.assign_advice(
                         || "balance_new",
-                        column_pool.get_any(),
+                        synthesizer.get_any_advice(),
                         0,
                         || balances_new_values.items()[i],
                     )
@@ -85,7 +85,7 @@ impl BalancesIncreaseChip {
                 token_indicator: token_indicators[i].clone(),
                 balance_new: balances_new[i].clone(),
             };
-            self.0.apply_in_new_region(layouter, gate_input)?;
+            self.0.apply_in_new_region(synthesizer, gate_input)?;
         }
 
         Ok(Shortlist::new(

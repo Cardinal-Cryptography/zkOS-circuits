@@ -18,6 +18,7 @@ use {
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
+    synthesizer::Synthesizer,
     AssignedCell,
 };
 
@@ -111,10 +112,10 @@ impl Gate for PointDoubleGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector
@@ -151,8 +152,8 @@ impl Gate for PointDoubleGate {
         pool.ensure_capacity(cs, 6);
 
         (
-            [pool.get(0), pool.get(1), pool.get(2)], // p
-            [pool.get(3), pool.get(4), pool.get(5)], // s
+            [pool.get_advice(0), pool.get_advice(1), pool.get_advice(2)], // p
+            [pool.get_advice(3), pool.get_advice(4), pool.get_advice(5)], // s
         )
     }
 }
