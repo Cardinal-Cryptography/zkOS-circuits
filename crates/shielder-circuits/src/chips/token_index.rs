@@ -1,6 +1,6 @@
 use core::array;
 
-use gates::{IndexGate, IndexGateInput};
+use gates::{IndexGate, IndexGateInput, NUM_INDEX_GATE_COLUMNS};
 use halo2_proofs::{
     circuit::{Layouter, Value},
     plonk::{Advice, ConstraintSystem, Error},
@@ -87,10 +87,11 @@ impl TokenIndexChip {
         advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
-        // TODO ensure capacity
-        let index_gate = IndexGate::create_gate(system, advice_pool.get_array());
+        advice_pool.ensure_capacity(system, NUM_INDEX_GATE_COLUMNS);
+        let advices = advice_pool.get_array::<NUM_INDEX_GATE_COLUMNS>();
+
         Self {
-            index_gate,
+            index_gate: IndexGate::create_gate(system, advices),
             public_inputs,
         }
     }
