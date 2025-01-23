@@ -226,6 +226,6 @@ mod tests {
         let input = input(p, q);
         let output = PointsAddChipOutput { s: [s.x, s.y, s.z] };
 
-        assert!(verify(input, output).is_ok());
+        assert!(verify(input, output).is_err());
     }
 }

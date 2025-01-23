@@ -95,7 +95,7 @@ mod tests {
         arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
+        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
@@ -119,7 +119,7 @@ mod tests {
             let instance = meta.instance_column();
             meta.enable_equality(instance);
             // register point add chip
-            let configs_builder = ConfigsBuilder::new(meta).with_points_add_chip();
+            let configs_builder = ConfigsBuilder::new(meta).with_point_double_chip();
 
             (
                 configs_builder.advice_pool(),
@@ -164,5 +164,52 @@ mod tests {
         )
         .expect("Mock prover should run")
         .verify()
+    }
+
+    #[test]
+    fn double_point_at_infinity() {
+        let p = G1 {
+            x: Fr::ZERO,
+            y: Fr::ONE,
+            z: Fr::ZERO,
+        };
+
+        let expected = p + p;
+
+        let input = input(p);
+        let output = PointDoubleChipOutput {
+            s: [expected.x, expected.y, expected.z],
+        };
+
+        assert!(verify(input, output).is_ok());
+    }
+
+    #[test]
+    fn double_random_point() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+
+        let expected = p + p;
+
+        let input = input(p);
+        let output = PointDoubleChipOutput {
+            s: [expected.x, expected.y, expected.z],
+        };
+
+        assert!(verify(input, output).is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+        let s = G1::random(rng.clone());
+
+        let input = input(p);
+        let output = PointDoubleChipOutput { s: [s.x, s.y, s.z] };
+
+        assert!(verify(input, output).is_err());
     }
 }
