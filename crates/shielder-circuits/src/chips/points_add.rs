@@ -1,15 +1,14 @@
-use alloc::vec::Vec;
-
 use halo2_proofs::{
-    arithmetic::CurveExt,
     circuit::{Layouter, Value},
-    halo2curves::{bn256::Fr, grumpkin::G1},
+    halo2curves::bn256::Fr,
     plonk::{Advice, Error},
 };
 
 use crate::{
     column_pool::{ColumnPool, SynthesisPhase},
+    consts::GRUMPKIN_3B,
     curve_operations,
+    embed::Embed,
     gates::{
         points_add::{PointsAddGate, PointsAddGateInput},
         Gate,
@@ -48,7 +47,6 @@ impl PointsAddChip {
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         input: &PointsAddChipInput<AssignedCell>,
     ) -> Result<PointsAddChipOutput<AssignedCell>, Error> {
-        let b3 = Value::known(G1::b() + G1::b() + G1::b());
         let s_value = curve_operations::points_add(
             [
                 input.p[0].value().copied(),
@@ -60,7 +58,7 @@ impl PointsAddChip {
                 input.q[1].value().copied(),
                 input.q[2].value().copied(),
             ],
-            b3,
+            Value::known(*GRUMPKIN_3B),
         );
 
         let s = s_value.embed(layouter, column_pool, "S")?;

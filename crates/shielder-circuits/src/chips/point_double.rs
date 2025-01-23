@@ -1,12 +1,12 @@
 use halo2_proofs::{
-    arithmetic::CurveExt,
     circuit::{Layouter, Value},
-    halo2curves::{bn256::Fr, grumpkin::G1},
+    halo2curves::bn256::Fr,
     plonk::{Advice, Error},
 };
 
 use crate::{
     column_pool::{ColumnPool, SynthesisPhase},
+    consts::GRUMPKIN_3B,
     curve_operations,
     embed::Embed,
     gates::{
@@ -46,14 +46,13 @@ impl PointDoubleChip {
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         input: &PointDoubleChipInput<AssignedCell>,
     ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
-        let b3 = Value::known(G1::b() + G1::b() + G1::b());
         let s_value = curve_operations::point_double(
             [
                 input.p[0].value().copied(),
                 input.p[1].value().copied(),
                 input.p[2].value().copied(),
             ],
-            b3,
+            Value::known(*GRUMPKIN_3B),
         );
 
         let s = s_value.embed(layouter, column_pool, "S")?;

@@ -1,3 +1,9 @@
+use halo2_proofs::{
+    arithmetic::CurveExt,
+    halo2curves::{bn256::Fr, grumpkin::G1},
+};
+use lazy_static::lazy_static;
+
 pub const MAX_K: u32 = 13;
 
 pub const MAX_NONCE_BIT_LENGTH: usize = 16;
@@ -40,3 +46,7 @@ pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
 // Number of tokens supported via shortlist, including AZERO.
 // Required to be a multiple of `POSEIDON_RATE - 1`.
 pub const NUM_TOKENS: usize = POSEIDON_RATE - 1;
+
+lazy_static! {
+    pub static ref GRUMPKIN_3B: Fr = G1::b() + G1::b() + G1::b();
+}
