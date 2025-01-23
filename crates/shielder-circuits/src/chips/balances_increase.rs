@@ -1,10 +1,7 @@
 use alloc::{vec, vec::Vec};
 use core::array;
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use super::shortlist_hash::Shortlist;
 use crate::{

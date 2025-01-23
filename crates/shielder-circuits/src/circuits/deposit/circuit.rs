@@ -55,7 +55,7 @@ impl Circuit<Fr> for DepositCircuit {
         (main_chip, column_pool): Self::Config,
         layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let mut synthesizer = create_synthesizer(synthesizer);
+        let mut synthesizer = create_synthesizer(layouter, column_pool);
         let mut todo = Todo::<DepositConstraints>::new();
         let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;
 

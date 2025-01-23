@@ -11,7 +11,7 @@ use macros::embeddable;
 use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{
     consts::RANGE_PROOF_CHUNK_SIZE, embed::Embed, gates::Gate, range_table::RangeTable,
-    AssignedCell, Fr,
+    synthesizer::Synthesizer, AssignedCell, Fr,
 };
 
 /// Represents inequality: `base - shifted * 2^RANGE_PROOF_CHUNK_SIZE < 2^RANGE_PROOF_CHUNK_SIZE`.
@@ -84,7 +84,7 @@ impl Gate for RangeCheckGate {
         synthesizer: &mut impl Synthesizer,
         RangeCheckGateInput { base, shifted }: Self::Input,
     ) -> Result<(), Error> {
-        self.table.ensure_initialized(layouter)?;
+        self.table.ensure_initialized(synthesizer)?;
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {

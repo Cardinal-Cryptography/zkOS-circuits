@@ -1,11 +1,7 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use crate::{
-    chips::range_check::RangeCheckChip
-    ,
+    chips::range_check::RangeCheckChip,
     consts::NONCE_RANGE_PROOF_NUM_WORDS,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,

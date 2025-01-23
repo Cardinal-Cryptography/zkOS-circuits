@@ -50,7 +50,7 @@ impl Circuit<Fr> for WithdrawCircuit {
         (main_chip, column_pool): Self::Config,
         layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let mut synthesizer = create_synthesizer(synthesizer);
+        let mut synthesizer = create_synthesizer(layouter, column_pool);
         let mut todo = Todo::<WithdrawConstraints>::new();
         let knowledge = self.0.embed(&mut synthesizer, "WithdrawProverKnowledge")?;
         let intermediate = self
@@ -62,7 +62,7 @@ impl Circuit<Fr> for WithdrawCircuit {
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge, &intermediate, &mut todo)?;
         main_chip.check_commitment(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut synthesizer, &column_pool, &knowledge, &mut todo)?;
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
 
         todo.assert_done()
     }

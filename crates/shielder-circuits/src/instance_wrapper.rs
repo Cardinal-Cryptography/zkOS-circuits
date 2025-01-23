@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 use strum::IntoEnumIterator;
 
-use crate::{AssignedCell, Fr};
+use crate::{synthesizer::Synthesizer, AssignedCell, Fr};
 
 #[derive(Clone, Debug)]
 pub struct InstanceWrapper<Identifier> {

@@ -47,7 +47,7 @@ pub fn embeddable(attr: TokenStream2, item: TokenStream2) -> SynResult<TokenStre
                 synthesizer: &mut impl crate::synthesizer::Synthesizer,
                 annotation: impl Into<alloc::string::String>,
             ) -> Result<Self::Embedded, halo2_proofs::plonk::Error> {
-                let mut layouter = layouter.namespace(|| annotation);
+                let mut synthesizer = synthesizer.namespace(|| annotation);
                 Ok(#struct_name {
                     #(#field_embedding),*
                 })

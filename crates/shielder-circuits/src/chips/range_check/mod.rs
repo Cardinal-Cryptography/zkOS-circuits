@@ -1,8 +1,5 @@
 use gate::RangeCheckGate;
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, ConstraintSystem, Error},
-};
+use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
 
 use crate::{
     chips::{

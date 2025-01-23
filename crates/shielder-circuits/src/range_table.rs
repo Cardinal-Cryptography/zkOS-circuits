@@ -6,7 +6,7 @@ use halo2_proofs::{
     plonk::{ConstraintSystem, Error, TableColumn, TableError},
 };
 
-use crate::Fr;
+use crate::{synthesizer::Synthesizer, Fr};
 
 /// Represents a set of field elements between `0` and `2^RANGE_LOG`. Can be used for lookups.
 #[derive(Clone, Debug)]

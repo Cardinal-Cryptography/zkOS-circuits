@@ -1,7 +1,4 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 use DepositInstance::DepositValue;
 
 use crate::{
@@ -15,8 +12,7 @@ use crate::{
     circuits::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
-    }
-    ,
+    },
     deposit::{
         DepositConstraints::{self, *},
         DepositInstance::{self, HashedNewNote, HashedOldNullifier, *},

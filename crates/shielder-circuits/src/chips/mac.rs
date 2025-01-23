@@ -2,6 +2,7 @@ use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use crate::{
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     AssignedCell,
 };
 

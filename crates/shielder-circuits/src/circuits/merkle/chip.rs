@@ -12,6 +12,7 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleConstraints, MerkleConstraints::*, MerkleInstance},
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     todo::Todo,
     AssignedCell,
 };

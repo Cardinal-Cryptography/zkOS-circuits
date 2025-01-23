@@ -1,7 +1,4 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use crate::{
     chips::{
@@ -111,7 +108,6 @@ impl WithdrawChip {
 
         self.range_check.constrain_value::<RANGE_PROOF_NUM_WORDS>(
             &mut synthesizer.namespace(|| "Range Check"),
-            column_pool,
             new_balance.clone(),
         )?;
         todo.check_off(NewBalanceIsInRange)?;

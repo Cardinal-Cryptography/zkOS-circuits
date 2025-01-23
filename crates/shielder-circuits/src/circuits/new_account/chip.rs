@@ -2,14 +2,14 @@ use halo2_proofs::plonk::Error;
 
 use crate::{
     chips::note::{balances_from_native_balance, Note, NoteChip},
-    circuits::new_account::knowledge::NewAccountProverKnowledge
-    ,
+    circuits::new_account::knowledge::NewAccountProverKnowledge,
     instance_wrapper::InstanceWrapper,
     new_account::{
         NewAccountConstraints::{self, *},
         NewAccountInstance::{self, *},
     },
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     todo::Todo,
     version::NOTE_VERSION,
     AssignedCell,

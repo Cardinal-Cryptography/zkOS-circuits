@@ -1,18 +1,12 @@
 use core::array;
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    column_pool::AccessColumn,
-    consts::NUM_TOKENS,
-    instance_wrapper::InstanceWrapper,
-    todo::Todo,
-    AssignedCell,
+    column_pool::AccessColumn, consts::NUM_TOKENS, instance_wrapper::InstanceWrapper,
+    synthesizer::Synthesizer, todo::Todo, AssignedCell,
 };
 
 pub mod off_circuit {
@@ -98,7 +92,7 @@ impl TokenIndexChip {
         let cell = synthesizer.assign_region(
             || "Token index",
             |mut region| {
-                region.assign_advice(|| "Token index", advice_pool.get_any_advice(), 0, || index)
+                region.assign_advice(|| "Token index", synthesizer.get_any_advice(), 0, || index)
             },
         )?;
 

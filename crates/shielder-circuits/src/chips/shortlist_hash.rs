@@ -1,12 +1,9 @@
 use core::array;
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use crate::{
-    column_pool::{AccessColumn, ColumnPool},
+    column_pool::AccessColumn,
     consts::POSEIDON_RATE,
     embed::Embed,
     poseidon::circuit::{hash, PoseidonChip},
@@ -112,7 +109,7 @@ impl<const N: usize> ShortlistHashChip<N> {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "Shortlist placeholder (zero)",
-                    column_pool.get_any_advice(),
+                    synthesizer.get_any_advice(),
                     0,
                     Fr::zero(),
                 )
@@ -146,13 +143,17 @@ mod test {
     use halo2_proofs::{
         circuit::floor_planner::V1,
         dev::MockProver,
-        plonk::{Circuit, Column, Instance},
+        plonk::{Advice, Circuit, Column, Instance},
     };
 
     use super::*;
     use crate::{
-        column_pool::PreSynthesisPhase, config_builder::ConfigsBuilder, embed::Embed, poseidon,
-        synthesizer::create_synthesizer, Fr,
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        embed::Embed,
+        poseidon,
+        synthesizer::create_synthesizer,
+        Fr,
     };
 
     #[derive(Clone, Debug, Default)]

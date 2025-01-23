@@ -1,7 +1,4 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 
 use crate::{
     column_pool::AccessColumn,
@@ -68,7 +65,7 @@ impl SumChip {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "zero",
-                    column_pool.get_any_advice(),
+                    synthesizer.get_any_advice(),
                     0,
                     Fr::ZERO,
                 )

@@ -37,7 +37,7 @@ impl<const TREE_HEIGHT: usize> Circuit<Fr> for MerkleCircuit<TREE_HEIGHT> {
         (main_chip, column_pool): Self::Config,
         layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let synthesizer = create_synthesizer(synthesizer);
+        let mut synthesizer = create_synthesizer(layouter, column_pool);
         let mut todo = Todo::<MerkleConstraints>::new();
         let knowledge = self.0.embed(&mut synthesizer, "MerkleProverKnowledge")?;
         main_chip.synthesize(&mut synthesizer, &knowledge, &mut todo)?;

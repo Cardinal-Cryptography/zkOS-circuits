@@ -1,10 +1,6 @@
 use core::array;
 
-use halo2_proofs::{
-    arithmetic::Field,
-    circuit::Layouter,
-    plonk::Error,
-};
+use halo2_proofs::{arithmetic::Field, circuit::Layouter, plonk::Error};
 
 use super::shortlist_hash::Shortlist;
 use crate::{
@@ -83,7 +79,7 @@ impl NoteChip {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "note_version",
-                    column_pool.get_any_advice(),
+                    synthesizer.get_any_advice(),
                     0,
                     note_version,
                 )
@@ -131,7 +127,7 @@ pub fn balances_from_native_balance(
         |mut region| {
             region.assign_advice_from_constant(
                 || "Balance placeholder (zero)",
-                advice_pool.get_any_advice(),
+                synthesizer.get_any_advice(),
                 0,
                 Fr::ZERO,
             )
