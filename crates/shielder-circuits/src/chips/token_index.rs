@@ -74,6 +74,7 @@ pub enum TokenIndexConstraints {
 // TODO: Constrain indicators to the set {0,1}.
 // TODO: Constrain that exactly one indicator has value 1.
 // A chip that manages the token index indicator variables and related constraints.
+// Assumes that the indicator variables are binary and their sum is exactly 1.
 #[derive(Clone, Debug)]
 pub struct TokenIndexChip {
     index_gate: IndexGate,

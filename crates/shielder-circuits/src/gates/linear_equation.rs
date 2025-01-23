@@ -121,11 +121,11 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
 mod tests {
     use std::vec::Vec;
 
-    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
+    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
     use super::{LinearEquationGateConfig, LinearEquationGateInput};
     use crate::{
-        gates::{linear_equation::LinearEquationGate, test_utils::verify},
+        gates::{linear_equation::LinearEquationGate, test_utils::verify, Gate},
         F,
     };
 
@@ -180,6 +180,20 @@ mod tests {
         assert_eq!(errors.len(), 1);
         assert!(errors[0]
             .contains("Constraint 0 in gate 0 ('Decimal system equation gate') is not satisfied"));
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn gate_creation_with_not_distinct_columns_fails() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let column_1 = cs.advice_column();
+        let column_2 = cs.advice_column();
+        let column_3 = cs.advice_column();
+
+        LinearEquationGate::<4, DecimalExampleConfig>::create_gate(
+            &mut cs,
+            [column_1, column_2, column_3, column_3],
+        );
     }
 
     #[derive(Clone)]
