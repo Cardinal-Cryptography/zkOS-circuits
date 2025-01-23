@@ -8,7 +8,7 @@ use halo2_proofs::{
 
 #[cfg(test)]
 use crate::column_pool::{ColumnPool, ConfigPhase};
-use crate::{gates::Gate, AssignedCell, F};
+use crate::{gates::Gate, AssignedCell, Fr};
 
 /// Represents the relation: `x * (1-x) = 0`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -27,7 +27,7 @@ impl Gate for IsBinaryGate {
 
     /// The gate operates on a single advice columns `A` and enforces that:
     /// `A[x] * (1 - A[x]) = 0`, where `x` is the row where the gate is enabled.
-    fn create_gate(cs: &mut ConstraintSystem<F>, advice: Column<Advice>) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Column<Advice>) -> Self {
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -35,7 +35,7 @@ impl Gate for IsBinaryGate {
             let x = vc.query_advice(advice, Rotation(ADVICE_OFFSET as i32));
             Constraints::with_selector(
                 selector,
-                vec![x.clone() * (Expression::Constant(F::one()) - x)],
+                vec![x.clone() * (Expression::Constant(Fr::one()) - x)],
             )
         });
         Self { advice, selector }
@@ -43,7 +43,7 @@ impl Gate for IsBinaryGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         x: AssignedCell,
     ) -> Result<(), Error> {
         layouter.assign_region(
@@ -59,7 +59,7 @@ impl Gate for IsBinaryGate {
     #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);
         pool.get_any()
@@ -72,10 +72,7 @@ mod tests {
 
     use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
-    use crate::{
-        gates::{is_binary::IsBinaryGate, test_utils::verify, Gate as _},
-        F,
-    };
+    use crate::gates::{is_binary::IsBinaryGate, test_utils::verify, Gate as _};
 
     #[test]
     fn gate_creation_with_proper_columns_passes() {
@@ -86,12 +83,12 @@ mod tests {
 
     #[test]
     fn zero_passes() {
-        assert!(verify::<IsBinaryGate, _>(F::zero()).is_ok());
+        assert!(verify::<IsBinaryGate, _>(Fr::zero()).is_ok());
     }
 
     #[test]
     fn one_passes() {
-        assert!(verify::<IsBinaryGate, _>(F::one()).is_ok());
+        assert!(verify::<IsBinaryGate, _>(Fr::one()).is_ok());
     }
 
     fn assert_fails(errors: Vec<String>) {
@@ -101,11 +98,11 @@ mod tests {
 
     #[test]
     fn two_fails() {
-        assert_fails(verify::<IsBinaryGate, _>(F::from(2)).unwrap_err());
+        assert_fails(verify::<IsBinaryGate, _>(Fr::from(2)).unwrap_err());
     }
 
     #[test]
     fn minus_one_fails() {
-        assert_fails(verify::<IsBinaryGate, _>(F::one().neg()).unwrap_err());
+        assert_fails(verify::<IsBinaryGate, _>(Fr::one().neg()).unwrap_err());
     }
 }

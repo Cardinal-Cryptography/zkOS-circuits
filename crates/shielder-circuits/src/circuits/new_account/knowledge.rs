@@ -1,4 +1,3 @@
-use halo2_proofs::circuit::Value;
 use macros::embeddable;
 use rand_core::RngCore;
 
@@ -9,12 +8,12 @@ use crate::{
     note_hash,
     poseidon::off_circuit::hash,
     version::NOTE_VERSION,
-    Field, Note, ProverKnowledge, PublicInputProvider, F,
+    Field, Fr, Note, ProverKnowledge, PublicInputProvider, Value,
 };
 
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "NewAccountProverKnowledge<Value<F>>",
+    receiver = "NewAccountProverKnowledge<Value>",
     impl_generics = "",
     embedded = "NewAccountProverKnowledge<crate::AssignedCell>"
 )]
@@ -25,16 +24,16 @@ pub struct NewAccountProverKnowledge<T> {
     pub initial_deposit: T,
 }
 
-impl ProverKnowledge for NewAccountProverKnowledge<F> {
+impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
     type Circuit = NewAccountCircuit;
     type PublicInput = NewAccountInstance;
 
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
         Self {
-            id: F::random(&mut *rng),
-            nullifier: F::random(&mut *rng),
-            trapdoor: F::random(rng),
-            initial_deposit: F::ONE,
+            id: Fr::random(&mut *rng),
+            nullifier: Fr::random(&mut *rng),
+            trapdoor: Fr::random(rng),
+            initial_deposit: Fr::ONE,
         }
     }
 
@@ -48,8 +47,8 @@ impl ProverKnowledge for NewAccountProverKnowledge<F> {
     }
 }
 
-impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<F> {
-    fn compute_public_input(&self, instance_id: NewAccountInstance) -> F {
+impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
+    fn compute_public_input(&self, instance_id: NewAccountInstance) -> Fr {
         match instance_id {
             NewAccountInstance::HashedNote => note_hash(&Note {
                 version: NOTE_VERSION,

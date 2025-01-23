@@ -15,7 +15,7 @@ use crate::{
     poseidon::circuit::{hash, PoseidonChip},
     todo::Todo,
     version::NOTE_VERSION,
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 #[derive(Clone, Debug)]
@@ -27,7 +27,7 @@ pub struct NewAccountChip {
 impl NewAccountChip {
     pub fn synthesize(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
         todo: &mut Todo<NewAccountConstraints>,

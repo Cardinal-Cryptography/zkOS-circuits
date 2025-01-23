@@ -12,7 +12,6 @@ use {
     crate::{
         column_pool::{ColumnPool, ConfigPhase},
         embed::Embed,
-        F,
     },
     macros::embeddable,
 };

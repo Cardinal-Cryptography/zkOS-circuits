@@ -2,7 +2,7 @@ use alloc::{vec, vec::Vec};
 use core::array;
 
 use halo2_proofs::{
-    circuit::{Layouter, Value},
+    circuit::Layouter,
     plonk::{Advice, Error},
 };
 
@@ -14,7 +14,7 @@ use crate::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
         Gate,
     },
-    AssignedCell, F,
+    AssignedCell, Fr, Value,
 };
 
 pub mod off_circuit {
@@ -25,7 +25,7 @@ pub mod off_circuit {
 
     use crate::{chips::shortlist_hash::Shortlist, consts::NUM_TOKENS};
 
-    /// Computes new balances. Works for both `F` and `Value<F>`.
+    /// Computes new balances. Works for both `F` and `Value`.
     pub fn increase_balances<T: Add<Output = T> + Mul<Output = T> + Clone>(
         balances_old: &Shortlist<T, NUM_TOKENS>,
         token_indicators: &[T; NUM_TOKENS],
@@ -40,7 +40,7 @@ pub mod off_circuit {
 #[derive(Clone, Debug)]
 pub struct BalancesIncreaseChip(BalanceIncreaseGate);
 
-fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value<F>; N] {
+fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value; N] {
     array::from_fn(|i| cell_array[i].value().copied())
 }
 
@@ -51,7 +51,7 @@ impl BalancesIncreaseChip {
 
     pub fn increase_balances(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         balances_old: &Shortlist<AssignedCell, NUM_TOKENS>,
         token_indicators: &[AssignedCell; NUM_TOKENS],

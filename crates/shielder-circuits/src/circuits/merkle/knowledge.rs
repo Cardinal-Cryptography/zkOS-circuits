@@ -1,6 +1,5 @@
 use core::borrow::Borrow;
 
-use halo2_proofs::circuit::Value;
 use macros::embeddable;
 use rand_core::RngCore;
 
@@ -9,12 +8,12 @@ use crate::{
     embed::Embed,
     merkle::{circuit::MerkleCircuit, MerkleInstance},
     poseidon::off_circuit::hash,
-    Field, ProverKnowledge, PublicInputProvider, F,
+    Field, Fr, ProverKnowledge, PublicInputProvider, Value,
 };
 
 #[derive(Clone, Debug)]
 #[embeddable(
-    receiver = "MerkleProverKnowledge<TREE_HEIGHT, Value<F>>",
+    receiver = "MerkleProverKnowledge<TREE_HEIGHT, Value>",
     impl_generics = "<const TREE_HEIGHT: usize>",
     embedded = "MerkleProverKnowledge<TREE_HEIGHT, crate::AssignedCell>"
 )]
@@ -43,12 +42,12 @@ impl<const TREE_HEIGHT: usize, T: Clone> MerkleProverKnowledge<TREE_HEIGHT, T> {
     }
 }
 
-impl<const TREE_HEIGHT: usize> ProverKnowledge for MerkleProverKnowledge<TREE_HEIGHT, F> {
+impl<const TREE_HEIGHT: usize> ProverKnowledge for MerkleProverKnowledge<TREE_HEIGHT, Fr> {
     type Circuit = MerkleCircuit<TREE_HEIGHT>;
     type PublicInput = MerkleInstance;
 
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
-        let mut path = [(); TREE_HEIGHT].map(|_| [(); ARITY].map(|_| F::random(&mut *rng)));
+        let mut path = [(); TREE_HEIGHT].map(|_| [(); ARITY].map(|_| Fr::random(&mut *rng)));
         for i in 1..TREE_HEIGHT {
             path[i][0] = hash(&path[i - 1]);
         }
@@ -64,9 +63,9 @@ impl<const TREE_HEIGHT: usize> ProverKnowledge for MerkleProverKnowledge<TREE_HE
 }
 
 impl<const TREE_HEIGHT: usize> PublicInputProvider<MerkleInstance>
-    for MerkleProverKnowledge<TREE_HEIGHT, F>
+    for MerkleProverKnowledge<TREE_HEIGHT, Fr>
 {
-    fn compute_public_input(&self, instance_id: MerkleInstance) -> F {
+    fn compute_public_input(&self, instance_id: MerkleInstance) -> Fr {
         match instance_id {
             MerkleInstance::MerkleRoot => hash(&self.path[TREE_HEIGHT - 1]),
         }

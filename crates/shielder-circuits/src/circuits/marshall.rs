@@ -7,7 +7,7 @@ use crate::{
     circuits::{Params, ProvingKey},
     consts::merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
     marshall::MarshallError::{InvalidContent, IoError},
-    F, SERDE_FORMAT,
+    Fr, SERDE_FORMAT,
 };
 
 #[derive(Debug)]
@@ -50,7 +50,7 @@ pub fn marshall_pk(k: u32, pk: &ProvingKey) -> MarshallResult<Vec<u8>> {
 }
 
 /// Deserialize `pk` from bytes together with `k`. `k` can be then used to downsize parameters.
-pub fn unmarshall_pk<C: Circuit<F>>(buf: &[u8]) -> MarshallResult<(u32, ProvingKey)> {
+pub fn unmarshall_pk<C: Circuit<Fr>>(buf: &[u8]) -> MarshallResult<(u32, ProvingKey)> {
     let k = u32::from_be_bytes(buf[..4].try_into().map_err(|_| InvalidContent)?);
     ProvingKey::read::<_, C>(&mut &buf[4..], SERDE_FORMAT)
         .map_err(|_| IoError)
@@ -58,7 +58,7 @@ pub fn unmarshall_pk<C: Circuit<F>>(buf: &[u8]) -> MarshallResult<(u32, ProvingK
 }
 
 /// Serialize `(leaf, path)` to bytes.
-pub fn marshall_path(leaf: &F, path: &[[F; ARITY]; NOTE_TREE_HEIGHT]) -> Vec<u8> {
+pub fn marshall_path(leaf: &Fr, path: &[[Fr; ARITY]; NOTE_TREE_HEIGHT]) -> Vec<u8> {
     let mut buf = vec![];
     leaf.write_raw(&mut buf).expect("leaf should serialize");
     for level in path.iter() {
@@ -70,12 +70,12 @@ pub fn marshall_path(leaf: &F, path: &[[F; ARITY]; NOTE_TREE_HEIGHT]) -> Vec<u8>
 }
 
 /// Deserialize `(root, leaf, path)` from bytes.
-pub fn unmarshall_path(mut buf: &[u8]) -> (F, [[F; ARITY]; NOTE_TREE_HEIGHT]) {
-    let leaf = F::read_raw(&mut buf).expect("leaf should deserialize");
-    let mut path = [[F::default(); ARITY]; NOTE_TREE_HEIGHT];
+pub fn unmarshall_path(mut buf: &[u8]) -> (Fr, [[Fr; ARITY]; NOTE_TREE_HEIGHT]) {
+    let leaf = Fr::read_raw(&mut buf).expect("leaf should deserialize");
+    let mut path = [[Fr::default(); ARITY]; NOTE_TREE_HEIGHT];
     for level in path.iter_mut() {
         for node in level.iter_mut() {
-            *node = F::read_raw(&mut buf).expect("node should deserialize");
+            *node = Fr::read_raw(&mut buf).expect("node should deserialize");
         }
     }
     (leaf, path)
@@ -92,7 +92,7 @@ mod tests {
         },
         consts::MAX_K,
         marshall::*,
-        ProverKnowledge, F,
+        Fr, ProverKnowledge,
     };
 
     fn generate_data() -> (Params, u32, ProvingKey) {
@@ -130,7 +130,7 @@ mod tests {
         let mut rng = rand::thread_rng();
 
         let merkle_prover_knowledge =
-            MerkleProverKnowledge::<NOTE_TREE_HEIGHT, F>::random_correct_example(&mut rng);
+            MerkleProverKnowledge::<NOTE_TREE_HEIGHT, Fr>::random_correct_example(&mut rng);
 
         let bytes = marshall_path(&merkle_prover_knowledge.leaf, &merkle_prover_knowledge.path);
         let (leaf2, path2) = unmarshall_path(&bytes);

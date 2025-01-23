@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Value, halo2curves::ff::PrimeField};
+use halo2_proofs::halo2curves::ff::PrimeField;
 use macros::embeddable;
 use rand::Rng;
 use rand_core::RngCore;
@@ -15,47 +15,47 @@ use crate::{
     poseidon::off_circuit::hash,
     version::NOTE_VERSION,
     withdraw::{circuit::WithdrawCircuit, WithdrawInstance},
-    Field, Note, ProverKnowledge, PublicInputProvider, F,
+    Field, Fr, Note, ProverKnowledge, PublicInputProvider, Value,
 };
 
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "WithdrawProverKnowledge<Value<F>>",
+    receiver = "WithdrawProverKnowledge<Value>",
     impl_generics = "",
     embedded = "WithdrawProverKnowledge<crate::AssignedCell>"
 )]
-pub struct WithdrawProverKnowledge<F> {
-    pub withdrawal_value: F,
+pub struct WithdrawProverKnowledge<T> {
+    pub withdrawal_value: T,
 
     // Additional public parameters that need to be included in proof
-    pub commitment: F,
+    pub commitment: T,
 
     // Old note
-    pub id: F,
-    pub nullifier_old: F,
-    pub trapdoor_old: F,
-    pub account_old_balance: F,
+    pub id: T,
+    pub nullifier_old: T,
+    pub trapdoor_old: T,
+    pub account_old_balance: T,
 
     // Merkle proof
-    pub path: [[F; ARITY]; NOTE_TREE_HEIGHT],
+    pub path: [[T; ARITY]; NOTE_TREE_HEIGHT],
 
     // New note
-    pub nullifier_new: F,
-    pub trapdoor_new: F,
+    pub nullifier_new: T,
+    pub trapdoor_new: T,
 
     // nonce for id_hiding
-    pub nonce: F,
+    pub nonce: T,
 }
 
-impl WithdrawProverKnowledge<Value<F>> {
-    pub fn compute_intermediate_values(&self) -> IntermediateValues<Value<F>> {
+impl WithdrawProverKnowledge<Value> {
+    pub fn compute_intermediate_values(&self) -> IntermediateValues<Value> {
         IntermediateValues {
             new_account_balance: self.account_old_balance - self.withdrawal_value,
         }
     }
 }
 
-impl ProverKnowledge for WithdrawProverKnowledge<F> {
+impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
     type Circuit = WithdrawCircuit;
     type PublicInput = WithdrawInstance;
 
@@ -69,12 +69,12 @@ impl ProverKnowledge for WithdrawProverKnowledge<F> {
     ///
     /// `account_old_balance` has the largest possible value that passes the range check.
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
-        let id = F::random(&mut *rng);
-        let nonce = F::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
-        let nullifier_old = F::random(&mut *rng);
-        let trapdoor_old = F::random(&mut *rng);
+        let id = Fr::random(&mut *rng);
+        let nonce = Fr::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
+        let nullifier_old = Fr::random(&mut *rng);
+        let trapdoor_old = Fr::random(&mut *rng);
 
-        let account_old_balance = F::from_u128(MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK);
+        let account_old_balance = Fr::from_u128(MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK);
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
@@ -86,16 +86,16 @@ impl ProverKnowledge for WithdrawProverKnowledge<F> {
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
 
         Self {
-            withdrawal_value: F::ONE,
-            commitment: F::random(&mut *rng),
+            withdrawal_value: Fr::ONE,
+            commitment: Fr::random(&mut *rng),
             id,
             nonce,
             nullifier_old,
             trapdoor_old,
             account_old_balance,
             path,
-            nullifier_new: F::random(&mut *rng),
-            trapdoor_new: F::random(rng),
+            nullifier_new: Fr::random(&mut *rng),
+            trapdoor_new: Fr::random(rng),
         }
     }
 
@@ -120,8 +120,8 @@ impl ProverKnowledge for WithdrawProverKnowledge<F> {
     }
 }
 
-impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<F> {
-    fn compute_public_input(&self, instance_id: WithdrawInstance) -> F {
+impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
+    fn compute_public_input(&self, instance_id: WithdrawInstance) -> Fr {
         match instance_id {
             WithdrawInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
             WithdrawInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
@@ -144,11 +144,11 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<F> {
 /// Stores values that are a result of intermediate computations.
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "IntermediateValues<Value<F>>",
+    receiver = "IntermediateValues<Value>",
     impl_generics = "",
     embedded = "IntermediateValues<crate::AssignedCell>"
 )]
-pub struct IntermediateValues<F> {
+pub struct IntermediateValues<T> {
     /// Account balance after the withdrawal is made.
-    pub new_account_balance: F,
+    pub new_account_balance: T,
 }

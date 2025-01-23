@@ -8,7 +8,7 @@ use crate::{
     column_pool::{ColumnPool, SynthesisPhase},
     consts::NONCE_RANGE_PROOF_NUM_WORDS,
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, F,
+    AssignedCell, Fr,
 };
 
 #[derive(Clone, Debug)]
@@ -30,7 +30,7 @@ impl IdHidingChip {
     /// id_hiding = Hash(Hash(id), nonce)
     pub fn id_hiding(
         &self,
-        layouter: &mut impl Layouter<F>,
+        layouter: &mut impl Layouter<Fr>,
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         id: AssignedCell,
         nonce: AssignedCell,

@@ -18,11 +18,11 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
     poseidon::{circuit::PoseidonChip, spec::PoseidonSpec},
-    F,
+    Fr,
 };
 
 pub struct ConfigsBuilder<'cs> {
-    system: &'cs mut ConstraintSystem<F>,
+    system: &'cs mut ConstraintSystem<Fr>,
     advice_pool: ColumnPool<Advice, ConfigPhase>,
     fixed_pool: ColumnPool<Fixed, ConfigPhase>,
 
@@ -44,7 +44,7 @@ macro_rules! check_if_cached {
 }
 
 impl<'cs> ConfigsBuilder<'cs> {
-    pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
+    pub fn new(system: &'cs mut ConstraintSystem<Fr>) -> Self {
         Self {
             system,
             advice_pool: ColumnPool::<Advice, _>::new(),
