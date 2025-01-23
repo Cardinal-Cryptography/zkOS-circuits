@@ -183,9 +183,9 @@ impl Gate for PointAddGate {
         pool.ensure_capacity(cs, 9);
 
         (
-            [pool.get_advice(0), pool.get_advice(1), pool.get_advice(2)],
-            [pool.get_advice(3), pool.get_advice(4), pool.get_advice(5)],
-            [pool.get_advice(6), pool.get_advice(7), pool.get_advice(8)],
+            [pool.get_column(0), pool.get_column(1), pool.get_column(2)],
+            [pool.get_column(3), pool.get_column(4), pool.get_column(5)],
+            [pool.get_column(6), pool.get_column(7), pool.get_column(8)],
         )
     }
 }

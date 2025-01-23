@@ -126,7 +126,7 @@ impl Gate for BalanceIncreaseGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
-        let columns = pool.get_advice_array::<NUM_ADVICE_COLUMNS>();
+        let columns = pool.get_column_array::<NUM_ADVICE_COLUMNS>();
         BalanceIncreaseGateAdvices {
             balance_old: columns[0],
             increase_value: columns[1],

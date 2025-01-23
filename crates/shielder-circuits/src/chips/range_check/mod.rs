@@ -31,7 +31,7 @@ impl RangeCheckChip {
         sum_chip: SumChip,
     ) -> Self {
         advice_pool.ensure_capacity(system, 1);
-        let range_gate = RangeCheckGate::create_gate(system, advice_pool.get_any_advice());
+        let range_gate = RangeCheckGate::create_gate(system, advice_pool.get_any_column());
         Self {
             range_gate,
             sum_chip,

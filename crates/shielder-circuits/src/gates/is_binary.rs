@@ -61,7 +61,7 @@ impl Gate for IsBinaryGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);
-        pool.get_any_advice()
+        pool.get_any_column()
     }
 }
 

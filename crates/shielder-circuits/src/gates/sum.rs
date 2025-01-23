@@ -97,7 +97,7 @@ impl Gate for SumGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 3);
-        pool.get_advice_array()
+        pool.get_column_array()
     }
 }
 

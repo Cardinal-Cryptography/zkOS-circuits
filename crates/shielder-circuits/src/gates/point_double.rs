@@ -151,8 +151,8 @@ impl Gate for PointDoubleGate {
         pool.ensure_capacity(cs, 6);
 
         (
-            [pool.get_advice(0), pool.get_advice(1), pool.get_advice(2)], // p
-            [pool.get_advice(3), pool.get_advice(4), pool.get_advice(5)], // s
+            [pool.get_column(0), pool.get_column(1), pool.get_column(2)], // p
+            [pool.get_column(3), pool.get_column(4), pool.get_column(5)], // s
         )
     }
 }

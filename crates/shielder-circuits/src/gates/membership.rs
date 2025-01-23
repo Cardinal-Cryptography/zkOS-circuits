@@ -113,8 +113,8 @@ impl<const N: usize> Gate for MembershipGate<N> {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, N + 1);
-        let haystack_advice = pool.get_advice_array();
-        let needle_advice = pool.get_advice(N);
+        let haystack_advice = pool.get_column_array();
+        let needle_advice = pool.get_column(N);
         (needle_advice, haystack_advice)
     }
 }

@@ -58,7 +58,7 @@ impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
         value: Value,
     ) -> Result<AssignedCell, Error> {
         let name = &name.into();
-        let advice = self.get_any_advice();
+        let advice = self.get_any_column();
         self.assign_region(
             || name,
             |mut region| region.assign_advice(|| name, advice, 0, || value),
@@ -71,7 +71,7 @@ impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
         constant: Fr,
     ) -> Result<AssignedCell, Error> {
         let name = name.into();
-        let advice = self.get_any_advice();
+        let advice = self.get_any_column();
         self.assign_region(
             || name.clone(),
             |mut region| region.assign_advice_from_constant(|| name.clone(), advice, 0, constant),
@@ -129,15 +129,15 @@ impl<'a, L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<'a, L> {
 
 /// Delegate `AccessColumn` implementation to the inner advice pool.
 impl<'a, L: Layouter<Fr>> AccessColumn<Advice> for SynthesizerImpl<'a, L> {
-    fn get_any_advice(&self) -> Column<Advice> {
-        self.advice_pool.get_any_advice()
+    fn get_any_column(&self) -> Column<Advice> {
+        self.advice_pool.get_any_column()
     }
 
-    fn get_advice(&self, index: usize) -> Column<Advice> {
-        self.advice_pool.get_advice(index)
+    fn get_column(&self, index: usize) -> Column<Advice> {
+        self.advice_pool.get_column(index)
     }
 
-    fn get_advice_array<const N: usize>(&self) -> [Column<Advice>; N] {
-        self.advice_pool.get_advice_array()
+    fn get_column_array<const N: usize>(&self) -> [Column<Advice>; N] {
+        self.advice_pool.get_column_array()
     }
 }

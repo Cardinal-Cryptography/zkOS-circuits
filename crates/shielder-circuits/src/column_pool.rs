@@ -119,18 +119,18 @@ pub trait AccessColumn<C: ColumnType> {
     /// Get some advice column from the pool.
     ///
     /// The index is not guaranteed (some inner load balancing might be applied).
-    fn get_any_advice(&self) -> Column<C>;
+    fn get_any_column(&self) -> Column<C>;
 
     /// Get the column at the specified index.
-    fn get_advice(&self, index: usize) -> Column<C>;
+    fn get_column(&self, index: usize) -> Column<C>;
 
     /// Get an array of columns from the pool.
-    fn get_advice_array<const N: usize>(&self) -> [Column<C>; N];
+    fn get_column_array<const N: usize>(&self) -> [Column<C>; N];
 }
 
 #[allow(private_bounds)]
 impl<C: ColumnType, Phase: PhaseWithAccess> AccessColumn<C> for ColumnPool<C, Phase> {
-    fn get_any_advice(&self) -> Column<C> {
+    fn get_any_column(&self) -> Column<C> {
         let idx = self
             .access_counter
             .borrow()
@@ -139,15 +139,15 @@ impl<C: ColumnType, Phase: PhaseWithAccess> AccessColumn<C> for ColumnPool<C, Ph
             .min_by_key(|&(_, count)| count)
             .map(|(idx, _)| idx)
             .expect("empty pool");
-        self.get_advice(idx)
+        self.get_column(idx)
     }
 
-    fn get_advice(&self, index: usize) -> Column<C> {
+    fn get_column(&self, index: usize) -> Column<C> {
         self.access_counter.borrow_mut()[index] += 1;
         self.pool[index]
     }
 
-    fn get_advice_array<const N: usize>(&self) -> [Column<C>; N] {
+    fn get_column_array<const N: usize>(&self) -> [Column<C>; N] {
         for i in 0..N {
             self.access_counter.borrow_mut()[i] += 1;
         }
