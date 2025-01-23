@@ -110,7 +110,7 @@ mod tests {
 
         let b3 = G1::b() + G1::b() + G1::b();
         assert_eq!(
-            [expected.z, expected.y, expected.z],
+            [expected.x, expected.y, expected.z],
             point_double([p.x, p.y, p.z], b3)
         );
     }
