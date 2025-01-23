@@ -9,7 +9,10 @@ use halo2_proofs::{
 };
 #[cfg(test)]
 use {
-    crate::{column_pool::ColumnPool, column_pool::ConfigPhase, embed::Embed},
+    crate::{
+        column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+        embed::Embed,
+    },
     macros::embeddable,
 };
 

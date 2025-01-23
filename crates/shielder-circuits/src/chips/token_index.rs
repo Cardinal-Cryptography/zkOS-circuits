@@ -8,7 +8,7 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
     consts::NUM_TOKENS,
     instance_wrapper::InstanceWrapper,
     todo::Todo,

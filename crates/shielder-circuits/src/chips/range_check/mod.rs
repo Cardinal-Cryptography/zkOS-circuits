@@ -9,7 +9,7 @@ use crate::{
         range_check::{gate::RangeCheckGateInput, running_sum::running_sum},
         sum::SumChip,
     },
-    column_pool::{ColumnPool, ConfigPhase, SynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase, SynthesisPhase},
     consts::RANGE_PROOF_CHUNK_SIZE,
     embed::Embed,
     gates::Gate,

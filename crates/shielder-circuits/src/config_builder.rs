@@ -2,7 +2,7 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
-    column_pool::{ColumnPool, ConfigPhase, PreSynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},

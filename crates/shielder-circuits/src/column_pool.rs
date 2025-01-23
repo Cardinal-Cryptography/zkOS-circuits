@@ -89,7 +89,7 @@ impl ColumnPool<Advice, ConfigPhase> {
     /// Ensure that there are at least `capacity` advice columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable equality for each of them.
     pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<Fr>, capacity: usize) {
-        for _ in self.len()..capacity {
+        for _ in self.pool.len()..capacity {
             let column = cs.advice_column();
             cs.enable_equality(column);
             self.add_column(column);
@@ -101,7 +101,7 @@ impl ColumnPool<Fixed, ConfigPhase> {
     /// Ensure that there are at least `capacity` fixed columns in the constraint system `cs`,
     /// registering new ones if necessary. Enable storing constants in each of them.
     pub fn ensure_capacity(&mut self, cs: &mut ConstraintSystem<Fr>, capacity: usize) {
-        for _ in self.len()..capacity {
+        for _ in self.pool.len()..capacity {
             let column = cs.fixed_column();
             cs.enable_constant(column);
             self.add_column(column);
@@ -115,12 +115,22 @@ trait PhaseWithAccess {}
 impl PhaseWithAccess for ConfigPhase {}
 impl PhaseWithAccess for SynthesisPhase {}
 
-#[allow(private_bounds)]
-impl<C: ColumnType, Phase: PhaseWithAccess> ColumnPool<C, Phase> {
+pub trait AccessColumn<C: ColumnType> {
     /// Get some advice column from the pool.
     ///
     /// The index is not guaranteed (some inner load balancing might be applied).
-    pub fn get_any(&self) -> Column<C> {
+    fn get_any(&self) -> Column<C>;
+
+    /// Get the column at the specified index.
+    fn get(&self, index: usize) -> Column<C>;
+
+    /// Get an array of columns from the pool.
+    fn get_array<const N: usize>(&self) -> [Column<C>; N];
+}
+
+#[allow(private_bounds)]
+impl<C: ColumnType, Phase: PhaseWithAccess> AccessColumn<C> for ColumnPool<C, Phase> {
+    fn get_any(&self) -> Column<C> {
         let idx = self
             .access_counter
             .borrow()
@@ -132,19 +142,12 @@ impl<C: ColumnType, Phase: PhaseWithAccess> ColumnPool<C, Phase> {
         self.get(idx)
     }
 
-    /// Get the column at the specified index.
-    pub fn get(&self, index: usize) -> Column<C> {
+    fn get(&self, index: usize) -> Column<C> {
         self.access_counter.borrow_mut()[index] += 1;
         self.pool[index]
     }
 
-    /// Get the number of columns in the pool.
-    pub fn len(&self) -> usize {
-        self.pool.len()
-    }
-
-    /// Get an array of columns from the pool.
-    pub fn get_array<const N: usize>(&self) -> [Column<C>; N] {
+    fn get_array<const N: usize>(&self) -> [Column<C>; N] {
         for i in 0..N {
             self.access_counter.borrow_mut()[i] += 1;
         }

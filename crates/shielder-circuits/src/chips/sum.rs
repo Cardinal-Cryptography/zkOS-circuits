@@ -4,7 +4,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
     gates::{
         sum::{SumGate, SumGateInput},
         Gate,

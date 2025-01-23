@@ -9,7 +9,7 @@ use halo2_proofs::{
 use super::shortlist_hash::Shortlist;
 use crate::{
     chips::shortlist_hash::ShortlistHashChip,
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,

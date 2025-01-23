@@ -6,7 +6,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
     consts::POSEIDON_RATE,
     embed::Embed,
     poseidon::circuit::{hash, PoseidonChip},

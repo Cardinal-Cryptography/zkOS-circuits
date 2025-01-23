@@ -8,7 +8,7 @@ use halo2_proofs::{
 use macros::embeddable;
 
 #[cfg(test)]
-use crate::column_pool::{ColumnPool, ConfigPhase};
+use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{
     consts::RANGE_PROOF_CHUNK_SIZE, embed::Embed, gates::Gate, range_table::RangeTable,
     AssignedCell, Fr,

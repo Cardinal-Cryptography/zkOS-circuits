@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 
 #[cfg(test)]
-use crate::column_pool::{ColumnPool, ConfigPhase};
+use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{gates::Gate, AssignedCell, Fr};
 
 /// Represents the relation: `x * (1-x) = 0`.

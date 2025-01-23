@@ -6,7 +6,13 @@ use halo2_proofs::{
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::column_pool::ConfigPhase, crate::embed::Embed, macros::embeddable};
+use {
+    crate::{
+        column_pool::{AccessColumn, ConfigPhase},
+        embed::Embed,
+    },
+    macros::embeddable,
+};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},

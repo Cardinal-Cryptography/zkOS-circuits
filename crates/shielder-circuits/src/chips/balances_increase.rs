@@ -8,7 +8,7 @@ use halo2_proofs::{
 
 use super::shortlist_hash::Shortlist;
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, SynthesisPhase},
     consts::NUM_TOKENS,
     gates::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
