@@ -35,15 +35,15 @@ pub trait LinearEquationGateConfig<const N: usize> {
 
 #[derive(Clone, Debug)]
 #[embeddable(
-    receiver = "LinearEquationGateInput<Fr, N>",
+    receiver = "LinearEquationGateInput<N, Fr>",
     impl_generics = "<const N: usize>",
-    embedded = "LinearEquationGateInput<AssignedCell, N>"
+    embedded = "LinearEquationGateInput<N, AssignedCell>"
 )]
-pub struct LinearEquationGateInput<T, const N: usize> {
+pub struct LinearEquationGateInput<const N: usize, T> {
     pub variables: [T; N],
 }
 
-impl<const N: usize> Default for LinearEquationGateInput<Fr, N> {
+impl<const N: usize> Default for LinearEquationGateInput<N, Fr> {
     fn default() -> Self {
         Self {
             variables: [Fr::default(); N],
@@ -55,7 +55,7 @@ const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: usize = 0;
 
 impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquationGate<N, Config> {
-    type Input = LinearEquationGateInput<AssignedCell, N>;
+    type Input = LinearEquationGateInput<N, AssignedCell>;
     type Advices = [Column<Advice>; N];
 
     fn create_gate(cs: &mut ConstraintSystem<Fr>, variables: Self::Advices) -> Self {
@@ -129,7 +129,7 @@ mod tests {
         Fr,
     };
 
-    fn input<const N: usize>(variables: [impl Into<Fr>; N]) -> LinearEquationGateInput<Fr, N> {
+    fn input<const N: usize>(variables: [impl Into<Fr>; N]) -> LinearEquationGateInput<N, Fr> {
         LinearEquationGateInput {
             variables: variables
                 .into_iter()

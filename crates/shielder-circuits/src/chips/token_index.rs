@@ -104,7 +104,7 @@ impl TokenIndexChip {
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {
-        let indicator_values = array::from_fn(|i| indicators[i].value().cloned());
+        let indicator_values = indicators.each_ref().map(|v| v.value().cloned());
         let index_value = off_circuit::index_from_indicator_values(&indicator_values);
 
         self.constrain_index_impl(layouter, advice_pool, indicators, todo, index_value)
@@ -163,7 +163,7 @@ pub mod gates {
 
     /// `0 * indicators[0] + 1 * indicators[1] + 2 * indicators[2] + ... = index`.
     pub type IndexGate = LinearEquationGate<NUM_INDEX_GATE_COLUMNS, IndexGateConfig>;
-    pub type IndexGateInput = LinearEquationGateInput<AssignedCell, NUM_INDEX_GATE_COLUMNS>;
+    pub type IndexGateInput = LinearEquationGateInput<NUM_INDEX_GATE_COLUMNS, AssignedCell>;
 
     #[derive(Clone, Debug)]
     pub enum IndexGateConfig {}
