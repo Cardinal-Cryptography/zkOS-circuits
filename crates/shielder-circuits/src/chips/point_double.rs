@@ -8,7 +8,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, SynthesisPhase},
     curve_operations,
     gates::{
         point_double::{PointDoubleGate, PointDoubleGateInput},
@@ -33,18 +33,18 @@ pub struct PointDoubleChipOutput<T> {
 /// P + Q = S
 #[derive(Clone, Debug)]
 pub struct PointDoubleChip {
-    pub advice_pool: ColumnPool<Advice>,
     pub gate: PointDoubleGate,
 }
 
 impl PointDoubleChip {
-    pub fn new(gate: PointDoubleGate, advice_pool: ColumnPool<Advice>) -> Self {
-        Self { gate, advice_pool }
+    pub fn new(gate: PointDoubleGate) -> Self {
+        Self { gate }
     }
 
     pub fn point_double(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         input: &PointDoubleChipInput<AssignedCell>,
     ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
         let b3 = Value::known(G1::b() + G1::b() + G1::b());
@@ -64,7 +64,7 @@ impl PointDoubleChip {
                     .assign_region(
                         || "s",
                         |mut region| {
-                            region.assign_advice(|| "s", self.advice_pool.get_any(), 0, || value)
+                            region.assign_advice(|| "s", column_pool.get_any(), 0, || value)
                         },
                     )
                     .expect("can assign advice from a value")
@@ -100,13 +100,22 @@ mod tests {
     };
 
     use super::*;
-    use crate::{column_pool::ColumnPool, config_builder::ConfigsBuilder, embed::Embed, rng};
+    use crate::{
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        embed::Embed,
+        rng,
+    };
 
     #[derive(Clone, Debug, Default)]
     struct PointDoubleCircuit(PointDoubleChipInput<Fr>);
 
     impl Circuit<Fr> for PointDoubleCircuit {
-        type Config = (ColumnPool<Advice>, PointDoubleChip, Column<Instance>);
+        type Config = (
+            ColumnPool<Advice, PreSynthesisPhase>,
+            PointDoubleChip,
+            Column<Instance>,
+        );
 
         type FloorPlanner = V1;
 
@@ -118,27 +127,25 @@ mod tests {
             // public input column
             let instance = meta.instance_column();
             meta.enable_equality(instance);
-            // register point add chip
+            // register chip
             let configs_builder = ConfigsBuilder::new(meta).with_point_double_chip();
+            let chip = configs_builder.point_double_chip();
 
-            (
-                configs_builder.advice_pool(),
-                configs_builder.point_double_chip(),
-                instance,
-            )
+            (configs_builder.finish(), chip, instance)
         }
 
         fn synthesize(
             &self,
-            (advice_pool, chip, instance): Self::Config,
+            (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
             let PointDoubleChipInput { p } = self.0;
 
-            let p = p.embed(&mut layouter, &advice_pool, "P")?;
+            let column_pool = column_pool.start_synthesis();
+            let p = p.embed(&mut layouter, &column_pool, "P")?;
 
             let PointDoubleChipOutput { s } =
-                chip.point_double(&mut layouter, &PointDoubleChipInput { p })?;
+                chip.point_double(&mut layouter, &column_pool, &PointDoubleChipInput { p })?;
 
             layouter.constrain_instance(s[0].cell(), instance, 0)?;
             layouter.constrain_instance(s[1].cell(), instance, 1)?;

@@ -6,19 +6,20 @@ use halo2_proofs::{
     plonk::{Advice, Error},
 };
 
+use super::shortlist_hash::Shortlist;
 use crate::{
-    chips::balances::BalancesChip,
-    column_pool::ColumnPool,
+    chips::shortlist_hash::ShortlistHashChip,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     version::NoteVersion,
     AssignedCell, F,
 };
+
 /// Chip that is able to calculate note hash
 #[derive(Clone, Debug)]
 pub struct NoteChip {
     poseidon: PoseidonChip,
-    advice_pool: ColumnPool<Advice>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -27,7 +28,7 @@ pub struct Note<T> {
     pub id: T,
     pub nullifier: T,
     pub trapdoor: T,
-    pub balances: [T; NUM_TOKENS],
+    pub balances: Shortlist<T, NUM_TOKENS>,
 }
 
 pub mod off_circuit {
@@ -35,7 +36,10 @@ pub mod off_circuit {
     use halo2_proofs::arithmetic::Field;
 
     use crate::{
-        chips::{balances::off_circuit::balances_hash, note::Note},
+        chips::{
+            note::Note,
+            shortlist_hash::{off_circuit::shortlist_hash, Shortlist},
+        },
         consts::NUM_TOKENS,
         poseidon::off_circuit::hash,
         F,
@@ -47,7 +51,7 @@ pub mod off_circuit {
             note.id,
             note.nullifier,
             note.trapdoor,
-            balances_hash(note.balances),
+            shortlist_hash(&note.balances),
         ];
 
         hash(&input)
@@ -55,25 +59,23 @@ pub mod off_circuit {
 
     /// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
     /// Produces the balance shortlist tuple from a single native balance.
-    pub fn balances_from_native_balance(native_balance: F) -> [F; NUM_TOKENS] {
+    pub fn balances_from_native_balance(native_balance: F) -> Shortlist<F, NUM_TOKENS> {
         let mut balances = [F::ZERO; NUM_TOKENS];
         balances[0] = native_balance;
-        balances
+        Shortlist::new(balances)
     }
 }
 
 impl NoteChip {
-    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
-        Self {
-            poseidon,
-            advice_pool,
-        }
+    pub fn new(poseidon: PoseidonChip) -> Self {
+        Self { poseidon }
     }
 
     fn assign_note_version(
         &self,
         note: &Note<AssignedCell>,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
     ) -> Result<AssignedCell, Error> {
         let note_version: F = note.version.as_field();
 
@@ -82,7 +84,7 @@ impl NoteChip {
             |mut region| {
                 region.assign_advice_from_constant(
                     || "note_version",
-                    self.advice_pool.get_any(),
+                    column_pool.get_any(),
                     0,
                     note_version,
                 )
@@ -95,12 +97,16 @@ impl NoteChip {
     pub fn note(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         note: &Note<AssignedCell>,
     ) -> Result<AssignedCell, Error> {
-        let note_version = self.assign_note_version(note, layouter)?;
+        let note_version = self.assign_note_version(note, layouter, column_pool)?;
 
-        let h_balance = BalancesChip::new(self.poseidon.clone(), self.advice_pool.clone())
-            .hash_balances(layouter, &note.balances)?;
+        let h_balance = ShortlistHashChip::new(self.poseidon.clone()).shortlist_hash(
+            layouter,
+            column_pool,
+            &note.balances,
+        )?;
 
         let input = [
             note_version,
@@ -124,8 +130,8 @@ impl NoteChip {
 pub fn balances_from_native_balance(
     native_balance: AssignedCell,
     layouter: &mut impl Layouter<F>,
-    advice_pool: &ColumnPool<Advice>,
-) -> Result<[AssignedCell; NUM_TOKENS], Error> {
+    advice_pool: &ColumnPool<Advice, SynthesisPhase>,
+) -> Result<Shortlist<AssignedCell, NUM_TOKENS>, Error> {
     let zero_cell = layouter.assign_region(
         || "Balance placeholder (zero)",
         |mut region| {
@@ -138,11 +144,11 @@ pub fn balances_from_native_balance(
         },
     )?;
 
-    Ok(array::from_fn(|i| {
+    Ok(Shortlist::new(array::from_fn(|i| {
         if i == 0 {
             native_balance.clone()
         } else {
             zero_cell.clone()
         }
-    }))
+    })))
 }

@@ -8,7 +8,10 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    column_pool::ColumnPool, consts::NUM_TOKENS, instance_wrapper::InstanceWrapper, todo::Todo,
+    column_pool::{ColumnPool, SynthesisPhase},
+    consts::NUM_TOKENS,
+    instance_wrapper::InstanceWrapper,
+    todo::Todo,
     AssignedCell, F,
 };
 
@@ -72,19 +75,12 @@ pub enum TokenIndexConstraints {
 // A chip that manages the token index indicator variables and related constraints.
 #[derive(Clone, Debug)]
 pub struct TokenIndexChip {
-    advice_pool: ColumnPool<Advice>,
     public_inputs: InstanceWrapper<TokenIndexInstance>,
 }
 
 impl TokenIndexChip {
-    pub fn new(
-        advice_pool: ColumnPool<Advice>,
-        public_inputs: InstanceWrapper<TokenIndexInstance>,
-    ) -> Self {
-        Self {
-            advice_pool,
-            public_inputs,
-        }
+    pub fn new(public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
+        Self { public_inputs }
     }
 
     /// Temporary hack: the function should apply a gate to produce the index from indicators,
@@ -93,6 +89,7 @@ impl TokenIndexChip {
     pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
         layouter: &mut impl Layouter<F>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {
@@ -101,9 +98,7 @@ impl TokenIndexChip {
 
         let cell = layouter.assign_region(
             || "Token index",
-            |mut region| {
-                region.assign_advice(|| "Token index", self.advice_pool.get_any(), 0, || index)
-            },
+            |mut region| region.assign_advice(|| "Token index", advice_pool.get_any(), 0, || index),
         )?;
 
         self.public_inputs

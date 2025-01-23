@@ -5,7 +5,7 @@ use crate::{
         balances_increase::BalancesIncreaseChip, point_double::PointDoubleChip,
         points_add::PointsAddChip, range_check::RangeCheckChip, sum::SumChip,
     },
-    column_pool::ColumnPool,
+    column_pool::{ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
@@ -23,8 +23,8 @@ use crate::{
 
 pub struct ConfigsBuilder<'cs> {
     system: &'cs mut ConstraintSystem<F>,
-    advice_pool: ColumnPool<Advice>,
-    fixed_pool: ColumnPool<Fixed>,
+    advice_pool: ColumnPool<Advice, ConfigPhase>,
+    fixed_pool: ColumnPool<Fixed, ConfigPhase>,
 
     balances_increase: Option<BalancesIncreaseChip>,
     merkle: Option<MerkleChip>,
@@ -47,8 +47,8 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
         Self {
             system,
-            advice_pool: ColumnPool::<Advice>::new(),
-            fixed_pool: ColumnPool::<Fixed>::new(),
+            advice_pool: ColumnPool::<Advice, _>::new(),
+            fixed_pool: ColumnPool::<Fixed, _>::new(),
 
             balances_increase: None,
             merkle: None,
@@ -60,28 +60,25 @@ impl<'cs> ConfigsBuilder<'cs> {
         }
     }
 
-    pub fn advice_pool(&self) -> ColumnPool<Advice> {
-        self.advice_pool.clone()
+    pub fn finish(self) -> ColumnPool<Advice, PreSynthesisPhase> {
+        self.advice_pool.conclude_configuration()
     }
 
     pub fn with_balances_increase(mut self) -> Self {
         check_if_cached!(self, balances_increase);
 
-        let advice_pool = self.advice_pool_with_capacity(4).clone();
+        let advice_pool = self.advice_pool_with_capacity(4);
         let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
 
-        self.balances_increase = Some(BalancesIncreaseChip {
-            gate: BalanceIncreaseGate::create_gate(
-                self.system,
-                BalanceIncreaseGateAdvices {
-                    balance_old: gate_advice[0],
-                    increase_value: gate_advice[1],
-                    token_indicator: gate_advice[2],
-                    balance_new: gate_advice[3],
-                },
-            ),
-            advice_pool,
-        });
+        self.balances_increase = Some(BalancesIncreaseChip::new(BalanceIncreaseGate::create_gate(
+            self.system,
+            BalanceIncreaseGateAdvices {
+                balance_old: gate_advice[0],
+                increase_value: gate_advice[1],
+                token_indicator: gate_advice[2],
+                balance_new: gate_advice[3],
+            },
+        )));
         self
     }
 
@@ -116,14 +113,12 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, merkle);
         self = self.with_poseidon();
 
-        let advice_pool = self.advice_pool_with_capacity(ARITY + 1).clone();
-
+        let advice_pool = self.advice_pool_with_capacity(ARITY + 1);
         let needle = advice_pool.get(ARITY);
         let advice_path = advice_pool.get_array::<ARITY>();
 
         self.merkle = Some(MerkleChip {
             membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
-            advice_pool,
             public_inputs,
             poseidon: self.poseidon_chip(),
         });
@@ -139,12 +134,9 @@ impl<'cs> ConfigsBuilder<'cs> {
         self = self.with_sum();
 
         let system = &mut self.system;
-        self.advice_pool.ensure_capacity(system, 1);
-        let advice_pool = self.advice_pool.clone();
-
         self.range_check = Some(RangeCheckChip::new(
             system,
-            advice_pool.clone(),
+            &mut self.advice_pool,
             self.sum.clone().unwrap(),
         ));
         self
@@ -156,12 +148,8 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_sum(mut self) -> Self {
         check_if_cached!(self, sum);
-
-        let advice_pool = self.advice_pool_with_capacity(3).clone();
-        self.sum = Some(SumChip {
-            gate: SumGate::create_gate(self.system, advice_pool.get_array()),
-            advice: advice_pool.get_any(),
-        });
+        let advice = self.advice_pool_with_capacity(3).get_array();
+        self.sum = Some(SumChip::new(SumGate::create_gate(self.system, advice)));
         self
     }
 
@@ -172,29 +160,26 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn with_points_add_chip(mut self) -> Self {
         check_if_cached!(self, points_add);
 
-        let advice_pool = self.advice_pool_with_capacity(9).clone();
+        let advice_pool = self.advice_pool_with_capacity(9);
+
+        let p = [
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+        ];
+        let q = [
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+        ];
+        let s = [
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+        ];
+
         self.points_add = Some(PointsAddChip {
-            gate: PointsAddGate::create_gate(
-                self.system,
-                (
-                    [
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                    ],
-                    [
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                    ],
-                    [
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                    ],
-                ),
-            ),
-            advice_pool,
+            gate: PointsAddGate::create_gate(self.system, (p, q, s)),
         });
         self
     }
@@ -208,24 +193,21 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn with_point_double_chip(mut self) -> Self {
         check_if_cached!(self, points_add);
 
-        let advice_pool = self.advice_pool_with_capacity(6).clone();
+        let advice_pool = self.advice_pool_with_capacity(6);
+
+        let p = [
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+        ];
+        let s = [
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+            advice_pool.get_any(),
+        ];
+
         self.point_double = Some(PointDoubleChip {
-            gate: PointDoubleGate::create_gate(
-                self.system,
-                (
-                    [
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                    ],
-                    [
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                        advice_pool.get_any(),
-                    ],
-                ),
-            ),
-            advice_pool,
+            gate: PointDoubleGate::create_gate(self.system, (p, s)),
         });
         self
     }
@@ -236,12 +218,12 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("PointDoubleChip not configured")
     }
 
-    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice> {
+    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {
         self.advice_pool.ensure_capacity(self.system, capacity);
         &self.advice_pool
     }
 
-    fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed> {
+    fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed, ConfigPhase> {
         self.fixed_pool.ensure_capacity(self.system, capacity);
         &self.fixed_pool
     }

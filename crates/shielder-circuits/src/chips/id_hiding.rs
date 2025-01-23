@@ -1,7 +1,11 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::{
+    circuit::Layouter,
+    plonk::{Advice, Error},
+};
 
 use crate::{
     chips::range_check::RangeCheckChip,
+    column_pool::{ColumnPool, SynthesisPhase},
     consts::NONCE_RANGE_PROOF_NUM_WORDS,
     poseidon::circuit::{hash, PoseidonChip},
     AssignedCell, F,
@@ -27,6 +31,7 @@ impl IdHidingChip {
     pub fn id_hiding(
         &self,
         layouter: &mut impl Layouter<F>,
+        column_pool: &ColumnPool<Advice, SynthesisPhase>,
         id: AssignedCell,
         nonce: AssignedCell,
     ) -> Result<AssignedCell, Error> {
@@ -34,6 +39,7 @@ impl IdHidingChip {
         self.range_check
             .constrain_value::<NONCE_RANGE_PROOF_NUM_WORDS>(
                 &mut layouter.namespace(|| "Range Check for nonce"),
+                column_pool,
                 nonce.clone(),
             )?;
 

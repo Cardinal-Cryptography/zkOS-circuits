@@ -45,7 +45,7 @@ pub fn embeddable(attr: TokenStream2, item: TokenStream2) -> SynResult<TokenStre
             fn embed(
                 &self,
                 layouter: &mut impl halo2_proofs::circuit::Layouter< #field_type >,
-                advice_pool: &crate::column_pool::ColumnPool<halo2_proofs::plonk::Advice>,
+                advice_pool: &crate::column_pool::ColumnPool<halo2_proofs::plonk::Advice, crate::column_pool::SynthesisPhase>,
                 annotation: impl Into<alloc::string::String>,
             ) -> Result<Self::Embedded, halo2_proofs::plonk::Error> {
                 let mut layouter = layouter.namespace(|| annotation);

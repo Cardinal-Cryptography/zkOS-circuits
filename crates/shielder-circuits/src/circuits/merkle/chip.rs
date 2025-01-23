@@ -1,13 +1,9 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::{circuit::Layouter, plonk::Error};
 use strum::IntoEnumIterator;
 use MerkleInstance::MerkleRoot;
 
 use crate::{
     circuits::merkle::knowledge::MerkleProverKnowledge,
-    column_pool::ColumnPool,
     consts::merkle_constants::ARITY,
     gates::{
         membership::{MembershipGate, MembershipGateInput},
@@ -22,7 +18,6 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct MerkleChip {
-    pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<MerkleInstance>,
     pub membership_gate: MembershipGate<ARITY>,
     pub poseidon: PoseidonChip,
