@@ -1,12 +1,46 @@
 use core::ops::{Add, Mul, Sub};
 
+use halo2_proofs::halo2curves::{bn256::Fr, grumpkin::G1};
+
+#[derive(Debug, PartialEq)]
+pub struct GrumpkinPoint<T> {
+    pub x: T,
+    pub y: T,
+    pub z: T,
+}
+
+impl<T> GrumpkinPoint<T> {
+    pub fn new(x: T, y: T, z: T) -> Self {
+        Self { x, y, z }
+    }
+}
+
+impl From<G1> for GrumpkinPoint<Fr> {
+    fn from(p: G1) -> Self {
+        GrumpkinPoint {
+            x: p.x,
+            y: p.y,
+            z: p.z,
+        }
+    }
+}
+
 /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
-pub fn points_add<T>(p: [T; 3], q: [T; 3], b3: T) -> [T; 3]
+pub fn points_add<T>(p: GrumpkinPoint<T>, q: GrumpkinPoint<T>, b3: T) -> GrumpkinPoint<T>
 where
     T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone,
 {
-    let [x1, y1, z1] = p;
-    let [x2, y2, z2] = q;
+    let GrumpkinPoint {
+        x: x1,
+        y: y1,
+        z: z1,
+    } = p;
+
+    let GrumpkinPoint {
+        x: x2,
+        y: y2,
+        z: z2,
+    } = q;
 
     let t0 = x1.clone() * x2.clone();
     let t1 = y1.clone() * y2.clone();
@@ -42,15 +76,15 @@ where
     let z3 = z3 * t4;
     let z3 = z3 + t0;
 
-    [x3, y3, z3]
+    GrumpkinPoint::new(x3, y3, z3)
 }
 
 /// Algorithm 9, https://eprint.iacr.org/2015/1060.pdf
-pub fn point_double<T>(p: [T; 3], b3: T) -> [T; 3]
+pub fn point_double<T>(p: GrumpkinPoint<T>, b3: T) -> GrumpkinPoint<T>
 where
     T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone,
 {
-    let [x, y, z] = p;
+    let GrumpkinPoint { x, y, z } = p;
 
     let t0 = y.clone() * y.clone();
     let z3 = t0.clone() + t0.clone();
@@ -71,18 +105,18 @@ where
     let x3 = t0 * t1;
     let x3 = x3.clone() + x3;
 
-    [x3, y3, z3]
+    GrumpkinPoint::new(x3, y3, z3)
 }
 
 #[cfg(test)]
 mod tests {
     use halo2_proofs::{
         arithmetic::CurveExt,
-        halo2curves::{group::Group, grumpkin::G1},
+        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
     };
 
     use crate::{
-        curve_operations::{point_double, points_add},
+        curve_operations::{point_double, points_add, GrumpkinPoint},
         rng,
     };
 
@@ -92,13 +126,10 @@ mod tests {
 
         let p = G1::random(rng.clone());
         let q = G1::random(rng.clone());
-        let expected = p + q;
+        let expected: GrumpkinPoint<Fr> = (p + q).into();
 
         let b3 = G1::b() + G1::b() + G1::b();
-        assert_eq!(
-            [expected.x, expected.y, expected.z],
-            points_add([p.x, p.y, p.z], [q.x, q.y, q.z], b3)
-        );
+        assert_eq!(expected, points_add(p.into(), q.into(), b3));
     }
 
     #[test]
@@ -106,12 +137,9 @@ mod tests {
         let rng = rng();
 
         let p = G1::random(rng.clone());
-        let expected = p + p;
+        let expected: GrumpkinPoint<Fr> = (p + p).into();
 
         let b3 = G1::b() + G1::b() + G1::b();
-        assert_eq!(
-            [expected.x, expected.y, expected.z],
-            point_double([p.x, p.y, p.z], b3)
-        );
+        assert_eq!(expected, point_double(p.into(), b3));
     }
 }

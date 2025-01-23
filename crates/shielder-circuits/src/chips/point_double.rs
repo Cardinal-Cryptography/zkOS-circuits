@@ -7,7 +7,7 @@ use halo2_proofs::{
 use crate::{
     column_pool::{ColumnPool, SynthesisPhase},
     consts::GRUMPKIN_3B,
-    curve_operations,
+    curve_operations::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
         point_double::{PointDoubleGate, PointDoubleGateInput},
@@ -46,16 +46,16 @@ impl PointDoubleChip {
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         input: &PointDoubleChipInput<AssignedCell>,
     ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
-        let s_value = curve_operations::point_double(
-            [
+        let GrumpkinPoint { x, y, z } = curve_operations::point_double(
+            GrumpkinPoint::new(
                 input.p[0].value().copied(),
                 input.p[1].value().copied(),
                 input.p[2].value().copied(),
-            ],
+            ),
             Value::known(*GRUMPKIN_3B),
         );
 
-        let s = s_value.embed(layouter, column_pool, "S")?;
+        let s = [x, y, z].embed(layouter, column_pool, "S")?;
 
         let gate_input = PointDoubleGateInput {
             p: input.p.clone(),

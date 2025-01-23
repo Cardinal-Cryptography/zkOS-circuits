@@ -1,9 +1,8 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::CurveExt,
     circuit::Layouter,
-    halo2curves::{bn256::Fr, grumpkin::G1},
+    halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
@@ -18,7 +17,7 @@ use {
 
 use crate::{
     consts::GRUMPKIN_3B,
-    curve_operations,
+    curve_operations::{self, GrumpkinPoint},
     gates::{ensure_unique_columns, Gate},
     AssignedCell,
 };
@@ -81,9 +80,13 @@ impl Gate for PointsAddGate {
             let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET));
             let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET));
 
-            let [res_x3, res_y3, res_z3] = curve_operations::points_add(
-                [x1, y1, z1],
-                [x2, y2, z2],
+            let GrumpkinPoint {
+                x: res_x3,
+                y: res_y3,
+                z: res_z3,
+            } = curve_operations::points_add(
+                GrumpkinPoint::new(x1, y1, z1),
+                GrumpkinPoint::new(x2, y2, z2),
                 Expression::Constant(*GRUMPKIN_3B),
             );
 
