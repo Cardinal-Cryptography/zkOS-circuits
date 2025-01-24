@@ -74,9 +74,8 @@ pub mod off_circuit {
         let items = &shortlist.items[..];
 
         for chunk in items.chunks(CHUNK_SIZE).rev() {
-            let size = input.len() - 1;
-            input[size] = last;
-            input[0..size].copy_from_slice(chunk);
+            input[CHUNK_SIZE] = last;
+            input[0..CHUNK_SIZE].copy_from_slice(chunk);
             last = hash(&input);
         }
 
@@ -108,9 +107,8 @@ impl<const N: usize> ShortlistHashChip<N> {
 
         for chunk in items.chunks(CHUNK_SIZE).rev() {
             let mut input: [AssignedCell; CHUNK_SIZE + 1] = array::from_fn(|_| zero_cell.clone());
-            let size = input.len() - 1;
-            input[size] = last;
-            input[0..size].clone_from_slice(chunk);
+            input[CHUNK_SIZE] = last;
+            input[0..CHUNK_SIZE].clone_from_slice(chunk);
             last = hash(synthesizer, self.poseidon.clone(), input)?;
         }
 
