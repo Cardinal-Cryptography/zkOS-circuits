@@ -7,7 +7,7 @@ use halo2_proofs::{
 use macros::embeddable;
 
 #[cfg(test)]
-use crate::column_pool::{ColumnPool, ConfigPhase};
+use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{
     consts::POSEIDON_RATE,
     embed::Embed,
@@ -36,8 +36,8 @@ pub struct SkipHashGate {
     advice: SkipHashGateInput<Column<Advice>>,
 }
 
-const SELECTOR_OFFSET: i32 = 0;
-const ADVICE_OFFSET: i32 = 0;
+const SELECTOR_OFFSET: usize = 0;
+const ADVICE_OFFSET: usize = 0;
 const GATE_NAME: &str = "SkipHash gate";
 
 impl Gate for SkipHashGate {
@@ -58,14 +58,14 @@ impl Gate for SkipHashGate {
         cs.create_gate(GATE_NAME, |vc| {
             let sum = advice
                 .input
-                .map(|col| vc.query_advice(col, Rotation(ADVICE_OFFSET)))
+                .map(|col| vc.query_advice(col, Rotation(ADVICE_OFFSET as i32)))
                 .into_iter()
                 .reduce(|a, b| a + b)
                 .expect("At least one input column is expected");
 
-            let sum_inverse = vc.query_advice(advice.sum_inverse, Rotation(ADVICE_OFFSET));
-            let hash = vc.query_advice(advice.hash, Rotation(ADVICE_OFFSET));
-            let result = vc.query_advice(advice.result, Rotation(ADVICE_OFFSET));
+            let sum_inverse = vc.query_advice(advice.sum_inverse, Rotation(ADVICE_OFFSET as i32));
+            let hash = vc.query_advice(advice.hash, Rotation(ADVICE_OFFSET as i32));
+            let result = vc.query_advice(advice.result, Rotation(ADVICE_OFFSET as i32));
 
             Constraints::with_selector(
                 vc.query_selector(selector),
@@ -84,7 +84,33 @@ impl Gate for SkipHashGate {
         synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        todo!()
+        synthesizer.assign_region(
+            || GATE_NAME,
+            |mut region| {
+                self.selector.enable(&mut region, SELECTOR_OFFSET)?;
+
+                for (i, column) in input.input.iter().enumerate() {
+                    column.copy_advice(
+                        || alloc::format!("input_{i}"),
+                        &mut region,
+                        self.advice.input[i],
+                        ADVICE_OFFSET,
+                    )?;
+                }
+
+                let rest = [
+                    (&input.sum_inverse, "sum inverse", self.advice.sum_inverse),
+                    (&input.hash, "hash", self.advice.hash),
+                    (&input.result, "result", self.advice.result),
+                ];
+
+                for (cell, name, advice) in rest.into_iter() {
+                    cell.copy_advice(|| name, &mut region, advice, ADVICE_OFFSET)?;
+                }
+
+                Ok(())
+            },
+        )
     }
 
     #[cfg(test)]
@@ -92,6 +118,12 @@ impl Gate for SkipHashGate {
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
-        todo!()
+        pool.ensure_capacity(cs, INPUT_WIDTH + 3);
+        SkipHashGateInput {
+            input: pool.get_column_array(),
+            sum_inverse: pool.get_column(INPUT_WIDTH),
+            hash: pool.get_column(INPUT_WIDTH + 1),
+            result: pool.get_column(INPUT_WIDTH + 2),
+        }
     }
 }
