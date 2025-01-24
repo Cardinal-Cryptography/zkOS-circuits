@@ -68,7 +68,6 @@ pub mod off_circuit {
     use super::{Shortlist, CHUNK_SIZE};
     use crate::{poseidon::off_circuit::hash, Fr};
 
-    #[allow(dead_code)]
     pub fn shortlist_hash<const N: usize>(shortlist: &Shortlist<Fr, N>) -> Fr {
         let mut last = Fr::zero();
         let mut input = [Fr::zero(); CHUNK_SIZE + 1];
