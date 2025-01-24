@@ -1,19 +1,9 @@
 use core::array;
 
-use gates::{IndexGate, IndexGateInput, NUM_INDEX_GATE_COLUMNS};
-use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
-use gates::{IndexGate, IndexGateInput, NUM_INDEX_GATE_COLUMNS};
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, ConstraintSystem, Error},
-};
 use gates::{
     IndexGate, IndexGateInput, IndicatorSumGate, IndicatorSumGateInput, NUM_INDEX_GATE_COLUMNS,
 };
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, ConstraintSystem, Error},
-};
+use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
@@ -65,10 +55,9 @@ pub enum TokenIndexConstraints {
     TokenIndexInstanceIsConstrainedToAdvice,
 }
 
-// TODO: Constrain indicators to the set {0,1}.
-// TODO: Constrain that exactly one indicator has value 1.
-// A chip that manages the token index indicator variables and related constraints.
-// Assumes that the indicator variables are binary and their sum is exactly 1.
+// A chip that manages the token index indicator variables:
+//  - `constrain_indicators` enforces that the indicators are binary and sum to 1,
+//  - `constrain_index` enforces that the token index public input matches the enabled indicator.
 #[derive(Clone, Debug)]
 pub struct TokenIndexChip {
     is_binary_gate: IsBinaryGate,
@@ -84,10 +73,10 @@ impl TokenIndexChip {
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
         advice_pool.ensure_capacity(system, 1);
-        let is_binary_gate_advice = advice_pool.get_any();
+        let is_binary_gate_advice = advice_pool.get_any_column();
 
         advice_pool.ensure_capacity(system, NUM_TOKENS);
-        let indicator_sum_gate_advices = advice_pool.get_array::<NUM_TOKENS>();
+        let indicator_sum_gate_advices = advice_pool.get_column_array::<NUM_TOKENS>();
 
         advice_pool.ensure_capacity(system, NUM_INDEX_GATE_COLUMNS);
         let index_gate_advices = advice_pool.get_column_array::<NUM_INDEX_GATE_COLUMNS>();
@@ -104,17 +93,17 @@ impl TokenIndexChip {
         Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator,
     >(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {
         for indicator in indicators.iter() {
             self.is_binary_gate
-                .apply_in_new_region(layouter, indicator.clone())?;
+                .apply_in_new_region(synthesizer, indicator.clone())?;
         }
 
         self.indicator_sum_gate.apply_in_new_region(
-            layouter,
+            synthesizer,
             IndicatorSumGateInput {
                 variables: indicators.clone(),
             },
@@ -248,8 +237,6 @@ mod tests {
         embed::Embed,
         instance_wrapper::InstanceWrapper,
         synthesizer::create_synthesizer,
-        test_utils::expect_instance_permutation_failures,
-        test_utils::expect_instance_permutation_failures,
         test_utils::{expect_gate_failure, expect_instance_permutation_failures},
         todo::Todo,
         Fr, Value,
