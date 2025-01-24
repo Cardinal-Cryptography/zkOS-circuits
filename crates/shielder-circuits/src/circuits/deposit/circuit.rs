@@ -225,11 +225,14 @@ mod tests {
 
     #[test]
     fn fails_if_token_indicators_incorrect() {
-        // This test ensures that all constraints are satisfied except the `IsBinary` gate.
-        let mut rng = SmallRng::from_seed([42; 32]);
+        // In this test, we ensure that all constraints are satisfied
+        // except for some applications of the `IsBinary` gate.
 
+        let mut rng = SmallRng::from_seed([42; 32]);
         let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
         assert_eq!(Fr::ZERO, pk.compute_public_input(TokenIndex));
+
+        // The sum is 1. The token index, as computed from the indicators, is 0.
         pk.token_indicators = [
             Fr::from(1),
             Fr::from(1).neg(),
@@ -245,7 +248,7 @@ mod tests {
         )
         .expect_err("Verification must fail");
 
-        assert_eq!(3, failures.len());
+        assert_eq!(3, failures.len()); // Exactly 3 indicators are nonbinary.
         for failure in failures {
             expect_gate_failure(&failure, "IsBinary gate");
         }

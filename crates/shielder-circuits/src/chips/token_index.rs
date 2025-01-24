@@ -334,8 +334,7 @@ mod tests {
             expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
                 .expect_err("Verification must fail");
 
-        assert_eq!(failures.len(), 2); // 2 indicators are incorrect.
-
+        assert_eq!(failures.len(), 2); // 2 indicators are nonbinary.
         for failure in failures {
             expect_gate_failure(&failure, "IsBinary gate");
         }
