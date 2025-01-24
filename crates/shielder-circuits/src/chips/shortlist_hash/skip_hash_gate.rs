@@ -127,3 +127,33 @@ impl Gate for SkipHashGate {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::plonk::ConstraintSystem;
+
+    use crate::{
+        chips::shortlist_hash::skip_hash_gate::SkipHashGate,
+        column_pool::{AccessColumn, ColumnPool},
+        gates::Gate,
+        Fr,
+    };
+
+    #[test]
+    fn gate_creation_with_proper_columns_passes() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let advice = SkipHashGate::organize_advice_columns(&mut ColumnPool::new(), &mut cs);
+        SkipHashGate::create_gate(&mut cs, advice);
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn gate_creation_with_not_distinct_columns_fails() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let mut pool = ColumnPool::new();
+        let advice = SkipHashGate::organize_advice_columns(&mut pool, &mut cs);
+        let mut advice = advice;
+        advice.result = pool.get_column(0);
+        SkipHashGate::create_gate(&mut cs, advice);
+    }
+}
