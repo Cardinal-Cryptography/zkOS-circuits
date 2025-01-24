@@ -35,6 +35,7 @@ impl<const N: usize> ShortlistHashChip<N> {
             let mut input: [AssignedCell; CHUNK_SIZE + 1] = array::from_fn(|_| zero_cell.clone());
             input[CHUNK_SIZE] = last;
             input[0..CHUNK_SIZE].clone_from_slice(chunk);
+            // TODO: APPLY GATE
             last = hash(synthesizer, self.poseidon.clone(), input)?;
         }
 
