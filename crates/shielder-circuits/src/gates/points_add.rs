@@ -1,7 +1,7 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
+    circuit::{Layouter, Region},
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
@@ -43,9 +43,9 @@ pub struct PointsAddGate {
     )
 )]
 pub struct PointsAddGateInput<T> {
-    pub p: [T; 3], // x1,y1,z1
-    pub q: [T; 3], // x2,y2,z2
-    pub s: [T; 3], // x3,y3,z3
+    pub p: GrumpkinPoint<T>, // x1,y1,z1
+    pub q: GrumpkinPoint<T>, // x2,y2,z2
+    pub s: GrumpkinPoint<T>, // x3,y3,z3
 }
 
 const SELECTOR_OFFSET: usize = 0;
@@ -105,33 +105,10 @@ impl Gate for PointsAddGate {
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
-
-                for (i, cell) in input.p.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("P[{i}]"),
-                        &mut region,
-                        self.p[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
-
-                for (i, cell) in input.q.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("Q[{i}]"),
-                        &mut region,
-                        self.q[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
-
-                for (i, cell) in input.s.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("S[{i}]"),
-                        &mut region,
-                        self.s[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
+                
+                copy_grumpkin_advices(&input.p, "P", &mut region, self.p, ADVICE_OFFSET as usize)?;
+                copy_grumpkin_advices(&input.q, "Q", &mut region, self.q, ADVICE_OFFSET as usize)?;
+                copy_grumpkin_advices(&input.s, "S", &mut region, self.s, ADVICE_OFFSET as usize)?;
 
                 Ok(())
             },
@@ -151,6 +128,34 @@ impl Gate for PointsAddGate {
             [pool.get(6), pool.get(7), pool.get(8)],
         )
     }
+}
+
+fn copy_grumpkin_advices(
+    cell: &GrumpkinPoint<AssignedCell>,
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    column: [Column<Advice>; 3],
+    advice_offset: usize,
+) -> Result<(), Error> {
+    cell.x.copy_advice(
+        || alloc::format!("{}[x]", annotation),
+        region,
+        column[0],
+        advice_offset,
+    )?;
+    cell.y.copy_advice(
+        || alloc::format!("{}[y]", annotation),
+        region,
+        column[1],
+        advice_offset,
+    )?;
+    cell.z.copy_advice(
+        || alloc::format!("{}[z]", annotation),
+        region,
+        column[2],
+        advice_offset,
+    )?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -174,9 +179,9 @@ mod tests {
 
     fn input(p: G1, q: G1, s: G1) -> PointsAddGateInput<Fr> {
         PointsAddGateInput {
-            p: [p.x, p.y, p.z],
-            q: [q.x, q.y, q.z],
-            s: [s.x, s.y, s.z],
+            p: p.into(),
+            q: q.into(),
+            s: s.into(),
         }
     }
 

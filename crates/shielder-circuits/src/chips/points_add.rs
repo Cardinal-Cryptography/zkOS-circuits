@@ -18,14 +18,16 @@ use crate::{
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct PointsAddChipInput<T> {
-    pub p: [T; 3],
-    pub q: [T; 3],
+    pub p: GrumpkinPoint<T>,
+    pub q: GrumpkinPoint<T>,
+    // pub p: [T; 3],
+    // pub q: [T; 3],
 }
 
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct PointsAddChipOutput<T> {
-    pub s: [T; 3],
+    pub s: GrumpkinPoint<T>,
 }
 
 /// Chip that adds two points on a Grumpkin curve.
@@ -47,21 +49,13 @@ impl PointsAddChip {
         column_pool: &ColumnPool<Advice, SynthesisPhase>,
         input: &PointsAddChipInput<AssignedCell>,
     ) -> Result<PointsAddChipOutput<AssignedCell>, Error> {
-        let GrumpkinPoint { x, y, z } = curve_operations::points_add(
-            GrumpkinPoint::new(
-                input.p[0].value().copied(),
-                input.p[1].value().copied(),
-                input.p[2].value().copied(),
-            ),
-            GrumpkinPoint::new(
-                input.q[0].value().copied(),
-                input.q[1].value().copied(),
-                input.q[2].value().copied(),
-            ),
+        let s_value = curve_operations::points_add(
+            input.p.clone().into(),
+            input.q.clone().into(),
             Value::known(*GRUMPKIN_3B),
         );
 
-        let s = [x, y, z].embed(layouter, column_pool, "S")?;
+        let s = s_value.embed(layouter, column_pool, "S")?;
 
         let gate_input = PointsAddGateInput {
             p: input.p.clone(),
@@ -137,9 +131,9 @@ mod tests {
             let PointsAddChipOutput { s } =
                 chip.point_add(&mut layouter, &column_pool, &PointsAddChipInput { p, q })?;
 
-            layouter.constrain_instance(s[0].cell(), instance, 0)?;
-            layouter.constrain_instance(s[1].cell(), instance, 1)?;
-            layouter.constrain_instance(s[2].cell(), instance, 2)?;
+            layouter.constrain_instance(s.x.cell(), instance, 0)?;
+            layouter.constrain_instance(s.y.cell(), instance, 1)?;
+            layouter.constrain_instance(s.z.cell(), instance, 2)?;
 
             Ok(())
         }
@@ -147,8 +141,8 @@ mod tests {
 
     fn input(p: G1, q: G1) -> PointsAddChipInput<Fr> {
         PointsAddChipInput {
-            p: [p.x, p.y, p.z],
-            q: [q.x, q.y, q.z],
+            p: p.into(),
+            q: q.into(),
         }
     }
 
@@ -160,7 +154,7 @@ mod tests {
         MockProver::run(
             4,
             &circuit,
-            vec![vec![expected.s[0], expected.s[1], expected.s[2]]],
+            vec![vec![expected.s.x, expected.s.y, expected.s.z]],
         )
         .expect("Mock prover should run")
         .verify()
@@ -182,7 +176,7 @@ mod tests {
 
         let input = input(p, q);
         let output = PointsAddChipOutput {
-            s: [expected.x, expected.y, expected.z],
+            s: expected.into(),
         };
 
         assert!(verify(input, output).is_ok());
@@ -198,7 +192,7 @@ mod tests {
 
         let input = input(p, q);
         let output = PointsAddChipOutput {
-            s: [expected.x, expected.y, expected.z],
+            s: expected.into(),
         };
 
         assert!(verify(input, output).is_ok());
@@ -213,7 +207,7 @@ mod tests {
         let s = G1::random(rng.clone());
 
         let input = input(p, q);
-        let output = PointsAddChipOutput { s: [s.x, s.y, s.z] };
+        let output = PointsAddChipOutput { s: s.into() };
 
         assert!(verify(input, output).is_err());
     }

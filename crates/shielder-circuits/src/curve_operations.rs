@@ -1,8 +1,10 @@
 use core::ops::{Add, Mul, Sub};
 
-use halo2_proofs::halo2curves::{bn256::Fr, grumpkin::G1};
+use halo2_proofs::{circuit::Value, halo2curves::{bn256::Fr, grumpkin::G1}};
 
-#[derive(Debug, PartialEq)]
+use crate::AssignedCell;
+
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub struct GrumpkinPoint<T> {
     pub x: T,
     pub y: T,
@@ -21,6 +23,16 @@ impl From<G1> for GrumpkinPoint<Fr> {
             x: p.x,
             y: p.y,
             z: p.z,
+        }
+    }
+}
+
+impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value<Fr>> {
+    fn from(p: GrumpkinPoint<AssignedCell>) -> Self {
+        GrumpkinPoint {
+            x: p.x.value().copied(),
+            y: p.y.value().copied(),
+            z: p.z.value().copied(),
         }
     }
 }

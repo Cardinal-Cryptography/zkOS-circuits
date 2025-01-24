@@ -6,8 +6,7 @@ use halo2_proofs::{
 };
 
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
-    AssignedCell, Fr, Value,
+    column_pool::{ColumnPool, SynthesisPhase}, curve_operations::GrumpkinPoint, AssignedCell, Fr, Value
 };
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
@@ -102,5 +101,23 @@ impl<E: Embed> Embed for Vec<E> {
             embedded.push(item.embed(layouter, advice_pool, format!("{}[{}]", annotation, i))?);
         }
         Ok(embedded)
+    }
+}
+
+impl <E: Embed> Embed for GrumpkinPoint<E> where E::Embedded: Clone {
+    type Embedded = GrumpkinPoint<E::Embedded>;
+
+    fn embed(
+        &self,
+        _layouter: &mut impl Layouter<Fr>,
+        _advice_pool: &ColumnPool<Advice, SynthesisPhase>,
+        _annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, Error> {
+        let embedded_arr = [&self.x, &self.y, &self.z].embed(_layouter, _advice_pool, _annotation)?;
+        Ok(GrumpkinPoint {
+            x: embedded_arr[0].clone(),
+            y: embedded_arr[1].clone(),
+            z: embedded_arr[2].clone(),
+        })
     }
 }
