@@ -1,11 +1,13 @@
 use core::array;
 
+pub use chip::ShortlistHashChip;
 use halo2_proofs::plonk::Error;
 
 use crate::{consts::POSEIDON_RATE, embed::Embed, synthesizer::Synthesizer, AssignedCell, Value};
 
-pub mod chip;
+mod chip;
 pub mod off_circuit;
+mod skip_hash_gate;
 
 const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 

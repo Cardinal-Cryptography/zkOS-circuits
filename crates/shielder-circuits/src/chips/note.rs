@@ -4,7 +4,7 @@ use halo2_proofs::{arithmetic::Field, plonk::Error};
 
 use super::shortlist_hash::Shortlist;
 use crate::{
-    chips::shortlist_hash::chip::ShortlistHashChip,
+    chips::shortlist_hash::ShortlistHashChip,
     consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
