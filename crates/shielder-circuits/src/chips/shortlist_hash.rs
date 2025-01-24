@@ -139,6 +139,80 @@ mod off_circuit_tests {
 
         assert_eq!(expected_hash, shortlist_hash(&input));
     }
+
+    #[test]
+    fn empty_first_chunk_is_hashed() {
+        let input: Shortlist<Fr, 6> = Shortlist::default();
+        let expected_hash = hash(&[Fr::zero(); 7]);
+        assert_eq!(expected_hash, shortlist_hash(&input));
+    }
+
+    fn empty_tail_is_skipped<const N: usize>() {
+        let input: Shortlist<Fr, N> = Shortlist::new(array::from_fn(|i| {
+            if i >= 6 {
+                Fr::zero()
+            } else {
+                (i as u64).into()
+            }
+        }));
+        let expected_hash = hash(&[
+            Fr::from(0),
+            Fr::from(1),
+            Fr::from(2),
+            Fr::from(3),
+            Fr::from(4),
+            Fr::from(5),
+            Fr::zero(),
+        ]);
+        assert_eq!(expected_hash, shortlist_hash(&input));
+    }
+
+    #[test]
+    fn empty_tails_are_skipped() {
+        empty_tail_is_skipped::<6>();
+        empty_tail_is_skipped::<12>();
+        empty_tail_is_skipped::<18>();
+    }
+
+    #[test]
+    fn empty_middle_chunk_is_not_skipped() {
+        let input: Shortlist<Fr, 18> = Shortlist::new(array::from_fn(|i| {
+            if i >= 6 && i < 12 {
+                Fr::zero()
+            } else {
+                (i as u64).into()
+            }
+        }));
+        let hash_chunk_3 = hash(&[
+            Fr::from(12),
+            Fr::from(13),
+            Fr::from(14),
+            Fr::from(15),
+            Fr::from(16),
+            Fr::from(17),
+            Fr::from(0),
+        ]);
+        let hash_chunk_2 = hash(&[
+            Fr::from(0),
+            Fr::from(0),
+            Fr::from(0),
+            Fr::from(0),
+            Fr::from(0),
+            Fr::from(0),
+            Fr::from(hash_chunk_3),
+        ]);
+        let expected_hash = hash(&[
+            Fr::from(0),
+            Fr::from(1),
+            Fr::from(2),
+            Fr::from(3),
+            Fr::from(4),
+            Fr::from(5),
+            Fr::from(hash_chunk_2),
+        ]);
+
+        assert_eq!(expected_hash, shortlist_hash(&input));
+    }
 }
 
 /// Chip that is able to calculate the shortlist hash
