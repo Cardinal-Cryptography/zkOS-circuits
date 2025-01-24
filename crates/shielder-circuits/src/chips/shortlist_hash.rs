@@ -66,14 +66,18 @@ impl<T, const N: usize> Shortlist<T, N> {
 
 pub mod off_circuit {
     use super::{Shortlist, CHUNK_SIZE};
-    use crate::{poseidon::off_circuit::hash, Fr};
+    use crate::{poseidon::off_circuit::hash, Field, Fr};
 
     pub fn shortlist_hash<const N: usize>(shortlist: &Shortlist<Fr, N>) -> Fr {
         let mut last = Fr::zero();
         let mut input = [Fr::zero(); CHUNK_SIZE + 1];
         let items = &shortlist.items[..];
 
-        for chunk in items.chunks(CHUNK_SIZE).rev() {
+        for (i, chunk) in items.chunks(CHUNK_SIZE).enumerate().rev() {
+            // While the tail is all zeros, we skip hashing.
+            if i > 0 && chunk.iter().all(Fr::is_zero_vartime) && last.is_zero_vartime() {
+                continue;
+            }
             input[CHUNK_SIZE] = last;
             input[0..CHUNK_SIZE].copy_from_slice(chunk);
             last = hash(&input);
