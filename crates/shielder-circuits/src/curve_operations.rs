@@ -1,6 +1,9 @@
 use core::ops::{Add, Mul, Sub};
 
-use halo2_proofs::{circuit::Value, halo2curves::{bn256::Fr, grumpkin::G1}};
+use halo2_proofs::{
+    circuit::Value,
+    halo2curves::{bn256::Fr, grumpkin::G1},
+};
 
 use crate::AssignedCell;
 
