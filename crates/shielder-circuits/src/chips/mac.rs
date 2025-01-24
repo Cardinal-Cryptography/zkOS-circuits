@@ -1,8 +1,9 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use crate::{
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, Fr,
+    synthesizer::Synthesizer,
+    AssignedCell,
 };
 
 /// Input for MAC calculation.
@@ -51,11 +52,11 @@ impl MacChip {
     /// Calculate the MAC as `(r, H(r, key))`.
     pub fn mac(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: &MacInput<AssignedCell>,
     ) -> Result<Mac<AssignedCell>, Error> {
         let commitment = hash(
-            &mut layouter.namespace(|| "MAC"),
+            synthesizer,
             self.poseidon.clone(),
             [input.r.clone(), input.key.clone()],
         )?;
@@ -86,6 +87,7 @@ mod tests {
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         embed::Embed,
+        synthesizer::create_synthesizer,
         Fr,
     };
 
@@ -122,16 +124,17 @@ mod tests {
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
             let pool = pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed key and r.
-            let key = self.0.key.embed(&mut layouter, &pool, "key")?;
-            let r = self.0.r.embed(&mut layouter, &pool, "r")?;
+            let key = self.0.key.embed(&mut synthesizer, "key")?;
+            let r = self.0.r.embed(&mut synthesizer, "r")?;
 
             // 2. Calculate MAC.
-            let mac = mac_chip.mac(&mut layouter, &MacInput { key, r })?;
+            let mac = mac_chip.mac(&mut synthesizer, &MacInput { key, r })?;
 
             // 3. Compare MAC with public input.
-            layouter.constrain_instance(mac.r.cell(), instance, 0)?;
-            layouter.constrain_instance(mac.commitment.cell(), instance, 1)
+            synthesizer.constrain_instance(mac.r.cell(), instance, 0)?;
+            synthesizer.constrain_instance(mac.commitment.cell(), instance, 1)
         }
     }
 

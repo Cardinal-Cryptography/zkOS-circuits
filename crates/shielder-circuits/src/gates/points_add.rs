@@ -1,15 +1,15 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::{Layouter, Region},
-    halo2curves::bn256::Fr,
+    arithmetic::CurveExt,
+    halo2curves::{bn256::Fr, grumpkin::G1},
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
 use {
     crate::{
-        column_pool::{ColumnPool, ConfigPhase},
+        column_pool::{AccessColumn, ColumnPool, ConfigPhase},
         embed::Embed,
     },
     macros::embeddable,
@@ -19,6 +19,7 @@ use crate::{
     consts::GRUMPKIN_3B,
     curve_operations::{self, GrumpkinPoint},
     gates::{ensure_unique_columns, Gate},
+    synthesizer::Synthesizer,
     AssignedCell,
 };
 
@@ -98,14 +99,14 @@ impl Gate for PointsAddGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
-                
+
                 copy_grumpkin_advices(&input.p, "P", &mut region, self.p, ADVICE_OFFSET as usize)?;
                 copy_grumpkin_advices(&input.q, "Q", &mut region, self.q, ADVICE_OFFSET as usize)?;
                 copy_grumpkin_advices(&input.s, "S", &mut region, self.s, ADVICE_OFFSET as usize)?;
@@ -123,9 +124,9 @@ impl Gate for PointsAddGate {
         pool.ensure_capacity(cs, 9);
 
         (
-            [pool.get(0), pool.get(1), pool.get(2)],
-            [pool.get(3), pool.get(4), pool.get(5)],
-            [pool.get(6), pool.get(7), pool.get(8)],
+            [pool.get_column(0), pool.get_column(1), pool.get_column(2)],
+            [pool.get_column(3), pool.get_column(4), pool.get_column(5)],
+            [pool.get_column(6), pool.get_column(7), pool.get_column(8)],
         )
     }
 }

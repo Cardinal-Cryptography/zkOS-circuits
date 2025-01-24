@@ -16,6 +16,7 @@ mod gates;
 mod instance_wrapper;
 pub mod poseidon;
 mod range_table;
+mod synthesizer;
 mod todo;
 mod version;
 

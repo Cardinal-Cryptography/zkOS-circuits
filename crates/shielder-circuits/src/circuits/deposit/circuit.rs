@@ -4,13 +4,13 @@ use halo2_proofs::{
 };
 
 use crate::{
-    chips::token_index::TokenIndexChip,
     circuits::deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
     column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     deposit::{DepositConstraints, DepositInstance},
     embed::Embed,
     instance_wrapper::InstanceWrapper,
+    synthesizer::create_synthesizer,
     todo::Todo,
     Fr, Value,
 };
@@ -32,9 +32,8 @@ impl Circuit<Fr> for DepositCircuit {
         let configs_builder = ConfigsBuilder::new(meta)
             .with_balances_increase()
             .with_merkle(public_inputs.narrow())
-            .with_range_check();
-
-        let token_index = TokenIndexChip::new(public_inputs.narrow());
+            .with_range_check()
+            .with_token_index(public_inputs.narrow());
 
         (
             DepositChip {
@@ -43,7 +42,7 @@ impl Circuit<Fr> for DepositCircuit {
                 merkle: configs_builder.merkle_chip(),
                 range_check: configs_builder.range_check_chip(),
                 balances_increase: configs_builder.balances_increase_chip(),
-                token_index,
+                token_index: configs_builder.token_index_chip(),
             },
             configs_builder.finish(),
         )
@@ -54,17 +53,16 @@ impl Circuit<Fr> for DepositCircuit {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let column_pool = column_pool.start_synthesis();
+        let pool = column_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let mut todo = Todo::<DepositConstraints>::new();
-        let knowledge = self
-            .0
-            .embed(&mut layouter, &column_pool, "DepositProverKnowledge")?;
+        let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;
 
-        main_chip.check_old_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
-        main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut layouter, &column_pool, &knowledge, &mut todo)?;
-        main_chip.check_token_index(&mut layouter, &column_pool, &knowledge, &mut todo)?;
+        main_chip.check_old_note(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_new_note(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_token_index(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }

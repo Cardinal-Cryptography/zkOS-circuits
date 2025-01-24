@@ -13,6 +13,7 @@ use crate::{
         point_double::{PointDoubleGate, PointDoubleGateInput},
         Gate,
     },
+    synthesizer::Synthesizer,
     AssignedCell,
 };
 
@@ -42,8 +43,7 @@ impl PointDoubleChip {
 
     pub fn point_double(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         input: &PointDoubleChipInput<AssignedCell>,
     ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
         let GrumpkinPoint { x, y, z } = curve_operations::point_double(
@@ -55,14 +55,14 @@ impl PointDoubleChip {
             Value::known(*GRUMPKIN_3B),
         );
 
-        let s = [x, y, z].embed(layouter, column_pool, "S")?;
+        let s = [x, y, z].embed(synthesizer, "S")?;
 
         let gate_input = PointDoubleGateInput {
             p: input.p.clone(),
             s: s.clone(),
         };
 
-        self.gate.apply_in_new_region(layouter, gate_input)?;
+        self.gate.apply_in_new_region(synthesizer, gate_input)?;
 
         Ok(PointDoubleChipOutput { s })
     }
@@ -87,6 +87,7 @@ mod tests {
         config_builder::ConfigsBuilder,
         embed::Embed,
         rng,
+        synthesizer::create_synthesizer,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -124,14 +125,16 @@ mod tests {
             let PointDoubleChipInput { p } = self.0;
 
             let column_pool = column_pool.start_synthesis();
-            let p = p.embed(&mut layouter, &column_pool, "P")?;
+            let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
+
+            let p = p.embed(&mut synthesizer, "P")?;
 
             let PointDoubleChipOutput { s } =
-                chip.point_double(&mut layouter, &column_pool, &PointDoubleChipInput { p })?;
+                chip.point_double(&mut synthesizer, &PointDoubleChipInput { p })?;
 
-            layouter.constrain_instance(s[0].cell(), instance, 0)?;
-            layouter.constrain_instance(s[1].cell(), instance, 1)?;
-            layouter.constrain_instance(s[2].cell(), instance, 2)?;
+            synthesizer.constrain_instance(s[0].cell(), instance, 0)?;
+            synthesizer.constrain_instance(s[1].cell(), instance, 1)?;
+            synthesizer.constrain_instance(s[2].cell(), instance, 2)?;
 
             Ok(())
         }

@@ -1,17 +1,16 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
 
 #[cfg(test)]
-use crate::column_pool::{ColumnPool, ConfigPhase};
+use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{
     consts::RANGE_PROOF_CHUNK_SIZE, embed::Embed, gates::Gate, range_table::RangeTable,
-    AssignedCell, Fr,
+    synthesizer::Synthesizer, AssignedCell, Fr,
 };
 
 /// Represents inequality: `base - shifted * 2^RANGE_PROOF_CHUNK_SIZE < 2^RANGE_PROOF_CHUNK_SIZE`.
@@ -81,11 +80,11 @@ impl Gate for RangeCheckGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         RangeCheckGateInput { base, shifted }: Self::Input,
     ) -> Result<(), Error> {
-        self.table.ensure_initialized(layouter)?;
-        layouter.assign_region(
+        self.table.ensure_initialized(synthesizer)?;
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, 0)?;
@@ -102,7 +101,7 @@ impl Gate for RangeCheckGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);
-        pool.get_any()
+        pool.get_any_column()
     }
 }
 

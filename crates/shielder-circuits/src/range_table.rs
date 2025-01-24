@@ -1,12 +1,12 @@
 use alloc::format;
 
 use halo2_proofs::{
-    circuit::{Layouter, Table, Value},
+    circuit::{Table, Value},
     halo2curves::ff::PrimeField,
     plonk::{ConstraintSystem, Error, TableColumn, TableError},
 };
 
-use crate::Fr;
+use crate::{synthesizer::Synthesizer, Fr};
 
 /// Represents a set of field elements between `0` and `2^RANGE_LOG`. Can be used for lookups.
 #[derive(Clone, Debug)]
@@ -32,8 +32,8 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
     }
 
     /// Initializes the range table if it has not been initialized yet. Otherwise, does nothing.
-    pub fn ensure_initialized(&self, layouter: &mut impl Layouter<Fr>) -> Result<(), Error> {
-        layouter.assign_table(
+    pub fn ensure_initialized(&self, synthesizer: &mut impl Synthesizer) -> Result<(), Error> {
+        synthesizer.assign_table(
             || "Range table",
             |mut table| {
                 // Check if the table has already been initialized.

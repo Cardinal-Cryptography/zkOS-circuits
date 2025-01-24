@@ -36,11 +36,12 @@ pub mod off_circuit {
 }
 
 pub mod circuit {
-    use halo2_proofs::{circuit::Layouter, plonk::Error};
+    use halo2_proofs::plonk::Error;
 
     use crate::{
         consts::merkle_constants::{ARITY, WIDTH},
         poseidon::PoseidonCircuitHash,
+        synthesizer::Synthesizer,
         AssignedCell, Fr,
     };
 
@@ -49,11 +50,11 @@ pub mod circuit {
 
     /// Compute Poseidon hash of `input` (in-circuit).
     pub fn hash<const LENGTH: usize>(
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         poseidon_chip: PoseidonChip,
         input: [AssignedCell; LENGTH],
     ) -> Result<AssignedCell, Error> {
-        PoseidonCircuitHash::<LENGTH>::init(poseidon_chip, layouter.namespace(|| "Hash init"))?
-            .hash(layouter.namespace(|| "Poseidon hash"), input)
+        PoseidonCircuitHash::<LENGTH>::init(poseidon_chip, synthesizer.namespace(|| "Hash init"))?
+            .hash(synthesizer.namespace(|| "Poseidon hash"), input)
     }
 }

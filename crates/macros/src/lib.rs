@@ -13,8 +13,6 @@ mod embed;
 ///
 /// # Attributes
 ///
-/// - `field_type`: The type of the field that will be used in the `Embed` trait implementation.
-///    If not provided, literal `F` is used.
 /// - `receiver`: The type of the struct that will implement the `Embed` trait.
 /// - `impl_generics`: Generics that will be used in the `Embed` trait implementation.
 /// - `embedded`: The type that the struct will be embedded into.
@@ -42,15 +40,14 @@ mod embed;
 ///     type Embedded = IntermediateValues<crate::AssignedCell>;
 ///     fn embed(
 ///         &self,
-///         layouter: &mut impl halo2_proofs::circuit::Layouter<Fr>,
-///         advice_pool: &crate::column_pool::ColumnPool<halo2_proofs::plonk::Advice>,
+///         synthesizer: &mut impl crate::synthesizer::Synthesizer,
 ///         annotation: impl Into<alloc::string::String>,
 ///     ) -> Result<Self::Embedded, halo2_proofs::plonk::Error> {
 ///         let mut layouter = layouter.namespace(|| annotation);
 ///         Ok(IntermediateValues {
 ///             account_new_balance: self
 ///                 .account_new_balance
-///                 .embed(&mut layouter, advice_pool, "account_new_balance")?,
+///                 .embed(synthesizer, "account_new_balance")?,
 ///         })
 ///     }
 /// }

@@ -10,6 +10,7 @@ use crate::{
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     merkle::{chip::MerkleChip, MerkleConstraints, MerkleInstance},
+    synthesizer::create_synthesizer,
     todo::Todo,
     Fr, Value,
 };
@@ -36,13 +37,11 @@ impl<const TREE_HEIGHT: usize> Circuit<Fr> for MerkleCircuit<TREE_HEIGHT> {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
+        let pool = column_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let mut todo = Todo::<MerkleConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &column_pool.start_synthesis(),
-            "MerkleProverKnowledge",
-        )?;
-        main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
+        let knowledge = self.0.embed(&mut synthesizer, "MerkleProverKnowledge")?;
+        main_chip.synthesize(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }

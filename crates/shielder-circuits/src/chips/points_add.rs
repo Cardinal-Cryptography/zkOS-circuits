@@ -13,6 +13,7 @@ use crate::{
         points_add::{PointsAddGate, PointsAddGateInput},
         Gate,
     },
+    synthesizer::Synthesizer,
     AssignedCell,
 };
 
@@ -45,8 +46,7 @@ impl PointsAddChip {
 
     pub fn point_add(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         input: &PointsAddChipInput<AssignedCell>,
     ) -> Result<PointsAddChipOutput<AssignedCell>, Error> {
         let s_value = curve_operations::points_add(
@@ -55,7 +55,7 @@ impl PointsAddChip {
             Value::known(*GRUMPKIN_3B),
         );
 
-        let s = s_value.embed(layouter, column_pool, "S")?;
+        let s = s_value.embed(synthesizer, "S")?;
 
         let gate_input = PointsAddGateInput {
             p: input.p.clone(),
@@ -63,7 +63,7 @@ impl PointsAddChip {
             s: s.clone(),
         };
 
-        self.gate.apply_in_new_region(layouter, gate_input)?;
+        self.gate.apply_in_new_region(synthesizer, gate_input)?;
 
         Ok(PointsAddChipOutput { s })
     }
@@ -88,6 +88,7 @@ mod tests {
         config_builder::ConfigsBuilder,
         embed::Embed,
         rng,
+        synthesizer::create_synthesizer,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -125,15 +126,17 @@ mod tests {
             let PointsAddChipInput { p, q } = self.0;
 
             let column_pool = column_pool.start_synthesis();
-            let p = p.embed(&mut layouter, &column_pool, "P")?;
-            let q = q.embed(&mut layouter, &column_pool, "Q")?;
+            let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
+
+            let p = p.embed(&mut synthesizer, "P")?;
+            let q = q.embed(&mut synthesizer, "Q")?;
 
             let PointsAddChipOutput { s } =
-                chip.point_add(&mut layouter, &column_pool, &PointsAddChipInput { p, q })?;
+                chip.point_add(&mut synthesizer, &PointsAddChipInput { p, q })?;
 
-            layouter.constrain_instance(s.x.cell(), instance, 0)?;
-            layouter.constrain_instance(s.y.cell(), instance, 1)?;
-            layouter.constrain_instance(s.z.cell(), instance, 2)?;
+            synthesizer.constrain_instance(s.x.cell(), instance, 0)?;
+            synthesizer.constrain_instance(s.y.cell(), instance, 1)?;
+            synthesizer.constrain_instance(s.z.cell(), instance, 2)?;
 
             Ok(())
         }
@@ -175,9 +178,7 @@ mod tests {
         let expected = p + q;
 
         let input = input(p, q);
-        let output = PointsAddChipOutput {
-            s: expected.into(),
-        };
+        let output = PointsAddChipOutput { s: expected.into() };
 
         assert!(verify(input, output).is_ok());
     }
@@ -191,9 +192,7 @@ mod tests {
         let expected = p + q;
 
         let input = input(p, q);
-        let output = PointsAddChipOutput {
-            s: expected.into(),
-        };
+        let output = PointsAddChipOutput { s: expected.into() };
 
         assert!(verify(input, output).is_ok());
     }
