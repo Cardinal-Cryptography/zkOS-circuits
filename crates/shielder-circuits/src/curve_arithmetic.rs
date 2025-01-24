@@ -131,7 +131,7 @@ mod tests {
     };
 
     use crate::{
-        curve_operations::{point_double, points_add, GrumpkinPoint},
+        curve_arithmetic::{point_double, points_add, GrumpkinPoint},
         rng,
     };
 

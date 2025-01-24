@@ -16,7 +16,7 @@ use {
 
 use crate::{
     consts::GRUMPKIN_3B,
-    curve_operations::{self, GrumpkinPoint},
+    curve_arithmetic::{self, GrumpkinPoint},
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -77,7 +77,7 @@ impl Gate for PointDoubleGate {
                 x: res_x3,
                 y: res_y3,
                 z: res_z3,
-            } = curve_operations::point_double(
+            } = curve_arithmetic::point_double(
                 GrumpkinPoint::new(x, y, z),
                 Expression::Constant(*GRUMPKIN_3B),
             );

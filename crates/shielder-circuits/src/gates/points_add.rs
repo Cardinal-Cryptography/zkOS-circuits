@@ -17,7 +17,7 @@ use {
 
 use crate::{
     consts::GRUMPKIN_3B,
-    curve_operations::{self, GrumpkinPoint},
+    curve_arithmetic::{self, GrumpkinPoint},
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -85,7 +85,7 @@ impl Gate for PointsAddGate {
                 x: res_x3,
                 y: res_y3,
                 z: res_z3,
-            } = curve_operations::points_add(
+            } = curve_arithmetic::points_add(
                 GrumpkinPoint::new(x1, y1, z1),
                 GrumpkinPoint::new(x2, y2, z2),
                 Expression::Constant(*GRUMPKIN_3B),

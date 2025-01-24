@@ -2,7 +2,7 @@ use halo2_proofs::{circuit::Value, plonk::Error};
 
 use crate::{
     consts::GRUMPKIN_3B,
-    curve_operations::{self, GrumpkinPoint},
+    curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
         point_double::{PointDoubleGate, PointDoubleGateInput},
@@ -41,7 +41,7 @@ impl PointDoubleChip {
         synthesizer: &mut impl Synthesizer,
         input: &PointDoubleChipInput<AssignedCell>,
     ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
-        let GrumpkinPoint { x, y, z } = curve_operations::point_double(
+        let GrumpkinPoint { x, y, z } = curve_arithmetic::point_double(
             GrumpkinPoint::new(
                 input.p[0].value().copied(),
                 input.p[1].value().copied(),

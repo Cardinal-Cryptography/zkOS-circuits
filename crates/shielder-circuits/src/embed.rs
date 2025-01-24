@@ -2,7 +2,7 @@ use alloc::{format, string::String, vec, vec::Vec};
 
 use halo2_proofs::plonk::Error;
 
-use crate::{curve_operations::GrumpkinPoint, synthesizer::Synthesizer, AssignedCell, Fr, Value};
+use crate::{curve_arithmetic::GrumpkinPoint, synthesizer::Synthesizer, AssignedCell, Fr, Value};
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
 pub trait Embed {
