@@ -1,11 +1,6 @@
-use halo2_proofs::{
-    circuit::{Layouter, Value},
-    halo2curves::bn256::Fr,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::{circuit::Value, plonk::Error};
 
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
     consts::GRUMPKIN_3B,
     curve_operations::{self, GrumpkinPoint},
     embed::Embed,

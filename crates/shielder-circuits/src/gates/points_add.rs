@@ -1,8 +1,8 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::CurveExt,
-    halo2curves::{bn256::Fr, grumpkin::G1},
+    circuit::Region,
+    halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
