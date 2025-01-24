@@ -6,10 +6,11 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    column_pool::{ColumnPool, ConfigPhase, SynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::NUM_TOKENS,
     gates::Gate,
     instance_wrapper::InstanceWrapper,
+    synthesizer::Synthesizer,
     todo::Todo,
     AssignedCell, Fr, Value,
 };
@@ -85,7 +86,7 @@ impl TokenIndexChip {
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
         advice_pool.ensure_capacity(system, NUM_INDEX_GATE_COLUMNS);
-        let advices = advice_pool.get_array::<NUM_INDEX_GATE_COLUMNS>();
+        let advices = advice_pool.get_column_array::<NUM_INDEX_GATE_COLUMNS>();
 
         Self {
             index_gate: IndexGate::create_gate(system, advices),
@@ -102,27 +103,20 @@ impl TokenIndexChip {
     ) -> Result<(), Error> {
         let indicator_values = indicators.each_ref().map(|v| v.value().cloned());
         let index_value = off_circuit::index_from_indicator_values(&indicator_values);
-
-        self.constrain_index_impl(layouter, advice_pool, indicators, todo, index_value)
+        self.constrain_index_impl(synthesizer, indicators, todo, index_value)
     }
 
     fn constrain_index_impl<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
         index_value: Value,
     ) -> Result<(), Error> {
-        let index_cell = layouter.assign_region(
-            || "Token index",
-            |mut region| {
-                region.assign_advice(|| "Token index", advice_pool.get_any(), 0, || index_value)
-            },
-        )?;
+        let index_cell = synthesizer.assign_value("Token index", index_value)?;
 
         self.index_gate.apply_in_new_region(
-            layouter,
+            synthesizer,
             IndexGateInput {
                 variables: array::from_fn(|i| {
                     if i == NUM_TOKENS {
@@ -135,7 +129,7 @@ impl TokenIndexChip {
         )?;
 
         self.public_inputs
-            .constrain_cells(layouter, [(index_cell, TokenIndexInstance::TokenIndex)])?;
+            .constrain_cells(synthesizer, [(index_cell, TokenIndexInstance::TokenIndex)])?;
         todo.check_off(Constraints::from(
             TokenIndexConstraints::TokenIndexInstanceIsConstrainedToAdvice,
         ))
@@ -203,6 +197,7 @@ mod tests {
         consts::NUM_TOKENS,
         embed::Embed,
         instance_wrapper::InstanceWrapper,
+        synthesizer::create_synthesizer,
         test_utils::expect_instance_permutation_failures,
         todo::Todo,
         Fr, Value,
@@ -249,19 +244,12 @@ mod tests {
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
             let advice_pool = advice_pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &advice_pool);
 
-            let indicators = self
-                .indicators
-                .embed(&mut layouter, &advice_pool, "indicators")?;
+            let indicators = self.indicators.embed(&mut synthesizer, "indicators")?;
             let mut todo = Todo::<TokenIndexConstraints>::new();
 
-            chip.constrain_index_impl(
-                &mut layouter,
-                &advice_pool,
-                &indicators,
-                &mut todo,
-                self.token_index,
-            )?;
+            chip.constrain_index_impl(&mut synthesizer, &indicators, &mut todo, self.token_index)?;
             todo.assert_done()
         }
     }
