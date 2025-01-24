@@ -1,8 +1,8 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::CurveExt,
-    halo2curves::{bn256::Fr, grumpkin::G1},
+    circuit::Region,
+    halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
@@ -16,6 +16,8 @@ use {
 };
 
 use crate::{
+    consts::GRUMPKIN_3B,
+    curve_operations::{self, GrumpkinPoint},
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -25,7 +27,7 @@ use crate::{
 ///
 /// where P,Q,S are points on the G1 of the Grumpkin curve
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PointAddGate {
+pub struct PointsAddGate {
     p: [Column<Advice>; 3],
     q: [Column<Advice>; 3],
     s: [Column<Advice>; 3],
@@ -36,69 +38,23 @@ pub struct PointAddGate {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "PointAddGateInput<Fr>",
+        receiver = "PointsAddGateInput<Fr>",
         impl_generics = "",
-        embedded = "PointAddGateInput<crate::AssignedCell>"
+        embedded = "PointsAddGateInput<crate::AssignedCell>"
     )
 )]
-pub struct PointAddGateInput<T> {
-    p: [T; 3], // x1,y1,z1
-    q: [T; 3], // x2,y2,z2
-    s: [T; 3], // x3,y3,z3
+pub struct PointsAddGateInput<T> {
+    pub p: GrumpkinPoint<T>, // x1,y1,z1
+    pub q: GrumpkinPoint<T>, // x2,y2,z2
+    pub s: GrumpkinPoint<T>, // x3,y3,z3
 }
 
 const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "Point add gate";
 
-/// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
-fn add(
-    p: (Expression<Fr>, Expression<Fr>, Expression<Fr>),
-    q: (Expression<Fr>, Expression<Fr>, Expression<Fr>),
-) -> (Expression<Fr>, Expression<Fr>, Expression<Fr>) {
-    let (x1, y1, z1) = p;
-    let (x2, y2, z2) = q;
-
-    let b3 = G1::b() + G1::b() + G1::b();
-    let t0 = x1.clone() * x2.clone();
-    let t1 = y1.clone() * y2.clone();
-    let t2 = z1.clone() * z2.clone();
-    let t3 = x1.clone() + y1.clone();
-    let t4 = x2.clone() + y2.clone();
-    let t3 = t3 * t4;
-    let t4 = t0.clone() + t1.clone();
-    let t3 = t3 - t4;
-    let t4 = y1 + z1.clone();
-    let x3 = y2 + z2.clone();
-    let t4 = t4 * x3;
-    let x3 = t1.clone() + t2.clone();
-    let t4 = t4 - x3;
-    let x3 = x1 + z1;
-    let y3 = x2 + z2;
-    let x3 = x3 * y3;
-    let y3 = t0.clone() + t2.clone();
-    let y3 = x3 - y3;
-    let x3 = t0.clone() + t0.clone();
-    let t0 = x3 + t0;
-    let t2 = t2 * b3;
-    let z3 = t1.clone() + t2.clone();
-    let t1 = t1 - t2;
-    let y3 = y3 * b3;
-    let x3 = t4.clone() * y3.clone();
-    let t2 = t3.clone() * t1.clone();
-    let x3 = t2 - x3;
-    let y3 = y3 * t0.clone();
-    let t1 = t1 * z3.clone();
-    let y3 = t1 + y3;
-    let t0 = t0 * t3;
-    let z3 = z3 * t4;
-    let z3 = z3 + t0;
-
-    (x3, y3, z3)
-}
-
-impl Gate for PointAddGate {
-    type Input = PointAddGateInput<AssignedCell>;
+impl Gate for PointsAddGate {
+    type Input = PointsAddGateInput<AssignedCell>;
 
     type Advices = (
         [Column<Advice>; 3], // p
@@ -125,7 +81,15 @@ impl Gate for PointAddGate {
             let y3 = vc.query_advice(s[1], Rotation(ADVICE_OFFSET));
             let z3 = vc.query_advice(s[2], Rotation(ADVICE_OFFSET));
 
-            let (res_x3, res_y3, res_z3) = add((x1, y1, z1), (x2, y2, z2));
+            let GrumpkinPoint {
+                x: res_x3,
+                y: res_y3,
+                z: res_z3,
+            } = curve_operations::points_add(
+                GrumpkinPoint::new(x1, y1, z1),
+                GrumpkinPoint::new(x2, y2, z2),
+                Expression::Constant(*GRUMPKIN_3B),
+            );
 
             Constraints::with_selector(selector, vec![res_x3 - x3, res_y3 - y3, res_z3 - z3])
         });
@@ -143,32 +107,9 @@ impl Gate for PointAddGate {
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
 
-                for (i, cell) in input.p.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("P[{i}]"),
-                        &mut region,
-                        self.p[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
-
-                for (i, cell) in input.q.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("Q[{i}]"),
-                        &mut region,
-                        self.q[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
-
-                for (i, cell) in input.s.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("S[{i}]"),
-                        &mut region,
-                        self.s[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
+                copy_grumpkin_advices(&input.p, "P", &mut region, self.p, ADVICE_OFFSET as usize)?;
+                copy_grumpkin_advices(&input.q, "Q", &mut region, self.q, ADVICE_OFFSET as usize)?;
+                copy_grumpkin_advices(&input.s, "S", &mut region, self.s, ADVICE_OFFSET as usize)?;
 
                 Ok(())
             },
@@ -190,6 +131,34 @@ impl Gate for PointAddGate {
     }
 }
 
+fn copy_grumpkin_advices(
+    cell: &GrumpkinPoint<AssignedCell>,
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    column: [Column<Advice>; 3],
+    advice_offset: usize,
+) -> Result<(), Error> {
+    cell.x.copy_advice(
+        || alloc::format!("{}[x]", annotation),
+        region,
+        column[0],
+        advice_offset,
+    )?;
+    cell.y.copy_advice(
+        || alloc::format!("{}[y]", annotation),
+        region,
+        column[1],
+        advice_offset,
+    )?;
+    cell.z.copy_advice(
+        || alloc::format!("{}[z]", annotation),
+        region,
+        column[2],
+        advice_offset,
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::{vec, vec::Vec};
@@ -202,23 +171,23 @@ mod tests {
     };
     use rand::{rngs::StdRng, SeedableRng};
 
-    use super::{PointAddGate, PointAddGateInput};
+    use super::{PointsAddGate, PointsAddGateInput};
     use crate::gates::{test_utils::OneGateCircuit, Gate as _};
 
     fn rng() -> StdRng {
         StdRng::from_seed(*b"00000000000000000000100001011001")
     }
 
-    fn input(p: G1, q: G1, s: G1) -> PointAddGateInput<Fr> {
-        PointAddGateInput {
-            p: [p.x, p.y, p.z],
-            q: [q.x, q.y, q.z],
-            s: [s.x, s.y, s.z],
+    fn input(p: G1, q: G1, s: G1) -> PointsAddGateInput<Fr> {
+        PointsAddGateInput {
+            p: p.into(),
+            q: q.into(),
+            s: s.into(),
         }
     }
 
-    fn verify(input: PointAddGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
-        let circuit = OneGateCircuit::<PointAddGate, _>::new(input);
+    fn verify(input: PointsAddGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = OneGateCircuit::<PointsAddGate, _>::new(input);
         MockProver::run(3, &circuit, vec![])
             .expect("Mock prover should run")
             .verify()
@@ -231,7 +200,7 @@ mod tests {
         let q = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
         let s = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
 
-        PointAddGate::create_gate(&mut cs, (p, q, s));
+        PointsAddGate::create_gate(&mut cs, (p, q, s));
     }
 
     #[test]
@@ -243,7 +212,7 @@ mod tests {
         let q = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
         let s = [cs.advice_column(), col, cs.advice_column()];
 
-        PointAddGate::create_gate(&mut cs, (p, q, s));
+        PointsAddGate::create_gate(&mut cs, (p, q, s));
     }
 
     #[test]

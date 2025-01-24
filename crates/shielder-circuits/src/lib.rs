@@ -10,6 +10,7 @@ pub mod circuits;
 mod column_pool;
 mod config_builder;
 pub mod consts;
+mod curve_operations;
 mod embed;
 mod gates;
 mod instance_wrapper;

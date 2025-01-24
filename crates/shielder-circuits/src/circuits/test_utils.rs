@@ -8,6 +8,7 @@ use halo2_proofs::{
     halo2curves::bn256::Fr,
     plonk::{Any, Circuit},
 };
+use rand::{rngs::StdRng, SeedableRng};
 use rand_core::OsRng;
 use regex::Regex;
 use strum::{EnumCount, IntoEnumIterator};
@@ -158,4 +159,9 @@ pub fn expect_instance_permutation_failures(
     }
     assert!(matched_advice, "Advice failure not found");
     assert!(matched_instance, "Instance failure not found");
+}
+
+/// Returns an instance of rng, seeded
+pub fn rng() -> StdRng {
+    StdRng::from_seed(*b"00000000000000000000100001011001")
 }
