@@ -1,15 +1,12 @@
 use core::array;
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::plonk::Error;
 
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
     consts::POSEIDON_RATE,
     embed::Embed,
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     AssignedCell, Fr, Value,
 };
 
@@ -34,11 +31,10 @@ impl<const N: usize> Embed for Shortlist<Value, N> {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<alloc::string::String>,
     ) -> Result<Self::Embedded, Error> {
-        let items = self.items.embed(layouter, advice_pool, annotation)?;
+        let items = self.items.embed(synthesizer, annotation)?;
         Ok(Shortlist { items })
     }
 }
@@ -104,22 +100,10 @@ impl<const N: usize> ShortlistHashChip<N> {
     /// and chaining the hashes together.
     pub fn shortlist_hash(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         shortlist: &Shortlist<AssignedCell, N>,
     ) -> Result<AssignedCell, Error> {
-        let zero_cell = layouter.assign_region(
-            || "Shortlist placeholder (zero)",
-            |mut region| {
-                region.assign_advice_from_constant(
-                    || "Shortlist placeholder (zero)",
-                    column_pool.get_any(),
-                    0,
-                    Fr::zero(),
-                )
-            },
-        )?;
-
+        let zero_cell = synthesizer.assign_constant("Shortlist placeholder (zero)", Fr::zero())?;
         let mut last = zero_cell.clone();
         let items = &shortlist.items[..];
 
@@ -128,11 +112,7 @@ impl<const N: usize> ShortlistHashChip<N> {
             let size = input.len() - 1;
             input[size] = last;
             input[0..size].clone_from_slice(chunk);
-            last = hash(
-                &mut layouter.namespace(|| "Shortlist Hash"),
-                self.poseidon.clone(),
-                input,
-            )?;
+            last = hash(synthesizer, self.poseidon.clone(), input)?;
         }
 
         Ok(last)
@@ -145,14 +125,19 @@ mod test {
 
     use assert2::assert;
     use halo2_proofs::{
-        circuit::floor_planner::V1,
+        circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Circuit, Column, Instance},
+        plonk::{Advice, Circuit, Column, Instance},
     };
 
     use super::*;
     use crate::{
-        column_pool::PreSynthesisPhase, config_builder::ConfigsBuilder, embed::Embed, poseidon, Fr,
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        embed::Embed,
+        poseidon,
+        synthesizer::create_synthesizer,
+        Fr,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -188,14 +173,14 @@ mod test {
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
             let pool = pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed shortlist items and hash.
-            let items: [AssignedCell; N] =
-                self.0.items.embed(&mut layouter, &pool, "balance").unwrap();
+            let items: [AssignedCell; N] = self.0.items.embed(&mut synthesizer, "balance").unwrap();
             let shortlist = Shortlist { items };
-            let embedded_hash = chip.shortlist_hash(&mut layouter, &pool, &shortlist)?;
+            let embedded_hash = chip.shortlist_hash(&mut synthesizer, &shortlist)?;
 
             // 2. Compare hash with public input.
-            layouter.constrain_instance(embedded_hash.cell(), instance, 0)
+            synthesizer.constrain_instance(embedded_hash.cell(), instance, 0)
         }
     }
 

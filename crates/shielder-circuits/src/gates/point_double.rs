@@ -2,19 +2,22 @@ use alloc::vec;
 
 use halo2_proofs::{
     arithmetic::CurveExt,
-    circuit::Layouter,
     halo2curves::{bn256::Fr, grumpkin::G1},
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
 use {
-    crate::{column_pool::ColumnPool, column_pool::ConfigPhase, embed::Embed},
+    crate::{
+        column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+        embed::Embed,
+    },
     macros::embeddable,
 };
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
+    synthesizer::Synthesizer,
     AssignedCell,
 };
 
@@ -108,10 +111,10 @@ impl Gate for PointDoubleGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector
@@ -148,8 +151,8 @@ impl Gate for PointDoubleGate {
         pool.ensure_capacity(cs, 6);
 
         (
-            [pool.get(0), pool.get(1), pool.get(2)], // p
-            [pool.get(3), pool.get(4), pool.get(5)], // s
+            [pool.get_column(0), pool.get_column(1), pool.get_column(2)], // p
+            [pool.get_column(3), pool.get_column(4), pool.get_column(5)], // s
         )
     }
 }

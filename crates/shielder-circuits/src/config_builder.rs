@@ -7,7 +7,7 @@ use crate::{
         sum::SumChip,
         token_index::{TokenIndexChip, TokenIndexInstance},
     },
-    column_pool::{ColumnPool, ConfigPhase, PreSynthesisPhase},
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
@@ -66,7 +66,8 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, balances_increase);
 
         let advice_pool = self.advice_pool_with_capacity(4);
-        let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
+        let gate_advice =
+            advice_pool.get_column_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
 
         self.balances_increase = Some(BalancesIncreaseChip::new(BalanceIncreaseGate::create_gate(
             self.system,
@@ -90,11 +91,11 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, poseidon);
 
         let advice_pool = self.advice_pool_with_capacity(WIDTH + 1);
-        let advice_array = advice_pool.get_array::<WIDTH>();
-        let advice = advice_pool.get(WIDTH);
+        let advice_array = advice_pool.get_column_array::<WIDTH>();
+        let advice = advice_pool.get_column(WIDTH);
 
         let fixed_pool = self.fixed_pool_with_capacity(WIDTH);
-        let fixed_array = fixed_pool.get_array::<WIDTH>();
+        let fixed_array = fixed_pool.get_column_array::<WIDTH>();
 
         let poseidon_config =
             PoseidonChip::configure::<PoseidonSpec>(self.system, advice_array, fixed_array, advice);
@@ -112,8 +113,8 @@ impl<'cs> ConfigsBuilder<'cs> {
         self = self.with_poseidon();
 
         let advice_pool = self.advice_pool_with_capacity(ARITY + 1);
-        let needle = advice_pool.get(ARITY);
-        let advice_path = advice_pool.get_array::<ARITY>();
+        let needle = advice_pool.get_column(ARITY);
+        let advice_path = advice_pool.get_column_array::<ARITY>();
 
         self.merkle = Some(MerkleChip {
             membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
@@ -146,7 +147,7 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_sum(mut self) -> Self {
         check_if_cached!(self, sum);
-        let advice = self.advice_pool_with_capacity(3).get_array();
+        let advice = self.advice_pool_with_capacity(3).get_column_array();
         self.sum = Some(SumChip::new(SumGate::create_gate(self.system, advice)));
         self
     }

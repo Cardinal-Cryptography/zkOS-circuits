@@ -1,20 +1,17 @@
 use alloc::{vec, vec::Vec};
 use core::array;
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::plonk::Error;
 
 use super::shortlist_hash::Shortlist;
 use crate::{
-    column_pool::{ColumnPool, SynthesisPhase},
     consts::NUM_TOKENS,
     gates::{
         balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
         Gate,
     },
-    AssignedCell, Fr, Value,
+    synthesizer::Synthesizer,
+    AssignedCell, Value,
 };
 
 pub mod off_circuit {
@@ -51,8 +48,7 @@ impl BalancesIncreaseChip {
 
     pub fn increase_balances(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         balances_old: &Shortlist<AssignedCell, NUM_TOKENS>,
         token_indicators: &[AssignedCell; NUM_TOKENS],
         increase_value: &AssignedCell,
@@ -66,17 +62,8 @@ impl BalancesIncreaseChip {
         let mut balances_new: Vec<AssignedCell> = vec![];
 
         for i in 0..NUM_TOKENS {
-            let balance_new = layouter.assign_region(
-                || "balance_new",
-                |mut region| {
-                    region.assign_advice(
-                        || "balance_new",
-                        column_pool.get_any(),
-                        0,
-                        || balances_new_values.items()[i],
-                    )
-                },
-            )?;
+            let balance_new =
+                synthesizer.assign_value("balance_new", balances_new_values.items()[i])?;
             balances_new.push(balance_new);
 
             let gate_input = BalanceIncreaseGateInput {
@@ -85,7 +72,7 @@ impl BalancesIncreaseChip {
                 token_indicator: token_indicators[i].clone(),
                 balance_new: balances_new[i].clone(),
             };
-            self.0.apply_in_new_region(layouter, gate_input)?;
+            self.0.apply_in_new_region(synthesizer, gate_input)?;
         }
 
         Ok(Shortlist::new(

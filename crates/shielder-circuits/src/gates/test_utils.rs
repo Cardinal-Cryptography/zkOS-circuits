@@ -15,6 +15,7 @@ use crate::{
     column_pool::{ColumnPool, PreSynthesisPhase},
     embed::Embed,
     gates::Gate,
+    synthesizer::create_synthesizer,
     Fr,
 };
 
@@ -75,9 +76,10 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
         (advice_pool, gate): (ColumnPool<Advice, PreSynthesisPhase>, G),
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let advice_pool = advice_pool.start_synthesis();
-        let embedded_input = self.input.embed(&mut layouter, &advice_pool, "input")?;
-        gate.apply_in_new_region(&mut layouter, embedded_input)
+        let pool = advice_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
+        let embedded_input = self.input.embed(&mut synthesizer, "input")?;
+        gate.apply_in_new_region(&mut synthesizer, embedded_input)
     }
 }
 

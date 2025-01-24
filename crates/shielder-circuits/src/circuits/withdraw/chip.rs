@@ -1,7 +1,4 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::plonk::Error;
 
 use crate::{
     chips::{
@@ -14,17 +11,17 @@ use crate::{
         merkle::{MerkleChip, MerkleProverKnowledge},
         withdraw::knowledge::{IntermediateValues, WithdrawProverKnowledge},
     },
-    column_pool::{ColumnPool, SynthesisPhase},
     consts::RANGE_PROOF_NUM_WORDS,
     instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     todo::Todo,
     version::NOTE_VERSION,
     withdraw::{
         WithdrawConstraints::{self, *},
         WithdrawInstance::{self, *},
     },
-    AssignedCell, Fr,
+    AssignedCell,
 };
 
 #[derive(Clone, Debug)]
@@ -39,20 +36,15 @@ pub struct WithdrawChip {
 impl WithdrawChip {
     pub fn check_old_note(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
-        let balances = balances_from_native_balance(
-            knowledge.account_old_balance.clone(),
-            layouter,
-            column_pool,
-        )?;
+        let balances =
+            balances_from_native_balance(knowledge.account_old_balance.clone(), synthesizer)?;
 
         let old_note = NoteChip::new(self.poseidon.clone()).note(
-            layouter,
-            column_pool,
+            synthesizer,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
@@ -64,7 +56,7 @@ impl WithdrawChip {
         todo.check_off(OldNullifierIsIncludedInTheOldNote)?;
 
         self.merkle.synthesize(
-            layouter,
+            synthesizer,
             &MerkleProverKnowledge::new(old_note, &knowledge.path),
             todo,
         )
@@ -72,62 +64,54 @@ impl WithdrawChip {
 
     pub fn check_old_nullifier(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
-            &mut layouter.namespace(|| "Old nullifier Hash"),
+            synthesizer,
             self.poseidon.clone(),
             [knowledge.nullifier_old.clone()],
         )?;
         todo.check_off(HashedOldNullifierIsCorrect)?;
 
         self.public_inputs
-            .constrain_cells(layouter, [(hashed_old_nullifier, HashedOldNullifier)])?;
+            .constrain_cells(synthesizer, [(hashed_old_nullifier, HashedOldNullifier)])?;
         todo.check_off(HashedOldNullifierInstanceIsConstrainedToAdvice)
     }
 
     pub fn check_id_hiding(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
+
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
-            .id_hiding(
-                layouter,
-                column_pool,
-                knowledge.id.clone(),
-                knowledge.nonce.clone(),
-            )?;
+            .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
         todo.check_off(IdHidingIsCorrect)?;
 
         self.public_inputs
-            .constrain_cells(layouter, [(id_hiding, IdHiding)])?;
+            .constrain_cells(synthesizer, [(id_hiding, IdHiding)])?;
         todo.check_off(IdHidingInstanceIsConstrainedToAdvice)
     }
 
     pub fn check_new_note(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        column_pool: &ColumnPool<Advice, SynthesisPhase>,
+        synthesizer: &mut impl Synthesizer,
+
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         intermediate_values: &IntermediateValues<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         let new_balance = intermediate_values.new_account_balance.clone();
 
-        self.range_check.constrain_value::<RANGE_PROOF_NUM_WORDS>(
-            &mut layouter.namespace(|| "Range Check"),
-            column_pool,
-            new_balance.clone(),
-        )?;
+        self.range_check
+            .constrain_value::<RANGE_PROOF_NUM_WORDS>(synthesizer, new_balance.clone())?;
         todo.check_off(NewBalanceIsInRange)?;
 
         self.sum_chip.constrain_sum(
-            layouter,
+            synthesizer,
             new_balance.clone(),
             knowledge.withdrawal_value.clone(),
             knowledge.account_old_balance.clone(),
@@ -135,16 +119,15 @@ impl WithdrawChip {
         todo.check_off(WithdrawalValueInstanceIsIncludedInTheNewNote)?;
 
         self.public_inputs.constrain_cells(
-            layouter,
+            synthesizer,
             [(knowledge.withdrawal_value.clone(), WithdrawalValue)],
         )?;
         todo.check_off(WithdrawalValueInstanceIsConstrainedToAdvice)?;
 
-        let balances = balances_from_native_balance(new_balance, layouter, column_pool)?;
+        let balances = balances_from_native_balance(new_balance, synthesizer)?;
 
         let new_note = NoteChip::new(self.poseidon.clone()).note(
-            layouter,
-            column_pool,
+            synthesizer,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
@@ -156,18 +139,18 @@ impl WithdrawChip {
         todo.check_off(HashedNewNoteIsCorrect)?;
 
         self.public_inputs
-            .constrain_cells(layouter, [(new_note, HashedNewNote)])?;
+            .constrain_cells(synthesizer, [(new_note, HashedNewNote)])?;
         todo.check_off(HashedNewNoteInstanceIsConstrainedToAdvice)
     }
 
     pub fn check_commitment(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
         self.public_inputs
-            .constrain_cells(layouter, [(knowledge.commitment.clone(), Commitment)])?;
+            .constrain_cells(synthesizer, [(knowledge.commitment.clone(), Commitment)])?;
         todo.check_off(CommitmentInstanceIsConstrainedToAdvice)
     }
 }

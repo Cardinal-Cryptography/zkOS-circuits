@@ -1,12 +1,12 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
 use {
+    crate::column_pool::AccessColumn,
     crate::column_pool::{ColumnPool, ConfigPhase},
     crate::embed::Embed,
     macros::embeddable,
@@ -14,6 +14,7 @@ use {
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
+    synthesizer::Synthesizer,
     AssignedCell, Fr,
 };
 
@@ -81,10 +82,10 @@ impl Gate for BalanceIncreaseGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
@@ -125,7 +126,7 @@ impl Gate for BalanceIncreaseGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
-        let columns = pool.get_array::<NUM_ADVICE_COLUMNS>();
+        let columns = pool.get_column_array::<NUM_ADVICE_COLUMNS>();
         BalanceIncreaseGateAdvices {
             balance_old: columns[0],
             increase_value: columns[1],

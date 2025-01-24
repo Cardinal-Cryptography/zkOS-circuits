@@ -10,6 +10,7 @@ use crate::{
     deposit::{DepositConstraints, DepositInstance},
     embed::Embed,
     instance_wrapper::InstanceWrapper,
+    synthesizer::create_synthesizer,
     todo::Todo,
     Fr, Value,
 };
@@ -52,17 +53,16 @@ impl Circuit<Fr> for DepositCircuit {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        let column_pool = column_pool.start_synthesis();
+        let pool = column_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let mut todo = Todo::<DepositConstraints>::new();
-        let knowledge = self
-            .0
-            .embed(&mut layouter, &column_pool, "DepositProverKnowledge")?;
+        let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;
 
-        main_chip.check_old_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
-        main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut layouter, &column_pool, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut layouter, &column_pool, &knowledge, &mut todo)?;
-        main_chip.check_token_index(&mut layouter, &column_pool, &knowledge, &mut todo)?;
+        main_chip.check_old_note(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_new_note(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_token_index(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }

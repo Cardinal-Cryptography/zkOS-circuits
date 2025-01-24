@@ -1,14 +1,13 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 
 #[cfg(test)]
-use crate::column_pool::{ColumnPool, ConfigPhase};
-use crate::{gates::Gate, AssignedCell, Fr};
+use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
+use crate::{gates::Gate, synthesizer::Synthesizer, AssignedCell, Fr};
 
 /// Represents the relation: `x * (1-x) = 0`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -43,10 +42,10 @@ impl Gate for IsBinaryGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         x: AssignedCell,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
@@ -62,7 +61,7 @@ impl Gate for IsBinaryGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);
-        pool.get_any()
+        pool.get_any_column()
     }
 }
 

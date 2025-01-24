@@ -1,15 +1,21 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::column_pool::ConfigPhase, crate::embed::Embed, macros::embeddable};
+use {
+    crate::{
+        column_pool::{AccessColumn, ConfigPhase},
+        embed::Embed,
+    },
+    macros::embeddable,
+};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
+    synthesizer::Synthesizer,
     AssignedCell, Fr,
 };
 
@@ -61,10 +67,10 @@ impl Gate for SumGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<Fr>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
@@ -91,7 +97,7 @@ impl Gate for SumGate {
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 3);
-        pool.get_array()
+        pool.get_column_array()
     }
 }
 
