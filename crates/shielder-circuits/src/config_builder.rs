@@ -1,7 +1,12 @@
 use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
-    chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
+    chips::{
+        balances_increase::BalancesIncreaseChip,
+        range_check::RangeCheckChip,
+        sum::SumChip,
+        token_index::{TokenIndexChip, TokenIndexInstance},
+    },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
@@ -26,6 +31,7 @@ pub struct ConfigsBuilder<'cs> {
     poseidon: Option<PoseidonChip>,
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
+    token_index: Option<TokenIndexChip>,
 }
 
 macro_rules! check_if_cached {
@@ -48,6 +54,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             poseidon: None,
             range_check: None,
             sum: None,
+            token_index: None,
         }
     }
 
@@ -147,6 +154,21 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn sum_chip(&self) -> SumChip {
         self.sum.clone().expect("Sum not configured")
+    }
+
+    pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
+        check_if_cached!(self, token_index);
+
+        self.token_index = Some(TokenIndexChip::new(
+            self.system,
+            &mut self.advice_pool,
+            public_inputs,
+        ));
+        self
+    }
+
+    pub fn token_index_chip(&self) -> TokenIndexChip {
+        self.token_index.clone().expect("TokenIndex not configured")
     }
 
     fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {

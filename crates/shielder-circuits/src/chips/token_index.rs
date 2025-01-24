@@ -1,12 +1,17 @@
 use core::array;
 
-use halo2_proofs::plonk::Error;
+use gates::{IndexGate, IndexGateInput, NUM_INDEX_GATE_COLUMNS};
+use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    consts::NUM_TOKENS, instance_wrapper::InstanceWrapper, synthesizer::Synthesizer, todo::Todo,
-    AssignedCell,
+    column_pool::{ColumnPool, ConfigPhase, SynthesisPhase},
+    consts::NUM_TOKENS,
+    gates::Gate,
+    instance_wrapper::InstanceWrapper,
+    todo::Todo,
+    AssignedCell, Fr, Value,
 };
 
 pub mod off_circuit {
@@ -63,37 +68,254 @@ pub enum TokenIndexConstraints {
     TokenIndexInstanceIsConstrainedToAdvice,
 }
 
-// TODO: Replace the hacky underconstrained index production with a gate application.
 // TODO: Constrain indicators to the set {0,1}.
 // TODO: Constrain that exactly one indicator has value 1.
 // A chip that manages the token index indicator variables and related constraints.
+// Assumes that the indicator variables are binary and their sum is exactly 1.
 #[derive(Clone, Debug)]
 pub struct TokenIndexChip {
+    index_gate: IndexGate,
     public_inputs: InstanceWrapper<TokenIndexInstance>,
 }
 
 impl TokenIndexChip {
-    pub fn new(public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
-        Self { public_inputs }
+    pub fn new(
+        system: &mut ConstraintSystem<Fr>,
+        advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
+        public_inputs: InstanceWrapper<TokenIndexInstance>,
+    ) -> Self {
+        advice_pool.ensure_capacity(system, NUM_INDEX_GATE_COLUMNS);
+        let advices = advice_pool.get_array::<NUM_INDEX_GATE_COLUMNS>();
+
+        Self {
+            index_gate: IndexGate::create_gate(system, advices),
+            public_inputs,
+        }
     }
 
-    /// Temporary hack: the function should apply a gate to produce the index from indicators,
-    /// by the formula `index = 0 * indicators[0] + 1 * indicators[1] + 2 * indicators[2] + ...`,
-    /// but for now it just produces a cell with an unconstrained value.
+    /// Constrains the token index public input to match the enabled indicator.
     pub fn constrain_index<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
         &self,
         synthesizer: &mut impl Synthesizer,
         indicators: &[AssignedCell; NUM_TOKENS],
         todo: &mut Todo<Constraints>,
     ) -> Result<(), Error> {
-        let values = array::from_fn(|i| indicators[i].value().cloned());
-        let index = off_circuit::index_from_indicator_values(&values);
-        let cell = synthesizer.assign_value("Token index", index)?;
+        let indicator_values = indicators.each_ref().map(|v| v.value().cloned());
+        let index_value = off_circuit::index_from_indicator_values(&indicator_values);
+
+        self.constrain_index_impl(layouter, advice_pool, indicators, todo, index_value)
+    }
+
+    fn constrain_index_impl<Constraints: From<TokenIndexConstraints> + Ord + IntoEnumIterator>(
+        &self,
+        layouter: &mut impl Layouter<Fr>,
+        advice_pool: &ColumnPool<Advice, SynthesisPhase>,
+        indicators: &[AssignedCell; NUM_TOKENS],
+        todo: &mut Todo<Constraints>,
+        index_value: Value,
+    ) -> Result<(), Error> {
+        let index_cell = layouter.assign_region(
+            || "Token index",
+            |mut region| {
+                region.assign_advice(|| "Token index", advice_pool.get_any(), 0, || index_value)
+            },
+        )?;
+
+        self.index_gate.apply_in_new_region(
+            layouter,
+            IndexGateInput {
+                variables: array::from_fn(|i| {
+                    if i == NUM_TOKENS {
+                        index_cell.clone()
+                    } else {
+                        indicators[i].clone()
+                    }
+                }),
+            },
+        )?;
 
         self.public_inputs
-            .constrain_cells(synthesizer, [(cell, TokenIndexInstance::TokenIndex)])?;
+            .constrain_cells(layouter, [(index_cell, TokenIndexInstance::TokenIndex)])?;
         todo.check_off(Constraints::from(
             TokenIndexConstraints::TokenIndexInstanceIsConstrainedToAdvice,
         ))
+    }
+}
+
+pub mod gates {
+    use core::array;
+
+    use halo2_proofs::arithmetic::Field;
+
+    use crate::{
+        consts::NUM_TOKENS,
+        gates::linear_equation::{
+            LinearEquationGate, LinearEquationGateConfig, LinearEquationGateInput,
+        },
+        AssignedCell, Fr,
+    };
+
+    pub const NUM_INDEX_GATE_COLUMNS: usize = NUM_TOKENS + 1;
+
+    /// `0 * indicators[0] + 1 * indicators[1] + 2 * indicators[2] + ... = index`.
+    pub type IndexGate = LinearEquationGate<NUM_INDEX_GATE_COLUMNS, IndexGateConfig>;
+    pub type IndexGateInput = LinearEquationGateInput<NUM_INDEX_GATE_COLUMNS, AssignedCell>;
+
+    #[derive(Clone, Debug)]
+    pub enum IndexGateConfig {}
+
+    impl LinearEquationGateConfig<NUM_INDEX_GATE_COLUMNS> for IndexGateConfig {
+        fn coefficients() -> [Fr; NUM_INDEX_GATE_COLUMNS] {
+            array::from_fn(|i| {
+                if i == NUM_TOKENS {
+                    Fr::ONE.neg()
+                } else {
+                    Fr::from(i as u64)
+                }
+            })
+        }
+
+        fn constant_term() -> Fr {
+            Fr::ZERO
+        }
+
+        fn gate_name() -> &'static str {
+            "Token index gate"
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::{
+        circuit::{floor_planner, Layouter},
+        dev::{
+            metadata::{Constraint, Gate},
+            VerifyFailure,
+        },
+        plonk::{Advice, Circuit, ConstraintSystem, Error},
+    };
+
+    use super::{gates, TokenIndexChip, TokenIndexConstraints, TokenIndexInstance};
+    use crate::{
+        circuits::test_utils::expect_prover_success_and_run_verification,
+        column_pool::{ColumnPool, ConfigPhase, PreSynthesisPhase},
+        consts::NUM_TOKENS,
+        embed::Embed,
+        instance_wrapper::InstanceWrapper,
+        test_utils::expect_instance_permutation_failures,
+        todo::Todo,
+        Fr, Value,
+    };
+
+    #[derive(Clone, Debug, Default)]
+    struct TestCircuit {
+        pub indicators: [Value; NUM_TOKENS],
+
+        pub token_index: Value,
+    }
+
+    impl TestCircuit {
+        pub fn new(indicators: [impl Into<Fr>; NUM_TOKENS], token_index: impl Into<Fr>) -> Self {
+            Self {
+                indicators: indicators.map(|v| Value::known(v.into())),
+                token_index: Value::known(token_index.into()),
+            }
+        }
+    }
+
+    impl Circuit<Fr> for TestCircuit {
+        type Config = (TokenIndexChip, ColumnPool<Advice, PreSynthesisPhase>);
+        type FloorPlanner = floor_planner::V1;
+
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
+
+        fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
+            let mut advice_pool = ColumnPool::<Advice, ConfigPhase>::new();
+            advice_pool.ensure_capacity(meta, gates::NUM_INDEX_GATE_COLUMNS);
+            let public_inputs = InstanceWrapper::<TokenIndexInstance>::new(meta);
+
+            (
+                TokenIndexChip::new(meta, &mut advice_pool, public_inputs),
+                advice_pool.conclude_configuration(),
+            )
+        }
+
+        fn synthesize(
+            &self,
+            (chip, advice_pool): Self::Config,
+            mut layouter: impl Layouter<Fr>,
+        ) -> Result<(), Error> {
+            let advice_pool = advice_pool.start_synthesis();
+
+            let indicators = self
+                .indicators
+                .embed(&mut layouter, &advice_pool, "indicators")?;
+            let mut todo = Todo::<TokenIndexConstraints>::new();
+
+            chip.constrain_index_impl(
+                &mut layouter,
+                &advice_pool,
+                &indicators,
+                &mut todo,
+                self.token_index,
+            )?;
+            todo.assert_done()
+        }
+    }
+
+    #[test]
+    fn native_token_passes() {
+        let circuit = TestCircuit::new([1, 0, 0, 0, 0, 0], 0);
+        let pub_input = [0];
+
+        assert!(
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from)).is_ok()
+        );
+    }
+
+    #[test]
+    fn last_token_passes() {
+        let circuit = TestCircuit::new([0, 0, 0, 0, 0, 1], 5);
+        let pub_input = [5];
+
+        assert!(
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from)).is_ok()
+        );
+    }
+
+    #[test]
+    fn index_witness_is_constrained() {
+        let circuit = TestCircuit::new([1, 0, 0, 0, 0, 0], 1);
+        let pub_input = [1];
+
+        let failures =
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
+                .expect_err("Verification must fail");
+
+        assert_eq!(1, failures.len());
+        match &failures[0] {
+            VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
+                assert_eq!(
+                    &Constraint::from((Gate::from((0, "Token index gate")), 0, "")),
+                    constraint
+                );
+            }
+            _ => panic!("Unexpected error"),
+        }
+    }
+
+    #[test]
+    fn index_pub_input_is_constrained() {
+        let circuit = TestCircuit::new([1, 0, 0, 0, 0, 0], 0);
+        let pub_input = [1];
+
+        let failures =
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
+                .expect_err("Verification must fail");
+
+        expect_instance_permutation_failures(&failures, "Token index", 0);
     }
 }
