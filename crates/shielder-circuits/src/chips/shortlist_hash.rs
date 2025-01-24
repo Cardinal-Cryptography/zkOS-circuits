@@ -12,12 +12,6 @@ use crate::{
 
 const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 
-/// Chip that is able to calculate the shortlist hash
-#[derive(Clone, Debug)]
-pub struct ShortlistHashChip<const N: usize> {
-    poseidon: PoseidonChip,
-}
-
 /// Represents a (short) list of field elements.
 ///
 /// Hashing is implemented by chaining fixed-sized chunks of the list.
@@ -89,6 +83,12 @@ pub mod off_circuit {
 
         last
     }
+}
+
+/// Chip that is able to calculate the shortlist hash
+#[derive(Clone, Debug)]
+pub struct ShortlistHashChip<const N: usize> {
+    poseidon: PoseidonChip,
 }
 
 impl<const N: usize> ShortlistHashChip<N> {
