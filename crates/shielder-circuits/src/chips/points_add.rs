@@ -37,7 +37,7 @@ impl PointsAddChip {
         Self { gate }
     }
 
-    pub fn point_add(
+    pub fn points_add(
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &PointsAddChipInput<AssignedCell>,
@@ -125,7 +125,7 @@ mod tests {
             let q = q.embed(&mut synthesizer, "Q")?;
 
             let PointsAddChipOutput { s } =
-                chip.point_add(&mut synthesizer, &PointsAddChipInput { p, q })?;
+                chip.points_add(&mut synthesizer, &PointsAddChipInput { p, q })?;
 
             synthesizer.constrain_instance(s.x.cell(), instance, 0)?;
             synthesizer.constrain_instance(s.y.cell(), instance, 1)?;
