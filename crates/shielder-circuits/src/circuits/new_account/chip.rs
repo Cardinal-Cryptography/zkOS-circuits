@@ -1,26 +1,22 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::plonk::Error;
 
 use crate::{
     chips::note::{balances_from_native_balance, Note, NoteChip},
     circuits::new_account::knowledge::NewAccountProverKnowledge,
-    column_pool::ColumnPool,
     instance_wrapper::InstanceWrapper,
     new_account::{
         NewAccountConstraints::{self, *},
         NewAccountInstance::{self, *},
     },
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     todo::Todo,
     version::NOTE_VERSION,
-    AssignedCell, F,
+    AssignedCell,
 };
 
 #[derive(Clone, Debug)]
 pub struct NewAccountChip {
-    pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
     pub poseidon: PoseidonChip,
 }
@@ -28,29 +24,26 @@ pub struct NewAccountChip {
 impl NewAccountChip {
     pub fn synthesize(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
         todo: &mut Todo<NewAccountConstraints>,
     ) -> Result<(), Error> {
         let public_inputs = &self.public_inputs;
 
         public_inputs.constrain_cells(
-            layouter,
+            synthesizer,
             [(knowledge.initial_deposit.clone(), InitialDeposit)],
         )?;
         todo.check_off(InitialDepositInstanceIsConstrainedToAdvice)?;
 
-        let h_id = hash(layouter, self.poseidon.clone(), [knowledge.id.clone()])?;
+        let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
         todo.check_off(HashedIdIsCorrect)?;
 
-        let balances = balances_from_native_balance(
-            knowledge.initial_deposit.clone(),
-            layouter,
-            &self.advice_pool,
-        )?;
+        let balances =
+            balances_from_native_balance(knowledge.initial_deposit.clone(), synthesizer)?;
 
-        let note = NoteChip::new(self.poseidon.clone(), self.advice_pool.clone()).note(
-            layouter,
+        let note = NoteChip::new(self.poseidon.clone()).note(
+            synthesizer,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
@@ -63,7 +56,7 @@ impl NewAccountChip {
         todo.check_off(InitialDepositIsIncludedInTheNewNote)?;
         todo.check_off(HashedNoteIsCorrect)?;
 
-        public_inputs.constrain_cells(layouter, [(note, HashedNote), (h_id, HashedId)])?;
+        public_inputs.constrain_cells(synthesizer, [(note, HashedNote), (h_id, HashedId)])?;
         todo.check_off(HashedNoteInstanceIsConstrainedToAdvice)?;
         todo.check_off(HashedIdInstanceIsConstrainedToAdvice)
     }

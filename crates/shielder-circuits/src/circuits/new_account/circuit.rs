@@ -1,52 +1,56 @@
 use halo2_proofs::{
-    circuit::{floor_planner::V1, Layouter, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
+    circuit::{floor_planner::V1, Layouter},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
     circuits::new_account::{chip::NewAccountChip, knowledge::NewAccountProverKnowledge},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     new_account::{NewAccountConstraints, NewAccountInstance},
+    synthesizer::create_synthesizer,
     todo::Todo,
-    F,
+    Fr, Value,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct NewAccountCircuit(pub NewAccountProverKnowledge<Value<F>>);
+pub struct NewAccountCircuit(pub NewAccountProverKnowledge<Value>);
 
-impl Circuit<F> for NewAccountCircuit {
-    type Config = NewAccountChip;
+impl Circuit<Fr> for NewAccountCircuit {
+    type Config = (NewAccountChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
         Self::default()
     }
 
-    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+    fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let public_inputs = InstanceWrapper::<NewAccountInstance>::new(meta);
         let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
 
-        NewAccountChip {
-            advice_pool: configs_builder.advice_pool(),
-            public_inputs,
-            poseidon: configs_builder.poseidon_chip(),
-        }
+        (
+            NewAccountChip {
+                public_inputs,
+                poseidon: configs_builder.poseidon_chip(),
+            },
+            configs_builder.finish(),
+        )
     }
 
     fn synthesize(
         &self,
-        main_chip: Self::Config,
-        mut layouter: impl Layouter<F>,
+        (main_chip, column_pool): Self::Config,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
+        let pool = column_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let mut todo = Todo::<NewAccountConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &main_chip.advice_pool,
-            "NewAccountProverKnowledge",
-        )?;
-        main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
+        let knowledge = self
+            .0
+            .embed(&mut synthesizer, "NewAccountProverKnowledge")?;
+        main_chip.synthesize(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }

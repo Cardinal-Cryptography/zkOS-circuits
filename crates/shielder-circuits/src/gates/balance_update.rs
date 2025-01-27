@@ -1,16 +1,21 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, macros::embeddable};
+use {
+    crate::column_pool::AccessColumn,
+    crate::column_pool::{ColumnPool, ConfigPhase},
+    crate::embed::Embed,
+    macros::embeddable,
+};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell, F,
+    synthesizer::Synthesizer,
+    AssignedCell, Fr,
 };
 
 const SELECTOR_OFFSET: usize = 0;
@@ -37,7 +42,7 @@ pub struct BalanceUpdateGateAdvices {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "BalanceUpdateGateInput<F>",
+        receiver = "BalanceUpdateGateInput<Fr>",
         impl_generics = "",
         embedded = "BalanceUpdateGateInput<crate::AssignedCell>"
     )
@@ -53,7 +58,7 @@ impl Gate for BalanceUpdateGate {
     type Input = BalanceUpdateGateInput<AssignedCell>;
     type Advices = BalanceUpdateGateAdvices;
 
-    fn create_gate(cs: &mut ConstraintSystem<F>, advices: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advices: Self::Advices) -> Self {
         ensure_unique_columns(&[
             advices.balance_old,
             advices.update_value,
@@ -77,10 +82,10 @@ impl Gate for BalanceUpdateGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
@@ -117,11 +122,11 @@ impl Gate for BalanceUpdateGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
-        cs: &mut ConstraintSystem<F>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
-        let columns = pool.get_array::<NUM_ADVICE_COLUMNS>();
+        let columns = pool.get_column_array::<NUM_ADVICE_COLUMNS>();
         BalanceUpdateGateAdvices {
             balance_old: columns[0],
             update_value: columns[1],
@@ -133,13 +138,10 @@ impl Gate for BalanceUpdateGate {
 
 #[cfg(test)]
 mod tests {
-
     use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
     use crate::gates::{
-        balance_update::{
-            BalanceUpdateGate, BalanceUpdateGateAdvices, BalanceUpdateGateInput,
-        },
+        balance_update::{BalanceUpdateGate, BalanceUpdateGateAdvices, BalanceUpdateGateInput},
         test_utils::verify,
         Gate as _,
     };

@@ -1,12 +1,8 @@
 use alloc::{format, string::String, vec, vec::Vec};
 
-use halo2_proofs::{
-    circuit::{Layouter, Value},
-    halo2curves::bn256::Fr,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::plonk::Error;
 
-use crate::{column_pool::ColumnPool, AssignedCell, F};
+use crate::{curve_operations::GrumpkinPoint, synthesizer::Synthesizer, AssignedCell, Fr, Value};
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
 pub trait Embed {
@@ -16,8 +12,7 @@ pub trait Embed {
     /// Embeds the instance into the circuit.
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error>;
 }
@@ -27,12 +22,11 @@ impl Embed for Fr {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<Fr>,
-        advice_pool: &ColumnPool<Advice>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         let value = Value::known(*self);
-        value.embed(layouter, advice_pool, annotation)
+        value.embed(synthesizer, annotation)
     }
 }
 
@@ -41,28 +35,22 @@ impl<E: Embed> Embed for &E {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
-        (*self).embed(layouter, advice_pool, annotation)
+        (*self).embed(synthesizer, annotation)
     }
 }
 
-impl Embed for Value<F> {
+impl Embed for Value {
     type Embedded = AssignedCell;
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
-        let annotation = annotation.into();
-        layouter.assign_region(
-            || &annotation,
-            |mut region| region.assign_advice(|| &annotation, advice_pool.get_any(), 0, || *self),
-        )
+        synthesizer.assign_value(annotation, *self)
     }
 }
 
@@ -71,14 +59,13 @@ impl<E: Embed, const N: usize> Embed for [E; N] {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         Ok(self
             .iter()
             .collect::<Vec<_>>()
-            .embed(layouter, advice_pool, annotation)?
+            .embed(synthesizer, annotation)?
             .try_into()
             .map_err(|_| ())
             .expect("Safe unwrap"))
@@ -90,15 +77,34 @@ impl<E: Embed> Embed for Vec<E> {
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         let annotation = annotation.into();
         let mut embedded = vec![];
         for (i, item) in self.iter().enumerate() {
-            embedded.push(item.embed(layouter, advice_pool, format!("{}[{}]", annotation, i))?);
+            embedded.push(item.embed(synthesizer, format!("{}[{}]", annotation, i))?);
         }
         Ok(embedded)
+    }
+}
+
+impl<E: Embed> Embed for GrumpkinPoint<E>
+where
+    E::Embedded: Clone,
+{
+    type Embedded = GrumpkinPoint<E::Embedded>;
+
+    fn embed(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, Error> {
+        let embedded_arr = [&self.x, &self.y, &self.z].embed(synthesizer, annotation)?;
+        Ok(GrumpkinPoint {
+            x: embedded_arr[0].clone(),
+            y: embedded_arr[1].clone(),
+            z: embedded_arr[2].clone(),
+        })
     }
 }

@@ -1,31 +1,43 @@
 use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
-    chips::{balances_update::BalancesUpdateChip, range_check::RangeCheckChip, sum::SumChip},
-    column_pool::ColumnPool,
+    chips::{
+        balances_update::BalancesUpdateChip,
+        point_double::PointDoubleChip,
+        points_add::PointsAddChip,
+        range_check::RangeCheckChip,
+        sum::SumChip,
+        token_index::{TokenIndexChip, TokenIndexInstance},
+    },
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_update::{self, BalanceUpdateGate, BalanceUpdateGateAdvices},
         membership::MembershipGate,
+        point_double::PointDoubleGate,
+        points_add::PointsAddGate,
         sum::SumGate,
         Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
     poseidon::{circuit::PoseidonChip, spec::PoseidonSpec},
-    F,
+    Fr,
 };
 
 pub struct ConfigsBuilder<'cs> {
-    system: &'cs mut ConstraintSystem<F>,
-    advice_pool: ColumnPool<Advice>,
-    fixed_pool: ColumnPool<Fixed>,
+    system: &'cs mut ConstraintSystem<Fr>,
+    advice_pool: ColumnPool<Advice, ConfigPhase>,
+    fixed_pool: ColumnPool<Fixed, ConfigPhase>,
 
     balances_update: Option<BalancesUpdateChip>,
     merkle: Option<MerkleChip>,
     poseidon: Option<PoseidonChip>,
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
+    points_add: Option<PointsAddChip>,
+    point_double: Option<PointDoubleChip>,
+    token_index: Option<TokenIndexChip>,
 }
 
 macro_rules! check_if_cached {
@@ -37,33 +49,36 @@ macro_rules! check_if_cached {
 }
 
 impl<'cs> ConfigsBuilder<'cs> {
-    pub fn new(system: &'cs mut ConstraintSystem<F>) -> Self {
+    pub fn new(system: &'cs mut ConstraintSystem<Fr>) -> Self {
         Self {
             system,
-            advice_pool: ColumnPool::<Advice>::new(),
-            fixed_pool: ColumnPool::<Fixed>::new(),
+            advice_pool: ColumnPool::<Advice, _>::new(),
+            fixed_pool: ColumnPool::<Fixed, _>::new(),
 
             balances_update: None,
             merkle: None,
             poseidon: None,
             range_check: None,
             sum: None,
+            points_add: None,
+            point_double: None,
+            token_index: None,
         }
     }
 
-    pub fn advice_pool(&self) -> ColumnPool<Advice> {
-        self.advice_pool.clone()
+    pub fn finish(self) -> ColumnPool<Advice, PreSynthesisPhase> {
+        self.advice_pool.conclude_configuration()
     }
 
     pub fn with_balances_update(mut self) -> Self {
         check_if_cached!(self, balances_update);
-
         self = self.with_range_check();
-        let advice_pool = self.advice_pool_with_capacity(4).clone();
-        let gate_advice = advice_pool.get_array::<{ balance_update::NUM_ADVICE_COLUMNS }>();
 
-        self.balances_update = Some(BalancesUpdateChip {
-            gate: BalanceUpdateGate::create_gate(
+        let advice_pool = self.advice_pool_with_capacity(4);
+        let gate_advice = advice_pool.get_column_array::<{ balance_update::NUM_ADVICE_COLUMNS }>();
+
+        self.balances_update = Some(BalancesUpdateChip::new(
+            BalanceUpdateGate::create_gate(
                 self.system,
                 BalanceUpdateGateAdvices {
                     balance_old: gate_advice[0],
@@ -72,9 +87,9 @@ impl<'cs> ConfigsBuilder<'cs> {
                     balance_new: gate_advice[3],
                 },
             ),
-            advice_pool,
-            range_check: self.range_check_chip(),
-        });
+            self.range_check_chip(),
+        ));
+
         self
     }
 
@@ -88,11 +103,11 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, poseidon);
 
         let advice_pool = self.advice_pool_with_capacity(WIDTH + 1);
-        let advice_array = advice_pool.get_array::<WIDTH>();
-        let advice = advice_pool.get(WIDTH);
+        let advice_array = advice_pool.get_column_array::<WIDTH>();
+        let advice = advice_pool.get_column(WIDTH);
 
         let fixed_pool = self.fixed_pool_with_capacity(WIDTH);
-        let fixed_array = fixed_pool.get_array::<WIDTH>();
+        let fixed_array = fixed_pool.get_column_array::<WIDTH>();
 
         let poseidon_config =
             PoseidonChip::configure::<PoseidonSpec>(self.system, advice_array, fixed_array, advice);
@@ -109,14 +124,12 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, merkle);
         self = self.with_poseidon();
 
-        let advice_pool = self.advice_pool_with_capacity(ARITY + 1).clone();
-
-        let needle = advice_pool.get(ARITY);
-        let advice_path = advice_pool.get_array::<ARITY>();
+        let advice_pool = self.advice_pool_with_capacity(ARITY + 1);
+        let needle = advice_pool.get_column(ARITY);
+        let advice_path = advice_pool.get_column_array::<ARITY>();
 
         self.merkle = Some(MerkleChip {
             membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
-            advice_pool,
             public_inputs,
             poseidon: self.poseidon_chip(),
         });
@@ -132,12 +145,9 @@ impl<'cs> ConfigsBuilder<'cs> {
         self = self.with_sum();
 
         let system = &mut self.system;
-        self.advice_pool.ensure_capacity(system, 1);
-        let advice_pool = self.advice_pool.clone();
-
         self.range_check = Some(RangeCheckChip::new(
             system,
-            advice_pool.clone(),
+            &mut self.advice_pool,
             self.sum.clone().unwrap(),
         ));
         self
@@ -149,12 +159,8 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_sum(mut self) -> Self {
         check_if_cached!(self, sum);
-
-        let advice_pool = self.advice_pool_with_capacity(3).clone();
-        self.sum = Some(SumChip {
-            gate: SumGate::create_gate(self.system, advice_pool.get_array()),
-            advice: advice_pool.get_any(),
-        });
+        let advice = self.advice_pool_with_capacity(3).get_column_array();
+        self.sum = Some(SumChip::new(SumGate::create_gate(self.system, advice)));
         self
     }
 
@@ -162,12 +168,88 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.sum.clone().expect("Sum not configured")
     }
 
-    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice> {
+    pub fn with_points_add_chip(mut self) -> Self {
+        check_if_cached!(self, points_add);
+
+        let advice_pool = self.advice_pool_with_capacity(9);
+
+        let p = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+        let q = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+        let s = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+
+        self.points_add = Some(PointsAddChip {
+            gate: PointsAddGate::create_gate(self.system, (p, q, s)),
+        });
+        self
+    }
+
+    pub fn points_add_chip(&self) -> PointsAddChip {
+        self.points_add
+            .clone()
+            .expect("PointAddChip not configured")
+    }
+
+    pub fn with_point_double_chip(mut self) -> Self {
+        check_if_cached!(self, points_add);
+
+        let advice_pool = self.advice_pool_with_capacity(6);
+
+        let p = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+        let s = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+
+        self.point_double = Some(PointDoubleChip {
+            gate: PointDoubleGate::create_gate(self.system, (p, s)),
+        });
+        self
+    }
+
+    pub fn point_double_chip(&self) -> PointDoubleChip {
+        self.point_double
+            .clone()
+            .expect("PointDoubleChip not configured")
+    }
+
+    pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
+        check_if_cached!(self, token_index);
+
+        self.token_index = Some(TokenIndexChip::new(
+            self.system,
+            &mut self.advice_pool,
+            public_inputs,
+        ));
+        self
+    }
+
+    pub fn token_index_chip(&self) -> TokenIndexChip {
+        self.token_index.clone().expect("TokenIndex not configured")
+    }
+
+    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {
         self.advice_pool.ensure_capacity(self.system, capacity);
         &self.advice_pool
     }
 
-    fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed> {
+    fn fixed_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Fixed, ConfigPhase> {
         self.fixed_pool.ensure_capacity(self.system, capacity);
         &self.fixed_pool
     }

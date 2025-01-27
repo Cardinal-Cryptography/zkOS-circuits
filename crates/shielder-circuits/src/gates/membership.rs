@@ -1,16 +1,20 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, macros::embeddable};
+use {
+    crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    crate::embed::Embed,
+    macros::embeddable,
+};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell, F,
+    synthesizer::Synthesizer,
+    AssignedCell, Fr,
 };
 
 /// Represents the relation: `(needle - haystack_1) · … · (needle - haystack_N) = 0`.
@@ -25,7 +29,7 @@ pub struct MembershipGate<const N: usize> {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "MembershipGateInput<F, N>",
+        receiver = "MembershipGateInput<Fr, N>",
         impl_generics = "<const N: usize>",
         embedded = "MembershipGateInput<AssignedCell, N>"
     )
@@ -49,7 +53,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
     /// `(needle[x] - haystack_1[x]) · … · (needle[x] - haystack_N[x]) = 0`, where `x` is the row
     /// where the gate is enabled.
     fn create_gate(
-        cs: &mut ConstraintSystem<F>,
+        cs: &mut ConstraintSystem<Fr>,
         (needle_advice, haystack_advice): Self::Advices,
     ) -> Self {
         ensure_unique_columns(&[haystack_advice.to_vec(), vec![needle_advice]].concat());
@@ -74,10 +78,10 @@ impl<const N: usize> Gate for MembershipGate<N> {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
@@ -105,12 +109,12 @@ impl<const N: usize> Gate for MembershipGate<N> {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
-        cs: &mut ConstraintSystem<F>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, N + 1);
-        let haystack_advice = pool.get_array();
-        let needle_advice = pool.get(N);
+        let haystack_advice = pool.get_column_array();
+        let needle_advice = pool.get_column(N);
         (needle_advice, haystack_advice)
     }
 }

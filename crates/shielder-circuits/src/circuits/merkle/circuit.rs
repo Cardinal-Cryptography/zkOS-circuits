@@ -1,50 +1,47 @@
 use halo2_proofs::{
-    circuit::{floor_planner::V1, Layouter, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
+    circuit::{floor_planner::V1, Layouter},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
     circuits::merkle::knowledge::MerkleProverKnowledge,
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     merkle::{chip::MerkleChip, MerkleConstraints, MerkleInstance},
+    synthesizer::create_synthesizer,
     todo::Todo,
-    F,
+    Fr, Value,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct MerkleCircuit<const TREE_HEIGHT: usize>(
-    pub MerkleProverKnowledge<TREE_HEIGHT, Value<F>>,
-);
+pub struct MerkleCircuit<const TREE_HEIGHT: usize>(pub MerkleProverKnowledge<TREE_HEIGHT, Value>);
 
-impl<const TREE_HEIGHT: usize> Circuit<F> for MerkleCircuit<TREE_HEIGHT> {
-    type Config = MerkleChip;
+impl<const TREE_HEIGHT: usize> Circuit<Fr> for MerkleCircuit<TREE_HEIGHT> {
+    type Config = (MerkleChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
         Self::default()
     }
 
-    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+    fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let public_inputs = InstanceWrapper::<MerkleInstance>::new(meta);
-        ConfigsBuilder::new(meta)
-            .with_merkle(public_inputs)
-            .merkle_chip()
+        let configs_builder = ConfigsBuilder::new(meta).with_merkle(public_inputs);
+        (configs_builder.merkle_chip(), configs_builder.finish())
     }
 
     fn synthesize(
         &self,
-        main_chip: Self::Config,
-        mut layouter: impl Layouter<F>,
+        (main_chip, column_pool): Self::Config,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
+        let pool = column_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let mut todo = Todo::<MerkleConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &main_chip.advice_pool,
-            "MerkleProverKnowledge",
-        )?;
-        main_chip.synthesize(&mut layouter, &knowledge, &mut todo)?;
+        let knowledge = self.0.embed(&mut synthesizer, "MerkleProverKnowledge")?;
+        main_chip.synthesize(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }

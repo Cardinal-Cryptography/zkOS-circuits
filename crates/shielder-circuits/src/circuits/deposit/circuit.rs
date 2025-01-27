@@ -1,76 +1,74 @@
 use halo2_proofs::{
-    circuit::{floor_planner::V1, Layouter, Value},
-    plonk::{Circuit, ConstraintSystem, Error},
+    circuit::{floor_planner::V1, Layouter},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
-    chips::token_index::TokenIndexChip,
     circuits::deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
+    column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     deposit::{DepositConstraints, DepositInstance},
     embed::Embed,
     instance_wrapper::InstanceWrapper,
+    synthesizer::create_synthesizer,
     todo::Todo,
-    F,
+    Fr, Value,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct DepositCircuit(pub DepositProverKnowledge<Value<F>>);
+pub struct DepositCircuit(pub DepositProverKnowledge<Value>);
 
-impl Circuit<F> for DepositCircuit {
-    type Config = DepositChip;
+impl Circuit<Fr> for DepositCircuit {
+    type Config = (DepositChip, ColumnPool<Advice, PreSynthesisPhase>);
     type FloorPlanner = V1;
 
     fn without_witnesses(&self) -> Self {
         Self::default()
     }
 
-    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+    fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
             .with_balances_update()
             .with_merkle(public_inputs.narrow())
-            .with_range_check();
+            .with_range_check()
+            .with_token_index(public_inputs.narrow());
 
-        let advice_pool = configs_builder.advice_pool();
-        let token_index = TokenIndexChip::new(advice_pool.clone(), public_inputs.narrow());
-
-        DepositChip {
-            advice_pool,
-            public_inputs,
-            poseidon: configs_builder.poseidon_chip(),
-            merkle: configs_builder.merkle_chip(),
-            range_check: configs_builder.range_check_chip(),
-            balances_update: configs_builder.balances_update_chip(),
-            token_index,
-        }
+        (
+            DepositChip {
+                public_inputs,
+                poseidon: configs_builder.poseidon_chip(),
+                merkle: configs_builder.merkle_chip(),
+                range_check: configs_builder.range_check_chip(),
+                balances_update: configs_builder.balances_update_chip(),
+                token_index: configs_builder.token_index_chip(),
+            },
+            configs_builder.finish(),
+        )
     }
 
     fn synthesize(
         &self,
-        main_chip: Self::Config,
-        mut layouter: impl Layouter<F>,
+        (main_chip, column_pool): Self::Config,
+        mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
+        let pool = column_pool.start_synthesis();
+        let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let mut todo = Todo::<DepositConstraints>::new();
-        let knowledge = self.0.embed(
-            &mut layouter,
-            &main_chip.advice_pool,
-            "DepositProverKnowledge",
-        )?;
+        let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;
 
-        main_chip.check_old_note(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_old_nullifier(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut layouter, &knowledge, &mut todo)?;
-        main_chip.check_token_index(&mut layouter, &knowledge, &mut todo)?;
+        main_chip.check_old_note(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_new_note(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
+        main_chip.check_token_index(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;

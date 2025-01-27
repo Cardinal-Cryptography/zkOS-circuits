@@ -1,8 +1,9 @@
-use halo2_proofs::{circuit::Layouter, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use crate::{
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, F,
+    synthesizer::Synthesizer,
+    AssignedCell,
 };
 
 /// Input for MAC calculation.
@@ -23,10 +24,10 @@ pub mod off_circuit {
     use crate::{
         chips::mac::{Mac, MacInput},
         poseidon::off_circuit::hash,
-        F,
+        Fr,
     };
 
-    pub fn mac(input: &MacInput<F>) -> Mac<F> {
+    pub fn mac(input: &MacInput<Fr>) -> Mac<Fr> {
         Mac {
             r: input.r,
             commitment: hash(&[input.r, input.key]),
@@ -51,11 +52,11 @@ impl MacChip {
     /// Calculate the MAC as `(r, H(r, key))`.
     pub fn mac(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         input: &MacInput<AssignedCell>,
     ) -> Result<Mac<AssignedCell>, Error> {
         let commitment = hash(
-            &mut layouter.namespace(|| "MAC"),
+            synthesizer,
             self.poseidon.clone(),
             [input.r.clone(), input.key.clone()],
         )?;
@@ -82,28 +83,30 @@ mod tests {
     };
 
     use crate::{
-        chips::{
-            mac::{off_circuit, Mac, MacChip, MacInput},
-            shortlist_hash::ShortlistHashChip,
-        },
-        column_pool::ColumnPool,
+        chips::mac::{off_circuit, Mac, MacChip, MacInput},
+        column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         embed::Embed,
-        F,
+        synthesizer::create_synthesizer,
+        Fr,
     };
 
     #[derive(Clone, Debug, Default)]
-    struct MacCircuit(MacInput<F>);
+    struct MacCircuit(MacInput<Fr>);
 
-    impl Circuit<F> for MacCircuit {
-        type Config = (ColumnPool<Advice>, MacChip, Column<Instance>);
+    impl Circuit<Fr> for MacCircuit {
+        type Config = (
+            ColumnPool<Advice, PreSynthesisPhase>,
+            MacChip,
+            Column<Instance>,
+        );
         type FloorPlanner = V1;
 
         fn without_witnesses(&self) -> Self {
             Self::default()
         }
 
-        fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+        fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
             // Enable public input.
             let instance = meta.instance_column();
             meta.enable_equality(instance);
@@ -112,35 +115,37 @@ mod tests {
             // Create MAC chip.
             let mac = MacChip::new(configs_builder.poseidon_chip());
 
-            (configs_builder.advice_pool(), mac, instance)
+            (configs_builder.finish(), mac, instance)
         }
 
         fn synthesize(
             &self,
             (pool, mac_chip, instance): Self::Config,
-            mut layouter: impl Layouter<F>,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
+            let pool = pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed key and r.
-            let key = self.0.key.embed(&mut layouter, &pool, "key")?;
-            let r = self.0.r.embed(&mut layouter, &pool, "r")?;
+            let key = self.0.key.embed(&mut synthesizer, "key")?;
+            let r = self.0.r.embed(&mut synthesizer, "r")?;
 
             // 2. Calculate MAC.
-            let mac = mac_chip.mac(&mut layouter, &MacInput { key, r })?;
+            let mac = mac_chip.mac(&mut synthesizer, &MacInput { key, r })?;
 
             // 3. Compare MAC with public input.
-            layouter.constrain_instance(mac.r.cell(), instance, 0)?;
-            layouter.constrain_instance(mac.commitment.cell(), instance, 1)
+            synthesizer.constrain_instance(mac.r.cell(), instance, 0)?;
+            synthesizer.constrain_instance(mac.commitment.cell(), instance, 1)
         }
     }
 
-    fn input(key: impl Into<F>, r: impl Into<F>) -> MacInput<F> {
+    fn input(key: impl Into<Fr>, r: impl Into<Fr>) -> MacInput<Fr> {
         MacInput {
             key: key.into(),
             r: r.into(),
         }
     }
 
-    fn verify(input: MacInput<F>, expected_mac: Mac<F>) -> Result<(), Vec<String>> {
+    fn verify(input: MacInput<Fr>, expected_mac: Mac<Fr>) -> Result<(), Vec<String>> {
         MockProver::run(
             6,
             &MacCircuit(input),
@@ -184,7 +189,7 @@ mod tests {
     #[test]
     fn incorrect_r_fails() {
         let mut expected_mac = off_circuit::mac(&input(41, 42));
-        expected_mac.r += F::one();
+        expected_mac.r += Fr::one();
         let input = input(41, 42);
 
         let mut errors = verify(input, expected_mac)

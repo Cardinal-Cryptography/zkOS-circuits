@@ -1,13 +1,9 @@
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Error},
-};
+use halo2_proofs::plonk::Error;
 use strum::IntoEnumIterator;
 use MerkleInstance::MerkleRoot;
 
 use crate::{
     circuits::merkle::knowledge::MerkleProverKnowledge,
-    column_pool::ColumnPool,
     consts::merkle_constants::ARITY,
     gates::{
         membership::{MembershipGate, MembershipGateInput},
@@ -16,13 +12,13 @@ use crate::{
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleConstraints, MerkleConstraints::*, MerkleInstance},
     poseidon::circuit::{hash, PoseidonChip},
+    synthesizer::Synthesizer,
     todo::Todo,
-    AssignedCell, F,
+    AssignedCell,
 };
 
 #[derive(Clone, Debug)]
 pub struct MerkleChip {
-    pub advice_pool: ColumnPool<Advice>,
     pub public_inputs: InstanceWrapper<MerkleInstance>,
     pub membership_gate: MembershipGate<ARITY>,
     pub poseidon: PoseidonChip,
@@ -34,7 +30,7 @@ impl MerkleChip {
         Constraint: From<MerkleConstraints> + Ord + IntoEnumIterator,
     >(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         knowledge: &MerkleProverKnowledge<TREE_HEIGHT, AssignedCell>,
         todo: &mut Todo<Constraint>,
     ) -> Result<(), Error> {
@@ -43,7 +39,7 @@ impl MerkleChip {
         for (id, level) in knowledge.path.clone().into_iter().enumerate() {
             // 1. Check if the new level contains the current root.
             self.membership_gate.apply_in_new_region(
-                layouter,
+                synthesizer,
                 MembershipGateInput {
                     needle: current_root,
                     haystack: level.clone(),
@@ -54,12 +50,12 @@ impl MerkleChip {
             }
 
             // 2. Compute new root.
-            current_root = hash(layouter, self.poseidon.clone(), level)?;
+            current_root = hash(synthesizer, self.poseidon.clone(), level)?;
         }
         todo.check_off(Constraint::from(MembershipProofIsCorrect))?;
 
         self.public_inputs
-            .constrain_cells(layouter, [(current_root, MerkleRoot)])?;
+            .constrain_cells(synthesizer, [(current_root, MerkleRoot)])?;
         todo.check_off(Constraint::from(MerkleRootInstanceIsConstrainedToAdvice))
     }
 }

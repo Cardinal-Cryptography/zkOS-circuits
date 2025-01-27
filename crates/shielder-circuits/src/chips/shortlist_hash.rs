@@ -1,16 +1,13 @@
 use core::array;
 
-use halo2_proofs::{
-    circuit::{Layouter, Value},
-    plonk::{Advice, Error},
-};
+use halo2_proofs::plonk::Error;
 
 use crate::{
-    column_pool::ColumnPool,
     consts::POSEIDON_RATE,
     embed::Embed,
     poseidon::circuit::{hash, PoseidonChip},
-    AssignedCell, F,
+    synthesizer::Synthesizer,
+    AssignedCell, Fr, Value,
 };
 
 const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
@@ -19,7 +16,6 @@ const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 #[derive(Clone, Debug)]
 pub struct ShortlistHashChip<const N: usize> {
     poseidon: PoseidonChip,
-    advice_pool: ColumnPool<Advice>,
 }
 
 /// Represents a (short) list of field elements.
@@ -30,16 +26,15 @@ pub struct Shortlist<T, const N: usize> {
     items: [T; N],
 }
 
-impl<const N: usize> Embed for Shortlist<Value<F>, N> {
+impl<const N: usize> Embed for Shortlist<Value, N> {
     type Embedded = Shortlist<AssignedCell, N>;
 
     fn embed(
         &self,
-        layouter: &mut impl Layouter<F>,
-        advice_pool: &ColumnPool<Advice>,
+        synthesizer: &mut impl Synthesizer,
         annotation: impl Into<alloc::string::String>,
     ) -> Result<Self::Embedded, Error> {
-        let items = self.items.embed(layouter, advice_pool, annotation)?;
+        let items = self.items.embed(synthesizer, annotation)?;
         Ok(Shortlist { items })
     }
 }
@@ -77,12 +72,12 @@ impl<T, const N: usize> Shortlist<T, N> {
 
 pub mod off_circuit {
     use super::{Shortlist, CHUNK_SIZE};
-    use crate::{poseidon::off_circuit::hash, F};
+    use crate::{poseidon::off_circuit::hash, Fr};
 
     #[allow(dead_code)]
-    pub fn shortlist_hash<const N: usize>(shortlist: &Shortlist<F, N>) -> F {
-        let mut last = F::zero();
-        let mut input = [F::zero(); CHUNK_SIZE + 1];
+    pub fn shortlist_hash<const N: usize>(shortlist: &Shortlist<Fr, N>) -> Fr {
+        let mut last = Fr::zero();
+        let mut input = [Fr::zero(); CHUNK_SIZE + 1];
         let items = &shortlist.items[..];
 
         for chunk in items.chunks(CHUNK_SIZE).rev() {
@@ -97,32 +92,18 @@ pub mod off_circuit {
 }
 
 impl<const N: usize> ShortlistHashChip<N> {
-    pub fn new(poseidon: PoseidonChip, advice_pool: ColumnPool<Advice>) -> Self {
-        Self {
-            poseidon,
-            advice_pool,
-        }
+    pub fn new(poseidon: PoseidonChip) -> Self {
+        Self { poseidon }
     }
 
     /// Calculate the shortlist hash by chunking the shortlist by POSEIDON_RATE - 1
     /// and chaining the hashes together.
     pub fn shortlist_hash(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         shortlist: &Shortlist<AssignedCell, N>,
     ) -> Result<AssignedCell, Error> {
-        let zero_cell = layouter.assign_region(
-            || "Shortlist placeholder (zero)",
-            |mut region| {
-                region.assign_advice_from_constant(
-                    || "Shortlist placeholder (zero)",
-                    self.advice_pool.get_any(),
-                    0,
-                    F::zero(),
-                )
-            },
-        )?;
-
+        let zero_cell = synthesizer.assign_constant("Shortlist placeholder (zero)", Fr::zero())?;
         let mut last = zero_cell.clone();
         let items = &shortlist.items[..];
 
@@ -131,11 +112,7 @@ impl<const N: usize> ShortlistHashChip<N> {
             let size = input.len() - 1;
             input[size] = last;
             input[0..size].clone_from_slice(chunk);
-            last = hash(
-                &mut layouter.namespace(|| "Shortlist Hash"),
-                self.poseidon.clone(),
-                input,
-            )?;
+            last = hash(synthesizer, self.poseidon.clone(), input)?;
         }
 
         Ok(last)
@@ -148,71 +125,80 @@ mod test {
 
     use assert2::assert;
     use halo2_proofs::{
-        circuit::floor_planner::V1,
+        circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Circuit, Column, Instance},
+        plonk::{Advice, Circuit, Column, Instance},
     };
 
     use super::*;
-    use crate::{config_builder::ConfigsBuilder, embed::Embed, poseidon, F};
+    use crate::{
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        embed::Embed,
+        poseidon,
+        synthesizer::create_synthesizer,
+        Fr,
+    };
 
     #[derive(Clone, Debug, Default)]
-    struct ShortlistCircuit<const N: usize>(Shortlist<F, N>);
+    struct ShortlistCircuit<const N: usize>(Shortlist<Fr, N>);
 
-    impl<const N: usize> Circuit<F> for ShortlistCircuit<N> {
-        type Config = (ColumnPool<Advice>, ShortlistHashChip<N>, Column<Instance>);
+    impl<const N: usize> Circuit<Fr> for ShortlistCircuit<N> {
+        type Config = (
+            ColumnPool<Advice, PreSynthesisPhase>,
+            ShortlistHashChip<N>,
+            Column<Instance>,
+        );
         type FloorPlanner = V1;
 
-        fn configure(meta: &mut halo2_proofs::plonk::ConstraintSystem<F>) -> Self::Config {
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
+
+        fn configure(meta: &mut halo2_proofs::plonk::ConstraintSystem<Fr>) -> Self::Config {
             // Enable public input.
             let instance = meta.instance_column();
             meta.enable_equality(instance);
             // Register Poseidon.
             let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
             // Create Shortlist chip.
-            let pool = configs_builder.advice_pool();
-            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip(), pool.clone());
+            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip());
 
-            (pool, chip, instance)
-        }
-
-        fn without_witnesses(&self) -> Self {
-            Self::default()
+            (configs_builder.finish(), chip, instance)
         }
 
         fn synthesize(
             &self,
             (pool, chip, instance): Self::Config,
-            mut layouter: impl Layouter<F>,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
+            let pool = pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed shortlist items and hash.
-            let items: [AssignedCell; N] = self
-                .0
-                .items
-                .map(|balance| balance.embed(&mut layouter, &pool, "balance").unwrap());
+            let items: [AssignedCell; N] = self.0.items.embed(&mut synthesizer, "balance").unwrap();
             let shortlist = Shortlist { items };
-            let embedded_hash = chip.shortlist_hash(&mut layouter, &shortlist)?;
+            let embedded_hash = chip.shortlist_hash(&mut synthesizer, &shortlist)?;
 
             // 2. Compare hash with public input.
-            layouter.constrain_instance(embedded_hash.cell(), instance, 0)
+            synthesizer.constrain_instance(embedded_hash.cell(), instance, 0)
         }
     }
 
     #[test]
     fn test_hash_compatibility_chained() {
-        test_hash_compatibility(Shortlist::<F, 12>::new(array::from_fn(|i| {
+        test_hash_compatibility(Shortlist::<Fr, 12>::new(array::from_fn(|i| {
             (i as u64).into()
         })));
     }
 
     #[test]
     fn test_hash_compatibility_single_chunk() {
-        test_hash_compatibility(Shortlist::<F, 6>::new(array::from_fn(|i| {
+        test_hash_compatibility(Shortlist::<Fr, 6>::new(array::from_fn(|i| {
             (i as u64).into()
         })));
     }
 
-    fn test_hash_compatibility<const N: usize>(input: Shortlist<F, N>) {
+    fn test_hash_compatibility<const N: usize>(input: Shortlist<Fr, N>) {
         let expected_hash = off_circuit::shortlist_hash(&input);
         let result = MockProver::run(7, &ShortlistCircuit(input), vec![vec![expected_hash]])
             .expect("Mock prover should run successfully")
@@ -223,24 +209,24 @@ mod test {
 
     #[test]
     fn test_chained_hash() {
-        let input: Shortlist<F, 12> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
+        let input: Shortlist<Fr, 12> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
 
         let hash_chunk_2 = poseidon::off_circuit::hash(&[
-            F::from(6),
-            F::from(7),
-            F::from(8),
-            F::from(9),
-            F::from(10),
-            F::from(11),
-            F::from(0),
+            Fr::from(6),
+            Fr::from(7),
+            Fr::from(8),
+            Fr::from(9),
+            Fr::from(10),
+            Fr::from(11),
+            Fr::from(0),
         ]);
         let expected_hash = crate::poseidon::off_circuit::hash(&[
-            F::from(0),
-            F::from(1),
-            F::from(2),
-            F::from(3),
-            F::from(4),
-            F::from(5),
+            Fr::from(0),
+            Fr::from(1),
+            Fr::from(2),
+            Fr::from(3),
+            Fr::from(4),
+            Fr::from(5),
             hash_chunk_2,
         ]);
 
@@ -249,16 +235,16 @@ mod test {
 
     #[test]
     fn test_single_chunk_hash() {
-        let input: Shortlist<F, 6> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
+        let input: Shortlist<Fr, 6> = Shortlist::new(array::from_fn(|i| (i as u64).into()));
 
         let expected_hash = crate::poseidon::off_circuit::hash(&[
-            F::from(0),
-            F::from(1),
-            F::from(2),
-            F::from(3),
-            F::from(4),
-            F::from(5),
-            F::zero(),
+            Fr::from(0),
+            Fr::from(1),
+            Fr::from(2),
+            Fr::from(3),
+            Fr::from(4),
+            Fr::from(5),
+            Fr::zero(),
         ]);
 
         assert!(expected_hash == off_circuit::shortlist_hash(&input));

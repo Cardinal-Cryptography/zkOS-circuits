@@ -5,14 +5,16 @@ use std::{format, string::ToString, vec, vec::Vec};
 
 use halo2_proofs::{
     dev::{FailureLocation, MockProver, VerifyFailure},
+    halo2curves::bn256::Fr,
     plonk::{Any, Circuit},
 };
+use rand::{rngs::StdRng, SeedableRng};
 use rand_core::OsRng;
 use regex::Regex;
 use strum::{EnumCount, IntoEnumIterator};
 
 use crate::{
-    circuits::{self, generate_keys_with_min_k, generate_setup_params, verify, F},
+    circuits::{self, generate_keys_with_min_k, generate_setup_params, verify},
     consts::MAX_K,
     generate_proof, ProverKnowledge, PublicInputProvider,
 };
@@ -20,7 +22,7 @@ use crate::{
 pub trait PublicInputProviderExt<Id: IntoEnumIterator + EnumCount + PartialEq>:
     PublicInputProvider<Id>
 {
-    fn with_substitution(&self, id: Id, change: impl Fn(F) -> F) -> Vec<F> {
+    fn with_substitution(&self, id: Id, change: impl Fn(Fr) -> Fr) -> Vec<Fr> {
         Id::iter()
             .map(|instance_id| {
                 if instance_id == id {
@@ -61,11 +63,11 @@ pub fn run_full_pipeline<PK: ProverKnowledge>() {
 // on `verify_pub_input`. In case of failure before verification, panics.
 // In case of verification failure, returns `VerifyFailure`s from `MockProver`.
 pub fn expect_prover_success_and_run_verification_on_separate_pub_input<
-    C: Circuit<F> + Default + Clone,
+    C: Circuit<Fr> + Default + Clone,
 >(
     test_circuit: C,
-    prove_pub_input: &[F],
-    verify_pub_input: &[F],
+    prove_pub_input: &[Fr],
+    verify_pub_input: &[Fr],
 ) -> Result<(), Vec<VerifyFailure>> {
     let mut rng = OsRng;
 
@@ -97,10 +99,10 @@ pub fn expect_prover_success_and_run_verification_on_separate_pub_input<
 // In case of verification failure, returns `VerifyFailure`s from `MockProver`.
 pub fn expect_prover_success_and_run_verification<C>(
     test_circuit: C,
-    pub_input: &[F],
+    pub_input: &[Fr],
 ) -> Result<(), Vec<VerifyFailure>>
 where
-    C: Circuit<F> + Default + Clone,
+    C: Circuit<Fr> + Default + Clone,
 {
     expect_prover_success_and_run_verification_on_separate_pub_input(
         test_circuit,
@@ -110,10 +112,7 @@ where
 }
 
 // A prover that outputs useful debug info in case of failing constraints.
-pub fn run_mock_prover<C>(test_circuit: &C, pub_input: &[F])
-where
-    C: Circuit<F> + Default,
-{
+pub fn run_mock_prover<C: Circuit<Fr> + Default>(test_circuit: &C, pub_input: &[Fr]) {
     let params = generate_setup_params(MAX_K, &mut OsRng);
 
     let (_, k, _, _) = generate_keys_with_min_k::<C>(params).expect("key generation must succeed");
@@ -160,4 +159,9 @@ pub fn expect_instance_permutation_failures(
     }
     assert!(matched_advice, "Advice failure not found");
     assert!(matched_instance, "Instance failure not found");
+}
+
+/// Returns an instance of rng, seeded
+pub fn rng() -> StdRng {
+    StdRng::from_seed(*b"00000000000000000000100001011001")
 }

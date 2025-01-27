@@ -1,13 +1,10 @@
 use alloc::{collections::BTreeMap, format};
 use core::{borrow::Borrow, fmt::Debug};
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Column, ConstraintSystem, Error, Instance},
-};
+use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error, Instance};
 use strum::IntoEnumIterator;
 
-use crate::{AssignedCell, F};
+use crate::{synthesizer::Synthesizer, AssignedCell, Fr};
 
 #[derive(Clone, Debug)]
 pub struct InstanceWrapper<Identifier> {
@@ -18,7 +15,7 @@ pub struct InstanceWrapper<Identifier> {
 impl<Identifier: IntoEnumIterator + Ord> InstanceWrapper<Identifier> {
     /// This MUST be called once per circuit. If its components require subset of instance, use
     /// `narrow`.
-    pub fn new(meta: &mut ConstraintSystem<F>) -> Self {
+    pub fn new(meta: &mut ConstraintSystem<Fr>) -> Self {
         let offsets = BTreeMap::from_iter(Identifier::iter().enumerate().map(|(i, id)| (id, i)));
 
         let column = meta.instance_column();
@@ -31,7 +28,7 @@ impl<Identifier: IntoEnumIterator + Ord> InstanceWrapper<Identifier> {
 impl<Identifier: IntoEnumIterator + Ord + Debug> InstanceWrapper<Identifier> {
     pub fn copy_as_advice(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         target_column: Column<Advice>,
         instance: impl Borrow<Identifier>,
     ) -> Result<AssignedCell, Error> {
@@ -39,7 +36,7 @@ impl<Identifier: IntoEnumIterator + Ord + Debug> InstanceWrapper<Identifier> {
         let ann = || format!("{instance:?} as advice");
         let offset = self.offsets[instance];
 
-        layouter.assign_region(ann, |mut region| {
+        synthesizer.assign_region(ann, |mut region| {
             region.assign_advice_from_instance(ann, self.column, offset, target_column, 0)
         })
     }
@@ -48,12 +45,12 @@ impl<Identifier: IntoEnumIterator + Ord + Debug> InstanceWrapper<Identifier> {
     /// `instance_id`.
     pub fn constrain_cells(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         cells: impl IntoIterator<Item = (AssignedCell, Identifier)>,
     ) -> Result<(), Error> {
         for (assigned_cell, instance_id) in cells {
             let offset = self.offsets[&instance_id];
-            layouter.constrain_instance(assigned_cell.cell(), self.column, offset)?;
+            synthesizer.constrain_instance(assigned_cell.cell(), self.column, offset)?;
         }
         Ok(())
     }

@@ -10,11 +10,13 @@ pub mod circuits;
 mod column_pool;
 mod config_builder;
 pub mod consts;
+mod curve_operations;
 mod embed;
 mod gates;
 mod instance_wrapper;
 pub mod poseidon;
 mod range_table;
+mod synthesizer;
 mod todo;
 mod version;
 
@@ -26,7 +28,7 @@ pub use consts::MAX_K;
 pub use halo2_proofs::{
     arithmetic::Field,
     dev::CircuitCost,
-    halo2curves::bn256::{Bn256, G1Affine, G1},
+    halo2curves::bn256::{Bn256, Fr, G1Affine, G1},
     plonk::{Circuit, ProvingKey, VerifyingKey},
     poly::{commitment::Params, kzg::commitment::ParamsKZG},
     SerdeFormat,
@@ -40,9 +42,12 @@ pub use version::NoteVersion;
 // For our benchmarks, the sizes were 5447 and 3367 for Raw and Processed, respectively.
 pub const SERDE_FORMAT: SerdeFormat = SerdeFormat::RawBytes;
 
+pub type AssignedCell = halo2_proofs::circuit::AssignedCell<Fr, Fr>;
+pub type Value = halo2_proofs::circuit::Value<Fr>;
+
 pub trait ProverKnowledge: Clone + PublicInputProvider<Self::PublicInput> {
     /// Associated type for the circuit.
-    type Circuit: Circuit<F> + Clone + Debug + Default;
+    type Circuit: Circuit<Fr> + Clone + Debug + Default;
 
     /// Associated type for the public inputs. Expected to be iterable enumeration.
     type PublicInput: IntoEnumIterator + EnumCount;
@@ -58,18 +63,18 @@ pub trait ProverKnowledge: Clone + PublicInputProvider<Self::PublicInput> {
 
 pub trait PublicInputProvider<Id: IntoEnumIterator + EnumCount> {
     /// Computes specific public input value.
-    fn compute_public_input(&self, input: Id) -> F;
+    fn compute_public_input(&self, input: Id) -> Fr;
 
     /// Return full public input as a vector of field elements.
-    fn serialize_public_input(&self) -> Vec<F> {
+    fn serialize_public_input(&self) -> Vec<Fr> {
         Id::iter()
             .map(|instance_id| self.compute_public_input(instance_id))
             .collect()
     }
 }
 
-impl<Id: IntoEnumIterator + EnumCount, Comp: Fn(Id) -> F> PublicInputProvider<Id> for Comp {
-    fn compute_public_input(&self, instance_id: Id) -> F {
+impl<Id: IntoEnumIterator + EnumCount, Comp: Fn(Id) -> Fr> PublicInputProvider<Id> for Comp {
+    fn compute_public_input(&self, instance_id: Id) -> Fr {
         self(instance_id)
     }
 }

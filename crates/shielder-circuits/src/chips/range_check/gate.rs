@@ -1,15 +1,16 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
 
+#[cfg(test)]
+use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{
     consts::RANGE_PROOF_CHUNK_SIZE, embed::Embed, gates::Gate, range_table::RangeTable,
-    AssignedCell, F,
+    synthesizer::Synthesizer, AssignedCell, Fr,
 };
 
 /// Represents inequality: `base - shifted * 2^RANGE_PROOF_CHUNK_SIZE < 2^RANGE_PROOF_CHUNK_SIZE`.
@@ -24,7 +25,7 @@ pub struct RangeCheckGate {
 /// to satisfy the inequality: `base - shifted * 2^CHUNK_SIZE < 2^CHUNK_SIZE`.
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "RangeCheckGateInput<F>",
+    receiver = "RangeCheckGateInput<Fr>",
     impl_generics = "",
     embedded = "RangeCheckGateInput<AssignedCell>"
 )]
@@ -48,7 +49,7 @@ impl Gate for RangeCheckGate {
     /// where:
     ///  - `x` is the row where the gate is enabled
     ///  - `T` represents set `[0, 2^CHUNK_SIZE)`
-    fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self {
         let selector = cs.complex_selector();
         let table = RangeTable::new(cs);
 
@@ -64,7 +65,7 @@ impl Gate for RangeCheckGate {
             //
             // Therefore, we recover the chunk as:
             //  - chunk = base - shifted * SCALE
-            let scale = Expression::Constant(F::from(1 << RANGE_PROOF_CHUNK_SIZE));
+            let scale = Expression::Constant(Fr::from(1 << RANGE_PROOF_CHUNK_SIZE));
             let chunk = base - shifted * scale;
 
             vec![(selector * chunk, table.column())]
@@ -79,11 +80,11 @@ impl Gate for RangeCheckGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         RangeCheckGateInput { base, shifted }: Self::Input,
     ) -> Result<(), Error> {
-        self.table.ensure_initialized(layouter)?;
-        layouter.assign_region(
+        self.table.ensure_initialized(synthesizer)?;
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, 0)?;
@@ -96,11 +97,11 @@ impl Gate for RangeCheckGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
-        cs: &mut ConstraintSystem<F>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 1);
-        pool.get_any()
+        pool.get_any_column()
     }
 }
 

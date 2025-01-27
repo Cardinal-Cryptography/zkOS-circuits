@@ -1,16 +1,22 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 #[cfg(test)]
-use {crate::embed::Embed, macros::embeddable};
+use {
+    crate::{
+        column_pool::{AccessColumn, ConfigPhase},
+        embed::Embed,
+    },
+    macros::embeddable,
+};
 
 use crate::{
     gates::{ensure_unique_columns, Gate},
-    AssignedCell, F,
+    synthesizer::Synthesizer,
+    AssignedCell, Fr,
 };
 
 /// Represents the relation: `a + b = c`.
@@ -24,7 +30,7 @@ pub struct SumGate {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "SumGateInput<F>",
+        receiver = "SumGateInput<Fr>",
         impl_generics = "",
         embedded = "SumGateInput<AssignedCell>"
     )
@@ -45,7 +51,7 @@ impl Gate for SumGate {
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
     /// `A[x] + B[x] = C[x]`, where `x` is the row where the gate is enabled.
-    fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self {
         ensure_unique_columns(&advice);
         let selector = cs.selector();
 
@@ -61,10 +67,10 @@ impl Gate for SumGate {
 
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error> {
-        layouter.assign_region(
+        synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
                 self.selector.enable(&mut region, SELECTOR_OFFSET)?;
@@ -87,11 +93,11 @@ impl Gate for SumGate {
 
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut crate::column_pool::ColumnPool<Advice>,
-        cs: &mut ConstraintSystem<F>,
+        pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 3);
-        pool.get_array()
+        pool.get_column_array()
     }
 }
 

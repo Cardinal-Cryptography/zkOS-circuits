@@ -1,20 +1,17 @@
 use alloc::{vec, vec::Vec};
 use core::array;
 
-use halo2_proofs::{
-    circuit::{Layouter, Value},
-    plonk::{Advice, Error},
-};
+use halo2_proofs::{circuit::Value, plonk::Error};
 
 use super::{range_check::RangeCheckChip, shortlist_hash::Shortlist};
 use crate::{
-    column_pool::ColumnPool,
     consts::{NUM_TOKENS, RANGE_PROOF_NUM_WORDS},
     gates::{
         balance_update::{BalanceUpdateGate, BalanceUpdateGateInput},
         Gate,
     },
-    AssignedCell, F,
+    synthesizer::Synthesizer,
+    AssignedCell, Fr,
 };
 
 pub mod off_circuit {
@@ -40,30 +37,21 @@ pub mod off_circuit {
 #[derive(Clone, Debug)]
 pub struct BalancesUpdateChip {
     pub gate: BalanceUpdateGate,
-    pub advice_pool: ColumnPool<Advice>,
     pub range_check: RangeCheckChip,
 }
 
-fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value<F>; N] {
+fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Value<Fr>; N] {
     array::from_fn(|i| cell_array[i].value().copied())
 }
 
 impl BalancesUpdateChip {
-    pub fn new(
-        gate: BalanceUpdateGate,
-        range_check: RangeCheckChip,
-        advice_pool: ColumnPool<Advice>,
-    ) -> Self {
-        Self {
-            gate,
-            range_check,
-            advice_pool,
-        }
+    pub fn new(gate: BalanceUpdateGate, range_check: RangeCheckChip) -> Self {
+        Self { gate, range_check }
     }
 
     pub fn update_balances(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         balances_old: &Shortlist<AssignedCell, NUM_TOKENS>,
         token_indicators: &[AssignedCell; NUM_TOKENS],
         increase_value: &AssignedCell,
@@ -77,19 +65,10 @@ impl BalancesUpdateChip {
         let mut balances_new: Vec<AssignedCell> = vec![];
 
         for i in 0..NUM_TOKENS {
-            let balance_new = layouter.assign_region(
-                || "balance_new",
-                |mut region| {
-                    region.assign_advice(
-                        || "balance_new",
-                        self.advice_pool.get_any(),
-                        0,
-                        || balances_new_values.items()[i],
-                    )
-                },
-            )?;
+            let balance_new =
+                synthesizer.assign_value("balance_new", balances_new_values.items()[i])?;
             self.range_check
-                .constrain_value::<RANGE_PROOF_NUM_WORDS>(layouter, balance_new.clone())?;
+                .constrain_value::<RANGE_PROOF_NUM_WORDS>(synthesizer, balance_new.clone())?;
             balances_new.push(balance_new);
 
             let gate_input = BalanceUpdateGateInput {
@@ -98,7 +77,7 @@ impl BalancesUpdateChip {
                 token_indicator: token_indicators[i].clone(),
                 balance_new: balances_new[i].clone(),
             };
-            self.gate.apply_in_new_region(layouter, gate_input)?;
+            self.gate.apply_in_new_region(synthesizer, gate_input)?;
         }
 
         Ok(Shortlist::new(
@@ -113,35 +92,43 @@ mod test {
 
     use assert2::assert;
     use halo2_proofs::{
-        circuit::floor_planner::V1,
+        circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Circuit, Column, ConstraintSystem, Instance},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, Instance},
     };
 
     use super::*;
-    use crate::{config_builder::ConfigsBuilder, embed::Embed, F};
+    use crate::{
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        embed::Embed as _,
+        synthesizer::create_synthesizer,
+    };
 
     #[derive(Clone, Debug, Default)]
     struct BalanceUpdateCircuit {
-        balances_old: Shortlist<F, NUM_TOKENS>,
-        update_value: F,
-        token_indicators: [F; NUM_TOKENS],
+        balances_old: Shortlist<Fr, NUM_TOKENS>,
+        update_value: Fr,
+        token_indicators: [Fr; NUM_TOKENS],
     }
 
-    impl Circuit<F> for BalanceUpdateCircuit {
-        type Config = (ColumnPool<Advice>, BalancesUpdateChip, Column<Instance>);
+    impl Circuit<Fr> for BalanceUpdateCircuit {
+        type Config = (
+            ColumnPool<Advice, PreSynthesisPhase>,
+            BalancesUpdateChip,
+            Column<Instance>,
+        );
         type FloorPlanner = V1;
 
-        fn configure(constraint_system: &mut ConstraintSystem<F>) -> Self::Config {
+        fn configure(constraint_system: &mut ConstraintSystem<Fr>) -> Self::Config {
             let instance = constraint_system.instance_column();
             constraint_system.enable_equality(instance);
 
             let configs_builder = ConfigsBuilder::new(constraint_system).with_poseidon();
-            let pool = configs_builder.advice_pool();
-
             let configs_builder = configs_builder.with_balances_update();
+            let chip = configs_builder.balances_update_chip();
 
-            (pool, configs_builder.balances_update_chip(), instance)
+            (configs_builder.finish(), chip, instance)
         }
 
         fn without_witnesses(&self) -> Self {
@@ -151,30 +138,30 @@ mod test {
         fn synthesize(
             &self,
             (pool, chip, instance): Self::Config,
-            mut layouter: impl Layouter<F>,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            let balances_old_embedded =
-                self.balances_old
-                    .map(Value::known)
-                    .embed(&mut layouter, &pool, "balances_old")?;
-            let update_value = self
-                .update_value
-                .embed(&mut layouter, &pool, "update_value")?;
-            let token_indicators = self.token_indicators.map(Value::known).embed(
-                &mut layouter,
-                &pool,
-                "token_indicators",
-            )?;
+            let pool = pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &pool);
+
+            let balances_old_embedded = self
+                .balances_old
+                .map(Value::known)
+                .embed(&mut synthesizer, "balances_old")?;
+            let update_value = self.update_value.embed(&mut synthesizer, "update_value")?;
+            let token_indicators = self
+                .token_indicators
+                .map(Value::known)
+                .embed(&mut synthesizer, "token_indicators")?;
 
             let balances_new_embedded = chip.update_balances(
-                &mut layouter,
+                &mut synthesizer,
                 &balances_old_embedded,
                 &token_indicators,
                 &update_value,
             )?;
 
             for i in 0..NUM_TOKENS {
-                layouter.constrain_instance(
+                synthesizer.constrain_instance(
                     balances_new_embedded.items()[i].cell(),
                     instance,
                     i,
@@ -225,7 +212,7 @@ mod test {
         update_value: i64,
         token_id: usize,
         expected_new_balances: [i64; NUM_TOKENS],
-    ) -> Result<MockProver<F>, Error> {
+    ) -> Result<MockProver<Fr>, Error> {
         let token_indicators = array::from_fn(|i| ((i == token_id) as u64).into());
 
         MockProver::run(
@@ -239,9 +226,9 @@ mod test {
         )
     }
 
-    fn into_field(x: i64) -> F {
+    fn into_field(x: i64) -> Fr {
         if x < 0 {
-            let x: F = (-x as u64).into();
+            let x: Fr = (-x as u64).into();
             x.neg()
         } else {
             (x as u64).into()

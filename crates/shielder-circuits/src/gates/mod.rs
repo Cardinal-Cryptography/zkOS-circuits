@@ -1,19 +1,17 @@
 use alloc::collections::BTreeSet;
 
-use halo2_proofs::{
-    circuit::Layouter,
-    plonk::{Advice, Column, ConstraintSystem, Error},
-};
+use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error};
 
 #[cfg(test)]
-use crate::column_pool::ColumnPool;
-use crate::F;
+use crate::column_pool::{ColumnPool, ConfigPhase};
+use crate::{synthesizer::Synthesizer, Fr};
 
 pub mod balance_update;
 pub mod is_binary;
+pub mod linear_equation;
 pub mod membership;
-pub mod point_add;
 pub mod point_double;
+pub mod points_add;
 pub mod sum;
 
 #[cfg(test)]
@@ -30,14 +28,14 @@ pub trait Gate: Sized {
     type Advices;
 
     /// Register the gate in the `ConstraintSystem`. It should create a new gate instance.
-    fn create_gate(cs: &mut ConstraintSystem<F>, advice: Self::Advices) -> Self;
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self;
 
     /// Apply the gate in a new region. The gate MUST enable its selector, copy (constrained if
     /// applicable) the inputs to the region and return new `Gate::Values` struct with the newly
     /// created assigned cells.
     fn apply_in_new_region(
         &self,
-        layouter: &mut impl Layouter<F>,
+        synthesizer: &mut impl Synthesizer,
         input: Self::Input,
     ) -> Result<(), Error>;
 
@@ -47,8 +45,8 @@ pub trait Gate: Sized {
     /// govern advice columns.
     #[cfg(test)]
     fn organize_advice_columns(
-        pool: &mut ColumnPool<Advice>,
-        cs: &mut ConstraintSystem<F>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
+        cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices;
 }
 

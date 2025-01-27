@@ -3392,6 +3392,7 @@ dependencies = [
  "halo2_poseidon",
  "halo2_proofs",
  "human_bytes",
+ "lazy_static",
  "macros",
  "once_cell",
  "rand",
