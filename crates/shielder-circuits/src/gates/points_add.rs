@@ -131,29 +131,29 @@ impl Gate for PointsAddGate {
     }
 }
 
-fn copy_grumpkin_advices(
+pub fn copy_grumpkin_advices(
     cell: &GrumpkinPoint<AssignedCell>,
     annotation: &str,
     region: &mut Region<'_, Fr>,
-    column: [Column<Advice>; 3],
+    columns: [Column<Advice>; 3],
     advice_offset: usize,
 ) -> Result<(), Error> {
     cell.x.copy_advice(
         || alloc::format!("{}[x]", annotation),
         region,
-        column[0],
+        columns[0],
         advice_offset,
     )?;
     cell.y.copy_advice(
         || alloc::format!("{}[y]", annotation),
         region,
-        column[1],
+        columns[1],
         advice_offset,
     )?;
     cell.z.copy_advice(
         || alloc::format!("{}[z]", annotation),
         region,
-        column[2],
+        columns[2],
         advice_offset,
     )?;
     Ok(())

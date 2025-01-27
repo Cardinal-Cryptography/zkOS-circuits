@@ -14,13 +14,13 @@ use crate::{
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct PointDoubleChipInput<T> {
-    pub p: [T; 3],
+    pub p: GrumpkinPoint<T>,
 }
 
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct PointDoubleChipOutput<T> {
-    pub s: [T; 3],
+    pub s: GrumpkinPoint<T>,
 }
 
 /// Chip that doubles a point on a Grumpkin curve.
@@ -41,16 +41,10 @@ impl PointDoubleChip {
         synthesizer: &mut impl Synthesizer,
         input: &PointDoubleChipInput<AssignedCell>,
     ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
-        let GrumpkinPoint { x, y, z } = curve_arithmetic::point_double(
-            GrumpkinPoint::new(
-                input.p[0].value().copied(),
-                input.p[1].value().copied(),
-                input.p[2].value().copied(),
-            ),
-            Value::known(*GRUMPKIN_3B),
-        );
+        let s_value =
+            curve_arithmetic::point_double(input.p.clone().into(), Value::known(*GRUMPKIN_3B));
 
-        let s = [x, y, z].embed(synthesizer, "S")?;
+        let s = s_value.embed(synthesizer, "S")?;
 
         let gate_input = PointDoubleGateInput {
             p: input.p.clone(),
@@ -127,16 +121,16 @@ mod tests {
             let PointDoubleChipOutput { s } =
                 chip.point_double(&mut synthesizer, &PointDoubleChipInput { p })?;
 
-            synthesizer.constrain_instance(s[0].cell(), instance, 0)?;
-            synthesizer.constrain_instance(s[1].cell(), instance, 1)?;
-            synthesizer.constrain_instance(s[2].cell(), instance, 2)?;
+            synthesizer.constrain_instance(s.x.cell(), instance, 0)?;
+            synthesizer.constrain_instance(s.y.cell(), instance, 1)?;
+            synthesizer.constrain_instance(s.z.cell(), instance, 2)?;
 
             Ok(())
         }
     }
 
     fn input(p: G1) -> PointDoubleChipInput<Fr> {
-        PointDoubleChipInput { p: [p.x, p.y, p.z] }
+        PointDoubleChipInput { p: p.into() }
     }
 
     fn verify(
@@ -147,7 +141,7 @@ mod tests {
         MockProver::run(
             4,
             &circuit,
-            vec![vec![expected.s[0], expected.s[1], expected.s[2]]],
+            vec![vec![expected.s.x, expected.s.y, expected.s.z]],
         )
         .expect("Mock prover should run")
         .verify()
@@ -164,9 +158,7 @@ mod tests {
         let expected = p + p;
 
         let input = input(p);
-        let output = PointDoubleChipOutput {
-            s: [expected.x, expected.y, expected.z],
-        };
+        let output = PointDoubleChipOutput { s: expected.into() };
 
         assert!(verify(input, output).is_ok());
     }
@@ -180,9 +172,7 @@ mod tests {
         let expected = p + p;
 
         let input = input(p);
-        let output = PointDoubleChipOutput {
-            s: [expected.x, expected.y, expected.z],
-        };
+        let output = PointDoubleChipOutput { s: expected.into() };
 
         assert!(verify(input, output).is_ok());
     }
@@ -195,7 +185,7 @@ mod tests {
         let s = G1::random(rng.clone());
 
         let input = input(p);
-        let output = PointDoubleChipOutput { s: [s.x, s.y, s.z] };
+        let output = PointDoubleChipOutput { s: s.into() };
 
         assert!(verify(input, output).is_err());
     }
