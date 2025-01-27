@@ -31,6 +31,24 @@ pub struct SkipHashGateInput<T> {
     pub result: T,
 }
 
+/// SkipHash gate represents the relation `R(result, sum, hash)` defined as:
+///
+///     `result := if (sum == 0) { 0 } else { hash }`
+///
+/// In order to implement it with arithmetic constraints, it is convenient to introduce an auxiliary
+/// one `R'(result, sum, hash, sum_inverse)`, defined as:
+///
+///     `if (sum == 0) { result := 0    && sum_inverse is arbitrary`
+///     `else          { result := hash && sum_inverse = 1 / sum }`
+///
+/// It is quite straightforward to see that `(result, sum, hash) ∈ R` if and only if there exists
+/// `sum_inverse` such that `(result, sum, hash, sum_inverse) ∈ R'`.
+///
+/// `R'` can be implemented with the following constraints:
+///   - `sum * sum * sum_inverse  = sum`        // if `sum == 0` then `sum_inverse` can be arbitrary
+///                                                otherwise `sum_inverse = 1 / sum`
+///   - `sum * sum_inverse * hash = result`     // if `sum == 0` then `result = 0`, otherwise
+///                                                `result = hash` (given the previous constraint)
 pub struct SkipHashGate {
     selector: Selector,
     advice: SkipHashGateInput<Column<Advice>>,
