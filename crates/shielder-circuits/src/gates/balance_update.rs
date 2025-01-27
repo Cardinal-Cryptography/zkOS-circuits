@@ -20,13 +20,13 @@ pub const NUM_ADVICE_COLUMNS: usize = 4;
 
 /// Enforces the equation `balance_new = balance_old + update_value * token_indicator`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct BalanceIncreaseGate {
-    advices: BalanceIncreaseGateAdvices,
+pub struct BalanceUpdateGate {
+    advices: BalanceUpdateGateAdvices,
     selector: Selector,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct BalanceIncreaseGateAdvices {
+pub struct BalanceUpdateGateAdvices {
     pub balance_old: Column<Advice>,
     pub update_value: Column<Advice>,
     pub token_indicator: Column<Advice>,
@@ -37,21 +37,21 @@ pub struct BalanceIncreaseGateAdvices {
 #[cfg_attr(
     test,
     embeddable(
-        receiver = "BalanceIncreaseGateInput<F>",
+        receiver = "BalanceUpdateGateInput<F>",
         impl_generics = "",
-        embedded = "BalanceIncreaseGateInput<crate::AssignedCell>"
+        embedded = "BalanceUpdateGateInput<crate::AssignedCell>"
     )
 )]
-pub struct BalanceIncreaseGateInput<T> {
+pub struct BalanceUpdateGateInput<T> {
     pub balance_old: T,
     pub update_value: T,
     pub token_indicator: T,
     pub balance_new: T,
 }
 
-impl Gate for BalanceIncreaseGate {
-    type Input = BalanceIncreaseGateInput<AssignedCell>;
-    type Advices = BalanceIncreaseGateAdvices;
+impl Gate for BalanceUpdateGate {
+    type Input = BalanceUpdateGateInput<AssignedCell>;
+    type Advices = BalanceUpdateGateAdvices;
 
     fn create_gate(cs: &mut ConstraintSystem<F>, advices: Self::Advices) -> Self {
         ensure_unique_columns(&[
@@ -122,7 +122,7 @@ impl Gate for BalanceIncreaseGate {
     ) -> Self::Advices {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
         let columns = pool.get_array::<NUM_ADVICE_COLUMNS>();
-        BalanceIncreaseGateAdvices {
+        BalanceUpdateGateAdvices {
             balance_old: columns[0],
             update_value: columns[1],
             token_indicator: columns[2],
@@ -137,8 +137,8 @@ mod tests {
     use halo2_proofs::{halo2curves::bn256::Fr, plonk::ConstraintSystem};
 
     use crate::gates::{
-        balance_increase::{
-            BalanceIncreaseGate, BalanceIncreaseGateAdvices, BalanceIncreaseGateInput,
+        balance_update::{
+            BalanceUpdateGate, BalanceUpdateGateAdvices, BalanceUpdateGateInput,
         },
         test_utils::verify,
         Gate as _,
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn token_enabled_balance_changed_passes() {
-        assert!(verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
+        assert!(verify::<BalanceUpdateGate, _>(BalanceUpdateGateInput {
             balance_old: Fr::from(10),
             update_value: Fr::from(5),
             token_indicator: Fr::from(1),
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn token_enabled_balance_decrease_passes() {
-        assert!(verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
+        assert!(verify::<BalanceUpdateGate, _>(BalanceUpdateGateInput {
             balance_old: Fr::from(10),
             update_value: Fr::from(5).neg(),
             token_indicator: Fr::from(1),
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn token_enabled_balance_unchanged_fails() {
-        let errors = verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
+        let errors = verify::<BalanceUpdateGate, _>(BalanceUpdateGateInput {
             balance_old: Fr::from(10),
             update_value: Fr::from(5),
             token_indicator: Fr::from(1),
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn token_disabled_balance_changed_fails() {
-        let errors = verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
+        let errors = verify::<BalanceUpdateGate, _>(BalanceUpdateGateInput {
             balance_old: Fr::from(10),
             update_value: Fr::from(5),
             token_indicator: Fr::from(0),
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn token_disabled_balance_unchanged_passes() {
-        assert!(verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
+        assert!(verify::<BalanceUpdateGate, _>(BalanceUpdateGateInput {
             balance_old: Fr::from(10),
             update_value: Fr::from(5),
             token_indicator: Fr::from(0),
@@ -216,9 +216,9 @@ mod tests {
         let column_1 = cs.advice_column();
         let column_2 = cs.advice_column();
         let column_3 = cs.advice_column();
-        BalanceIncreaseGate::create_gate(
+        BalanceUpdateGate::create_gate(
             &mut cs,
-            BalanceIncreaseGateAdvices {
+            BalanceUpdateGateAdvices {
                 balance_old: column_1,
                 update_value: column_1,
                 token_indicator: column_2,

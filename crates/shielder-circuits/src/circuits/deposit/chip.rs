@@ -6,7 +6,7 @@ use DepositInstance::DepositValue;
 
 use crate::{
     chips::{
-        balances_increase::BalancesIncreaseChip,
+        balances_update::BalancesUpdateChip,
         id_hiding::IdHidingChip,
         note::{Note, NoteChip},
         range_check::RangeCheckChip,
@@ -35,7 +35,7 @@ pub struct DepositChip {
     pub poseidon: PoseidonChip,
     pub range_check: RangeCheckChip,
     pub merkle: MerkleChip,
-    pub balances_increase: BalancesIncreaseChip,
+    pub balances_update: BalancesUpdateChip,
     pub token_index: TokenIndexChip,
 }
 
@@ -110,7 +110,7 @@ impl DepositChip {
             .constrain_cells(layouter, [(knowledge.deposit_value.clone(), DepositValue)])?;
         todo.check_off(DepositValueInstanceIsConstrainedToAdvice)?;
 
-        let balances_new = self.balances_increase.increase_balances(
+        let balances_new = self.balances_update.update_balances(
             layouter,
             &knowledge.balances_old,
             &knowledge.token_indicators,

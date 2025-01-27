@@ -11,7 +11,7 @@ use crate::{
     column_pool::ColumnPool,
     consts::{NUM_TOKENS, RANGE_PROOF_NUM_WORDS},
     gates::{
-        balance_increase::{BalanceIncreaseGate, BalanceIncreaseGateInput},
+        balance_update::{BalanceUpdateGate, BalanceUpdateGateInput},
         Gate,
     },
     AssignedCell, F,
@@ -26,7 +26,7 @@ pub mod off_circuit {
     use crate::{chips::shortlist_hash::Shortlist, consts::NUM_TOKENS};
 
     /// Computes new balances. Works for both `F` and `Value<F>`.
-    pub fn increase_balances<T: Add<Output = T> + Mul<Output = T> + Clone>(
+    pub fn update_balances<T: Add<Output = T> + Mul<Output = T> + Clone>(
         balances_old: &Shortlist<T, NUM_TOKENS>,
         token_indicators: &[T; NUM_TOKENS],
         increase_value: T,
@@ -38,8 +38,8 @@ pub mod off_circuit {
 }
 
 #[derive(Clone, Debug)]
-pub struct BalancesIncreaseChip {
-    pub gate: BalanceIncreaseGate,
+pub struct BalancesUpdateChip {
+    pub gate: BalanceUpdateGate,
     pub advice_pool: ColumnPool<Advice>,
     pub range_check: RangeCheckChip,
 }
@@ -48,9 +48,9 @@ fn values_from_cell_array<const N: usize>(cell_array: &[AssignedCell; N]) -> [Va
     array::from_fn(|i| cell_array[i].value().copied())
 }
 
-impl BalancesIncreaseChip {
+impl BalancesUpdateChip {
     pub fn new(
-        gate: BalanceIncreaseGate,
+        gate: BalanceUpdateGate,
         range_check: RangeCheckChip,
         advice_pool: ColumnPool<Advice>,
     ) -> Self {
@@ -61,14 +61,14 @@ impl BalancesIncreaseChip {
         }
     }
 
-    pub fn increase_balances(
+    pub fn update_balances(
         &self,
         layouter: &mut impl Layouter<F>,
         balances_old: &Shortlist<AssignedCell, NUM_TOKENS>,
         token_indicators: &[AssignedCell; NUM_TOKENS],
         increase_value: &AssignedCell,
     ) -> Result<Shortlist<AssignedCell, NUM_TOKENS>, Error> {
-        let balances_new_values = off_circuit::increase_balances(
+        let balances_new_values = off_circuit::update_balances(
             &Shortlist::new(values_from_cell_array(balances_old.items())),
             &values_from_cell_array(token_indicators),
             increase_value.value().cloned(),
@@ -92,7 +92,7 @@ impl BalancesIncreaseChip {
                 .constrain_value::<RANGE_PROOF_NUM_WORDS>(layouter, balance_new.clone())?;
             balances_new.push(balance_new);
 
-            let gate_input = BalanceIncreaseGateInput {
+            let gate_input = BalanceUpdateGateInput {
                 balance_old: balances_old.items()[i].clone(),
                 update_value: increase_value.clone(),
                 token_indicator: token_indicators[i].clone(),
@@ -122,14 +122,14 @@ mod test {
     use crate::{config_builder::ConfigsBuilder, embed::Embed, F};
 
     #[derive(Clone, Debug, Default)]
-    struct BalanceIncreaseCircuit {
+    struct BalanceUpdateCircuit {
         balances_old: Shortlist<F, NUM_TOKENS>,
         update_value: F,
         token_indicators: [F; NUM_TOKENS],
     }
 
-    impl Circuit<F> for BalanceIncreaseCircuit {
-        type Config = (ColumnPool<Advice>, BalancesIncreaseChip, Column<Instance>);
+    impl Circuit<F> for BalanceUpdateCircuit {
+        type Config = (ColumnPool<Advice>, BalancesUpdateChip, Column<Instance>);
         type FloorPlanner = V1;
 
         fn configure(constraint_system: &mut ConstraintSystem<F>) -> Self::Config {
@@ -139,9 +139,9 @@ mod test {
             let configs_builder = ConfigsBuilder::new(constraint_system).with_poseidon();
             let pool = configs_builder.advice_pool();
 
-            let configs_builder = configs_builder.with_balances_increase();
+            let configs_builder = configs_builder.with_balances_update();
 
-            (pool, configs_builder.balances_increase_chip(), instance)
+            (pool, configs_builder.balances_update_chip(), instance)
         }
 
         fn without_witnesses(&self) -> Self {
@@ -166,7 +166,7 @@ mod test {
                 "token_indicators",
             )?;
 
-            let balances_new_embedded = chip.increase_balances(
+            let balances_new_embedded = chip.update_balances(
                 &mut layouter,
                 &balances_old_embedded,
                 &token_indicators,
@@ -230,7 +230,7 @@ mod test {
 
         MockProver::run(
             9,
-            &BalanceIncreaseCircuit {
+            &BalanceUpdateCircuit {
                 balances_old: Shortlist::new(balances_old.map(|x| x.into())),
                 update_value: into_field(update_value),
                 token_indicators,

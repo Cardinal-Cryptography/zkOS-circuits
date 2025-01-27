@@ -1,11 +1,11 @@
 use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
-    chips::{balances_increase::BalancesIncreaseChip, range_check::RangeCheckChip, sum::SumChip},
+    chips::{balances_update::BalancesUpdateChip, range_check::RangeCheckChip, sum::SumChip},
     column_pool::ColumnPool,
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
-        balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
+        balance_update::{self, BalanceUpdateGate, BalanceUpdateGateAdvices},
         membership::MembershipGate,
         sum::SumGate,
         Gate,
@@ -21,7 +21,7 @@ pub struct ConfigsBuilder<'cs> {
     advice_pool: ColumnPool<Advice>,
     fixed_pool: ColumnPool<Fixed>,
 
-    balances_increase: Option<BalancesIncreaseChip>,
+    balances_update: Option<BalancesUpdateChip>,
     merkle: Option<MerkleChip>,
     poseidon: Option<PoseidonChip>,
     range_check: Option<RangeCheckChip>,
@@ -43,7 +43,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             advice_pool: ColumnPool::<Advice>::new(),
             fixed_pool: ColumnPool::<Fixed>::new(),
 
-            balances_increase: None,
+            balances_update: None,
             merkle: None,
             poseidon: None,
             range_check: None,
@@ -55,17 +55,17 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.advice_pool.clone()
     }
 
-    pub fn with_balances_increase(mut self) -> Self {
-        check_if_cached!(self, balances_increase);
+    pub fn with_balances_update(mut self) -> Self {
+        check_if_cached!(self, balances_update);
 
         self = self.with_range_check();
         let advice_pool = self.advice_pool_with_capacity(4).clone();
-        let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
+        let gate_advice = advice_pool.get_array::<{ balance_update::NUM_ADVICE_COLUMNS }>();
 
-        self.balances_increase = Some(BalancesIncreaseChip {
-            gate: BalanceIncreaseGate::create_gate(
+        self.balances_update = Some(BalancesUpdateChip {
+            gate: BalanceUpdateGate::create_gate(
                 self.system,
-                BalanceIncreaseGateAdvices {
+                BalanceUpdateGateAdvices {
                     balance_old: gate_advice[0],
                     update_value: gate_advice[1],
                     token_indicator: gate_advice[2],
@@ -78,10 +78,10 @@ impl<'cs> ConfigsBuilder<'cs> {
         self
     }
 
-    pub fn balances_increase_chip(&self) -> BalancesIncreaseChip {
-        self.balances_increase
+    pub fn balances_update_chip(&self) -> BalancesUpdateChip {
+        self.balances_update
             .clone()
-            .expect("BalancesIncrease not configured")
+            .expect("BalancesUpdate not configured")
     }
 
     pub fn with_poseidon(mut self) -> Self {

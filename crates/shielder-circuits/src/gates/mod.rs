@@ -9,7 +9,7 @@ use halo2_proofs::{
 use crate::column_pool::ColumnPool;
 use crate::F;
 
-pub mod balance_increase;
+pub mod balance_update;
 pub mod is_binary;
 pub mod membership;
 pub mod point_add;

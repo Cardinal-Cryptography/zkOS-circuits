@@ -7,7 +7,7 @@ use rand_core::RngCore;
 
 use crate::{
     chips::{
-        balances_increase::off_circuit::increase_balances, shortlist_hash::Shortlist,
+        balances_update::off_circuit::update_balances, shortlist_hash::Shortlist,
         token_index::off_circuit::index_from_indicators,
     },
     consts::{
@@ -121,7 +121,7 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<F> {
                 id: self.id,
                 nullifier: self.nullifier_new,
                 trapdoor: self.trapdoor_new,
-                balances: increase_balances(
+                balances: update_balances(
                     &self.balances_old,
                     &self.token_indicators,
                     self.deposit_value,

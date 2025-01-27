@@ -29,7 +29,7 @@ impl Circuit<F> for DepositCircuit {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
-            .with_balances_increase()
+            .with_balances_update()
             .with_merkle(public_inputs.narrow())
             .with_range_check();
 
@@ -42,7 +42,7 @@ impl Circuit<F> for DepositCircuit {
             poseidon: configs_builder.poseidon_chip(),
             merkle: configs_builder.merkle_chip(),
             range_check: configs_builder.range_check_chip(),
-            balances_increase: configs_builder.balances_increase_chip(),
+            balances_update: configs_builder.balances_update_chip(),
             token_index,
         }
     }
@@ -77,7 +77,7 @@ mod tests {
 
     use crate::{
         chips::{
-            balances_increase::off_circuit::increase_balances,
+            balances_update::off_circuit::update_balances,
             token_index::off_circuit::index_from_indicators,
         },
         circuits::{
@@ -160,7 +160,7 @@ mod tests {
 
             // Build the new account state.
             let balances_new =
-                increase_balances(&pk.balances_old, &pk.token_indicators, pk.deposit_value);
+                update_balances(&pk.balances_old, &pk.token_indicators, pk.deposit_value);
 
             // Build the new note.
             let h_note_new = note_hash(&Note {

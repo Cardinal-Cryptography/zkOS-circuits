@@ -1,4 +1,4 @@
-pub mod balances_increase;
+pub mod balances_update;
 pub mod id_hiding;
 #[allow(unused)]
 pub mod mac;
