@@ -25,6 +25,7 @@ halo2_poseidon = { git = "ssh://git@github.com/Cardinal-Cryptography/poseidon-ga
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2", tag = "v0.3.0", default-features = false }
 human_bytes = { version = "0.4.3", default-features = false }
 itertools = { version = "0.13.0" }
+lazy_static = { version = "1.5.0" }
 once_cell = { version = "1.20.2" }
 postgres = "0.19.9"
 prettytable-rs = "0.10.0"

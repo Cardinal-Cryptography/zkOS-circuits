@@ -27,6 +27,8 @@ pub mod withdraw;
 pub mod marshall;
 #[cfg(test)]
 pub mod test_utils;
+#[cfg(test)]
+pub use test_utils::rng;
 
 pub type Params = ParamsKZG<Bn256>;
 pub type ProvingKey = halo2_proofs::plonk::ProvingKey<G1Affine>;
