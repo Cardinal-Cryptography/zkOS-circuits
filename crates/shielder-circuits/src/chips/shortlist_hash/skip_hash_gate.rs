@@ -269,11 +269,9 @@ mod tests {
 
     #[test]
     fn if_sum_is_nonzero_inverse_must_be_inverse() {
-        assert_fails(verify::<SkipHashGate, _>(input(
-            [1; NUM_TOKENS],
-            1,
-            41,
-            41,
-        )));
+        let errors = verify::<SkipHashGate, _>(input([1; NUM_TOKENS], 1, 41, 41)).unwrap_err();
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].contains("Constraint 0 in gate 0 ('SkipHash gate') is not satisfied"));
+        assert!(errors[1].contains("Constraint 1 in gate 0 ('SkipHash gate') is not satisfied"));
     }
 }
