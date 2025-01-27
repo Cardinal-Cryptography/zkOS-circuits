@@ -1,4 +1,7 @@
-use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
+use halo2_proofs::{
+    halo2curves::ff::PrimeField,
+    plonk::{Advice, ConstraintSystem, Fixed},
+};
 
 use crate::{
     chips::{
@@ -6,6 +9,7 @@ use crate::{
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
         range_check::RangeCheckChip,
+        scalar_multiply::ScalarMultiplyChip,
         sum::SumChip,
         token_index::{TokenIndexChip, TokenIndexInstance},
     },
@@ -37,6 +41,7 @@ pub struct ConfigsBuilder<'cs> {
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
     points_add: Option<PointsAddChip>,
+    scalar_multiply: Option<ScalarMultiplyChip>,
     point_double: Option<PointDoubleChip>,
     token_index: Option<TokenIndexChip>,
 }
@@ -63,6 +68,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             sum: None,
             points_add: None,
             point_double: None,
+            scalar_multiply: None,
             token_index: None,
         }
     }
@@ -224,6 +230,55 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.point_double
             .clone()
             .expect("PointDoubleChip not configured")
+    }
+
+    pub fn with_scalar_multiply_chip(mut self) -> Self {
+        check_if_cached!(self, points_add);
+
+        let advice_pool = self.advice_pool_with_capacity((15) as usize);
+
+        let p1 = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+        let s1 = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+
+        let p2 = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+        let q2 = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+        let s2 = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+
+        self.scalar_multiply = Some(ScalarMultiplyChip {
+            point_double: PointDoubleChip {
+                gate: PointDoubleGate::create_gate(self.system, (p1, s1)),
+            },
+            points_add: PointsAddChip {
+                gate: PointsAddGate::create_gate(self.system, (p2, q2, s2)),
+            },
+        });
+        self
+    }
+
+    pub fn scalar_multiply_chip(&self) -> ScalarMultiplyChip {
+        self.scalar_multiply
+            .clone()
+            .expect("ScalarMultiplyChip is not configured")
     }
 
     pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {

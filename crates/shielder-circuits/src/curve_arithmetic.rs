@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::ops::{Add, Mul, Sub};
 
 use halo2_proofs::{
@@ -123,6 +124,44 @@ where
     GrumpkinPoint::new(x3, y3, z3)
 }
 
+pub fn scalar_multiply<T>(
+    p: GrumpkinPoint<T>,
+    scalar_bits: Vec<T>,
+    zero: T,
+    one: T,
+    b3: T,
+) -> GrumpkinPoint<T>
+where
+    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone + PartialEq,
+{
+    let mut r = GrumpkinPoint {
+        x: zero.clone(),
+        y: one.clone(),
+        z: zero,
+    };
+
+    let mut doubled = p.clone();
+
+    for bit in scalar_bits {
+        if bit == one {
+            r = points_add(r, doubled.clone(), b3.clone());
+        }
+        doubled = point_double(doubled, b3.clone());
+    }
+
+    r
+}
+
+pub fn to_bits(num: &[u8]) -> Vec<bool> {
+    let len = num.len() * 8;
+    let mut bits = Vec::new();
+    for i in 0..len {
+        let bit = num[i / 8] & (1 << (i % 8)) != 0;
+        bits.push(bit);
+    }
+    bits
+}
+
 #[cfg(test)]
 mod tests {
     use halo2_proofs::{
@@ -131,6 +170,7 @@ mod tests {
     };
 
     use crate::{
+        consts::GRUMPKIN_3B,
         curve_arithmetic::{point_double, points_add, GrumpkinPoint},
         rng,
     };
@@ -143,8 +183,7 @@ mod tests {
         let q = G1::random(rng.clone());
         let expected: GrumpkinPoint<Fr> = (p + q).into();
 
-        let b3 = G1::b() + G1::b() + G1::b();
-        assert_eq!(expected, points_add(p.into(), q.into(), b3));
+        assert_eq!(expected, points_add(p.into(), q.into(), *GRUMPKIN_3B));
     }
 
     #[test]
@@ -154,7 +193,6 @@ mod tests {
         let p = G1::random(rng.clone());
         let expected: GrumpkinPoint<Fr> = (p + p).into();
 
-        let b3 = G1::b() + G1::b() + G1::b();
-        assert_eq!(expected, point_double(p.into(), b3));
+        assert_eq!(expected, point_double(p.into(), *GRUMPKIN_3B));
     }
 }
