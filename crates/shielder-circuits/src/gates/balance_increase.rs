@@ -15,10 +15,10 @@ use crate::{
 
 const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: usize = 0;
-const GATE_NAME: &str = "Balance increase gate";
+const GATE_NAME: &str = "Balance update gate";
 pub const NUM_ADVICE_COLUMNS: usize = 4;
 
-/// Enforces the equation `balance_new = balance_old + increase_value * token_indicator`.
+/// Enforces the equation `balance_new = balance_old + update_value * token_indicator`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BalanceIncreaseGate {
     advices: BalanceIncreaseGateAdvices,
@@ -28,7 +28,7 @@ pub struct BalanceIncreaseGate {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BalanceIncreaseGateAdvices {
     pub balance_old: Column<Advice>,
-    pub increase_value: Column<Advice>,
+    pub update_value: Column<Advice>,
     pub token_indicator: Column<Advice>,
     pub balance_new: Column<Advice>,
 }
@@ -44,7 +44,7 @@ pub struct BalanceIncreaseGateAdvices {
 )]
 pub struct BalanceIncreaseGateInput<T> {
     pub balance_old: T,
-    pub increase_value: T,
+    pub update_value: T,
     pub token_indicator: T,
     pub balance_new: T,
 }
@@ -56,7 +56,7 @@ impl Gate for BalanceIncreaseGate {
     fn create_gate(cs: &mut ConstraintSystem<F>, advices: Self::Advices) -> Self {
         ensure_unique_columns(&[
             advices.balance_old,
-            advices.increase_value,
+            advices.update_value,
             advices.token_indicator,
             advices.balance_new,
         ]);
@@ -65,12 +65,12 @@ impl Gate for BalanceIncreaseGate {
         cs.create_gate(GATE_NAME, |vc| {
             let selector = vc.query_selector(selector);
             let balance_old = vc.query_advice(advices.balance_old, Rotation(ADVICE_OFFSET as i32));
-            let increase_value =
-                vc.query_advice(advices.increase_value, Rotation(ADVICE_OFFSET as i32));
+            let update_value =
+                vc.query_advice(advices.update_value, Rotation(ADVICE_OFFSET as i32));
             let token_indicator =
                 vc.query_advice(advices.token_indicator, Rotation(ADVICE_OFFSET as i32));
             let balance_new = vc.query_advice(advices.balance_new, Rotation(ADVICE_OFFSET as i32));
-            vec![selector * (balance_old + increase_value * token_indicator - balance_new)]
+            vec![selector * (balance_old + update_value * token_indicator - balance_new)]
         });
         Self { advices, selector }
     }
@@ -91,10 +91,10 @@ impl Gate for BalanceIncreaseGate {
                     self.advices.balance_old,
                     ADVICE_OFFSET,
                 )?;
-                input.increase_value.copy_advice(
-                    || "increase_value",
+                input.update_value.copy_advice(
+                    || "update_value",
                     &mut region,
-                    self.advices.increase_value,
+                    self.advices.update_value,
                     ADVICE_OFFSET,
                 )?;
                 input.token_indicator.copy_advice(
@@ -124,7 +124,7 @@ impl Gate for BalanceIncreaseGate {
         let columns = pool.get_array::<NUM_ADVICE_COLUMNS>();
         BalanceIncreaseGateAdvices {
             balance_old: columns[0],
-            increase_value: columns[1],
+            update_value: columns[1],
             token_indicator: columns[2],
             balance_new: columns[3],
         }
@@ -148,9 +148,20 @@ mod tests {
     fn token_enabled_balance_changed_passes() {
         assert!(verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
             balance_old: Fr::from(10),
-            increase_value: Fr::from(5),
+            update_value: Fr::from(5),
             token_indicator: Fr::from(1),
             balance_new: Fr::from(15)
+        })
+        .is_ok());
+    }
+
+    #[test]
+    fn token_enabled_balance_decrease_passes() {
+        assert!(verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
+            balance_old: Fr::from(10),
+            update_value: Fr::from(5).neg(),
+            token_indicator: Fr::from(1),
+            balance_new: Fr::from(5)
         })
         .is_ok());
     }
@@ -159,7 +170,7 @@ mod tests {
     fn token_enabled_balance_unchanged_fails() {
         let errors = verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
             balance_old: Fr::from(10),
-            increase_value: Fr::from(5),
+            update_value: Fr::from(5),
             token_indicator: Fr::from(1),
             balance_new: Fr::from(10),
         })
@@ -167,7 +178,7 @@ mod tests {
 
         assert_eq!(errors.len(), 1);
         assert!(
-            errors[0].contains("Constraint 0 in gate 0 ('Balance increase gate') is not satisfied")
+            errors[0].contains("Constraint 0 in gate 0 ('Balance update gate') is not satisfied")
         );
     }
 
@@ -175,7 +186,7 @@ mod tests {
     fn token_disabled_balance_changed_fails() {
         let errors = verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
             balance_old: Fr::from(10),
-            increase_value: Fr::from(5),
+            update_value: Fr::from(5),
             token_indicator: Fr::from(0),
             balance_new: Fr::from(15),
         })
@@ -183,7 +194,7 @@ mod tests {
 
         assert_eq!(errors.len(), 1);
         assert!(
-            errors[0].contains("Constraint 0 in gate 0 ('Balance increase gate') is not satisfied")
+            errors[0].contains("Constraint 0 in gate 0 ('Balance update gate') is not satisfied")
         );
     }
 
@@ -191,7 +202,7 @@ mod tests {
     fn token_disabled_balance_unchanged_passes() {
         assert!(verify::<BalanceIncreaseGate, _>(BalanceIncreaseGateInput {
             balance_old: Fr::from(10),
-            increase_value: Fr::from(5),
+            update_value: Fr::from(5),
             token_indicator: Fr::from(0),
             balance_new: Fr::from(10)
         })
@@ -209,7 +220,7 @@ mod tests {
             &mut cs,
             BalanceIncreaseGateAdvices {
                 balance_old: column_1,
-                increase_value: column_1,
+                update_value: column_1,
                 token_indicator: column_2,
                 balance_new: column_3,
             },

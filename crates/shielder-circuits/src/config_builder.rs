@@ -58,6 +58,7 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn with_balances_increase(mut self) -> Self {
         check_if_cached!(self, balances_increase);
 
+        self = self.with_range_check();
         let advice_pool = self.advice_pool_with_capacity(4).clone();
         let gate_advice = advice_pool.get_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
 
@@ -66,12 +67,13 @@ impl<'cs> ConfigsBuilder<'cs> {
                 self.system,
                 BalanceIncreaseGateAdvices {
                     balance_old: gate_advice[0],
-                    increase_value: gate_advice[1],
+                    update_value: gate_advice[1],
                     token_indicator: gate_advice[2],
                     balance_new: gate_advice[3],
                 },
             ),
             advice_pool,
+            range_check: self.range_check_chip(),
         });
         self
     }
