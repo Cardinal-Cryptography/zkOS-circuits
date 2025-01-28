@@ -35,7 +35,11 @@ pub mod off_circuit {
     pub fn index_from_indicator_values(indicators: &[Value; NUM_TOKENS]) -> Value {
         // Produce the index by calculating Σ i * indicators[i].
         let multiplied_indicators: [Value; NUM_TOKENS] =
-            array::from_fn(|i| indicators[i].map(|v| v * Fr::from(i as u64)));
+pub fn index_from_indicator_values(indicators: &[Value; NUM_TOKENS]) -> Value {
+    halo2_proofs::circuit::Value::<alloc::vec::Vec<_>>::from_iter(*indicators)
+        .map(|vec| vec.try_into().unwrap())
+        .map(|array| index_from_indicators(&array))
+}
         multiplied_indicators
             .iter()
             .copied()
