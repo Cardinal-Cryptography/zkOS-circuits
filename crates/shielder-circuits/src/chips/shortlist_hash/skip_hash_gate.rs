@@ -163,7 +163,7 @@ impl Gate for SkipHashGate {
 
 #[cfg(test)]
 mod tests {
-    use std::prelude::rust_2015::{String, Vec};
+    use std::{string::String, vec::Vec};
 
     use halo2_proofs::plonk::ConstraintSystem;
 
