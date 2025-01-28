@@ -19,6 +19,7 @@ use crate::{
 pub struct NewAccountChip {
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
     pub poseidon: PoseidonChip,
+    pub note: NoteChip,
 }
 
 impl NewAccountChip {
@@ -42,7 +43,7 @@ impl NewAccountChip {
         let balances =
             balances_from_native_balance(knowledge.initial_deposit.clone(), synthesizer)?;
 
-        let note = NoteChip::new(self.poseidon.clone()).note(
+        let note = self.note.note(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,

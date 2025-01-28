@@ -33,7 +33,8 @@ impl Circuit<Fr> for DepositCircuit {
             .with_balances_increase()
             .with_merkle(public_inputs.narrow())
             .with_range_check()
-            .with_token_index(public_inputs.narrow());
+            .with_token_index(public_inputs.narrow())
+            .with_note();
 
         (
             DepositChip {
@@ -43,6 +44,7 @@ impl Circuit<Fr> for DepositCircuit {
                 range_check: configs_builder.range_check_chip(),
                 balances_increase: configs_builder.balances_increase_chip(),
                 token_index: configs_builder.token_index_chip(),
+                note: configs_builder.note_chip(),
             },
             configs_builder.finish(),
         )
