@@ -258,7 +258,9 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn shortlist_hash_chip(&self) -> ShortlistHashChip<NUM_TOKENS> {
-        self.shortlist_hash.clone().expect("ShortlistHash not configured")
+        self.shortlist_hash
+            .clone()
+            .expect("ShortlistHash not configured")
     }
 
     pub fn with_note(mut self) -> Self {
