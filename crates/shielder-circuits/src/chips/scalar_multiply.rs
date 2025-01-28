@@ -47,13 +47,13 @@ impl ScalarMultiplyChip {
     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
         let ScalarMultiplyChipInput { scalar_bits, p } = input;
 
-        let zero_value = GrumpkinPoint::new(
+        let r_value = GrumpkinPoint::new(
             Value::known(Fr::zero()),
             Value::known(Fr::one()),
             Value::known(Fr::zero()),
         );
+        let mut r = r_value.embed(synthesizer, "r")?;
 
-        let mut s = zero_value.embed(synthesizer, "S")?;
         let mut doubled = p.clone();
 
         for bit in scalar_bits {
@@ -64,17 +64,17 @@ impl ScalarMultiplyChip {
 
             if is_one {
                 let chip_input = PointsAddChipInput {
-                    p: s.clone(),
+                    p: r.clone(),
                     q: doubled.clone(),
                 };
-                s = self.points_add.points_add(synthesizer, &chip_input)?.s;
+                r = self.points_add.points_add(synthesizer, &chip_input)?.s;
             }
 
             let chip_input = PointDoubleChipInput { p: doubled.clone() };
             doubled = self.point_double.point_double(synthesizer, &chip_input)?.s;
         }
 
-        Ok(ScalarMultiplyChipOutput { s })
+        Ok(ScalarMultiplyChipOutput { s: r })
     }
 }
 
@@ -143,6 +143,8 @@ mod tests {
 
             let scalar_bits = scalar_bits.embed(&mut synthesizer, "scalar_bits")?;
 
+            // println!("{scalar_bits:?}");
+
             let ScalarMultiplyChipOutput { s } = chip.scalar_multiply(
                 &mut synthesizer,
                 &ScalarMultiplyChipInput { p, scalar_bits },
@@ -182,6 +184,8 @@ mod tests {
         let rng = rng();
 
         let p = G1::random(rng.clone());
+
+        println!("P: {p:?}");
 
         let n = Fr::from_u128(3);
         let bits = field_to_bits(n);
