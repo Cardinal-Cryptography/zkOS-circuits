@@ -1,4 +1,4 @@
-use core::array;
+use core::{array, cmp::max};
 
 use gates::{
     IndexGate, IndexGateInput, IndicatorSumGate, IndicatorSumGateInput, NUM_INDEX_GATE_COLUMNS,
@@ -56,8 +56,11 @@ pub enum TokenIndexConstraints {
 }
 
 // A chip that manages the token index indicator variables:
-//  - `constrain_indicators` enforces that the indicators are binary and sum to 1,
-//  - `constrain_index` enforces that the token index public input matches the enabled indicator.
+//  (1) `constrain_indicators` enforces that the indicators are binary and exactly one is enabled,
+//  (2) `constrain_index` enforces that the token index public input matches the enabled indicator.
+//
+// (1) is achieved via a sum constraint, which is correct because indicators are constrained to
+// be binary and `NUM_TOKENS` is smaller than the field characteristic.
 #[derive(Clone, Debug)]
 pub struct TokenIndexChip {
     is_binary_gate: IsBinaryGate,
@@ -72,14 +75,11 @@ impl TokenIndexChip {
         advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
-        advice_pool.ensure_capacity(system, 1);
+        advice_pool.ensure_capacity(system, max(NUM_TOKENS, NUM_INDEX_GATE_COLUMNS));
+
         let is_binary_gate_advice = advice_pool.get_any_column();
-
-        advice_pool.ensure_capacity(system, NUM_TOKENS);
-        let indicator_sum_gate_advices = advice_pool.get_column_array::<NUM_TOKENS>();
-
-        advice_pool.ensure_capacity(system, NUM_INDEX_GATE_COLUMNS);
-        let index_gate_advices = advice_pool.get_column_array::<NUM_INDEX_GATE_COLUMNS>();
+        let indicator_sum_gate_advices = advice_pool.get_column_array();
+        let index_gate_advices = advice_pool.get_column_array();
 
         Self {
             is_binary_gate: IsBinaryGate::create_gate(system, is_binary_gate_advice),
