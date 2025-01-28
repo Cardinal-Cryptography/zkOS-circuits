@@ -75,9 +75,10 @@ pub enum DepositConstraints {
     /// The public instance is copy-constrained to some cell in advice area.
     IdHidingInstanceIsConstrainedToAdvice,
 
-    /// The private token index indicator witnesses agree with the public instance.
+    /// The token index indicator witnesses are binary and their sum is equal to 1.
+    TokenIndicatorsAreCorrect,
+    /// The index indicators agree with the token index public instance.
     TokenIndexInstanceIsConstrainedToAdvice,
-    // TODO: Token index indicator variables are a correct representation of the token index.
 }
 
 impl From<MerkleConstraints> for DepositConstraints {
@@ -97,6 +98,7 @@ impl From<TokenIndexConstraints> for DepositConstraints {
     fn from(constraint: TokenIndexConstraints) -> Self {
         use TokenIndexConstraints::*;
         match constraint {
+            TokenIndicatorsAreCorrect => Self::TokenIndicatorsAreCorrect,
             TokenIndexInstanceIsConstrainedToAdvice => {
                 Self::TokenIndexInstanceIsConstrainedToAdvice
             }
