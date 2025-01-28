@@ -3,15 +3,19 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 use crate::{
     chips::{
         balances_increase::BalancesIncreaseChip,
+        note::NoteChip,
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
         range_check::RangeCheckChip,
+        shortlist_hash::ShortlistHashChip,
         sum::SumChip,
         token_index::{TokenIndexChip, TokenIndexInstance},
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
-    // >>>>>>> main
-    consts::merkle_constants::{ARITY, WIDTH},
+    consts::{
+        merkle_constants::{ARITY, WIDTH},
+        NUM_TOKENS,
+    },
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
         membership::MembershipGate,
@@ -39,6 +43,8 @@ pub struct ConfigsBuilder<'cs> {
     points_add: Option<PointsAddChip>,
     point_double: Option<PointDoubleChip>,
     token_index: Option<TokenIndexChip>,
+    shortlist_hash: Option<ShortlistHashChip<{ NUM_TOKENS }>>,
+    note: Option<NoteChip>,
 }
 
 macro_rules! check_if_cached {
@@ -64,6 +70,8 @@ impl<'cs> ConfigsBuilder<'cs> {
             points_add: None,
             point_double: None,
             token_index: None,
+            shortlist_hash: None,
+            note: None,
         }
     }
 
@@ -239,6 +247,34 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn token_index_chip(&self) -> TokenIndexChip {
         self.token_index.clone().expect("TokenIndex not configured")
+    }
+
+    pub fn with_shortlist_hash(mut self) -> Self {
+        check_if_cached!(self, shortlist_hash);
+        self = self.with_poseidon();
+
+        self.shortlist_hash = Some(ShortlistHashChip::new(self.poseidon_chip()));
+        self
+    }
+
+    pub fn shortlist_hash_chip(&self) -> ShortlistHashChip<NUM_TOKENS> {
+        self.shortlist_hash.clone().expect("ShortlistHash not configured")
+    }
+
+    pub fn with_note(mut self) -> Self {
+        check_if_cached!(self, note);
+        self = self.with_poseidon();
+        self = self.with_shortlist_hash();
+
+        self.note = Some(NoteChip::new(
+            self.poseidon_chip(),
+            self.shortlist_hash_chip(),
+        ));
+        self
+    }
+
+    pub fn note_chip(&self) -> NoteChip {
+        self.note.clone().expect("Note not configured")
     }
 
     fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {

@@ -33,6 +33,7 @@ pub struct DepositChip {
     pub merkle: MerkleChip,
     pub balances_increase: BalancesIncreaseChip,
     pub token_index: TokenIndexChip,
+    pub note: NoteChip,
 }
 
 impl DepositChip {
@@ -42,7 +43,7 @@ impl DepositChip {
         knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
-        let old_note = NoteChip::new(self.poseidon.clone()).note(
+        let old_note = self.note.note(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
@@ -116,7 +117,7 @@ impl DepositChip {
         )?;
         todo.check_off(DepositValueInstanceIsIncludedInTheNewNote)?;
 
-        let new_note = NoteChip::new(self.poseidon.clone()).note(
+        let new_note = self.note.note(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,

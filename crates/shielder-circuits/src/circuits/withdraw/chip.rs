@@ -31,6 +31,7 @@ pub struct WithdrawChip {
     pub merkle: MerkleChip,
     pub range_check: RangeCheckChip,
     pub sum_chip: SumChip,
+    pub note: NoteChip,
 }
 
 impl WithdrawChip {
@@ -43,7 +44,7 @@ impl WithdrawChip {
         let balances =
             balances_from_native_balance(knowledge.account_old_balance.clone(), synthesizer)?;
 
-        let old_note = NoteChip::new(self.poseidon.clone()).note(
+        let old_note = self.note.note(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
@@ -126,7 +127,7 @@ impl WithdrawChip {
 
         let balances = balances_from_native_balance(new_balance, synthesizer)?;
 
-        let new_note = NoteChip::new(self.poseidon.clone()).note(
+        let new_note = self.note.note(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
