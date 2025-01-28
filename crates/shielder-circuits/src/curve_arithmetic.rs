@@ -3,7 +3,7 @@ use core::ops::{Add, Mul, Sub};
 
 use halo2_proofs::{
     circuit::Value,
-    halo2curves::{bn256::Fr, grumpkin::G1},
+    halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
 
 use crate::AssignedCell;
@@ -124,12 +124,20 @@ where
     GrumpkinPoint::new(x3, y3, z3)
 }
 
+pub fn normalize_point<T>(p: GrumpkinPoint<T>, one: T, z_inverse: T) -> GrumpkinPoint<T>
+where
+    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone,
+{
+    let GrumpkinPoint { x, y, .. } = p;
+    GrumpkinPoint::new(x * z_inverse.clone(), y * z_inverse, one)
+}
+
 pub fn scalar_multiply<T>(
     p: GrumpkinPoint<T>,
     scalar_bits: Vec<T>,
+    b3: T,
     zero: T,
     one: T,
-    b3: T,
 ) -> GrumpkinPoint<T>
 where
     T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone + PartialEq,
@@ -152,7 +160,17 @@ where
     r
 }
 
-pub fn to_bits(num: &[u8]) -> Vec<bool> {
+/// Converts given field element to the bits.
+pub fn field_to_bits(n: Fr) -> Vec<Fr> {
+    let bits = to_bits(n.to_repr().as_ref());
+    let sliced_bits = bits[..Fr::NUM_BITS as usize].to_vec();
+    sliced_bits
+        .iter()
+        .map(|&x| Fr::from(u64::from(x)))
+        .collect()
+}
+
+fn to_bits(num: &[u8]) -> Vec<bool> {
     let len = num.len() * 8;
     let mut bits = Vec::new();
     for i in 0..len {
@@ -165,15 +183,42 @@ pub fn to_bits(num: &[u8]) -> Vec<bool> {
 #[cfg(test)]
 mod tests {
     use halo2_proofs::{
-        arithmetic::CurveExt,
-        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
+        arithmetic::Field,
+        halo2curves::{
+            bn256::{Fq, Fr},
+            ff::PrimeField,
+            group::Group,
+            grumpkin::G1,
+        },
     };
 
+    use super::field_to_bits;
     use crate::{
         consts::GRUMPKIN_3B,
-        curve_arithmetic::{point_double, points_add, GrumpkinPoint},
+        curve_arithmetic::{
+            normalize_point, point_double, points_add, scalar_multiply, GrumpkinPoint,
+        },
         rng,
     };
+
+    #[test]
+    fn scalar_multiply_random_point() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+        let n = Fr::from_u128(3);
+        let bits = field_to_bits(n);
+
+        let expected: GrumpkinPoint<Fr> = (p + p + p).into();
+        let z_inverse = expected.z.invert().unwrap();
+        let expected: GrumpkinPoint<Fr> = normalize_point(expected, Fr::ONE, z_inverse);
+
+        let result = scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
+        let z_inverse = result.z.invert().unwrap();
+        let result = normalize_point(result, Fr::ONE, z_inverse);
+
+        assert_eq!(expected, result);
+    }
 
     #[test]
     fn adding_random_points() {
