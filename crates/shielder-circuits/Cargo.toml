@@ -37,6 +37,7 @@ ignored = ["getrandom", "rayon"]
 assert2 = { workspace = true }
 criterion = { workspace = true }
 halo2_proofs = { workspace = true, default-features = true }
+parameterized = { workspace = true }
 regex = { workspace = true }
 
 [[bench]]

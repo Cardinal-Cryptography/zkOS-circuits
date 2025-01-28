@@ -141,7 +141,9 @@ impl DepositChip {
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         self.token_index
-            .constrain_index(synthesizer, &knowledge.token_indicators, todo)?;
-        Ok(())
+            .constrain_indicators(synthesizer, &knowledge.token_indicators, todo)?;
+
+        self.token_index
+            .constrain_index(synthesizer, &knowledge.token_indicators, todo)
     }
 }

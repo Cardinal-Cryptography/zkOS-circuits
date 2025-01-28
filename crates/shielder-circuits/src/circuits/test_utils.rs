@@ -120,6 +120,25 @@ pub fn run_mock_prover<C: Circuit<Fr> + Default>(test_circuit: &C, pub_input: &[
     circuits::run_mock_prover(k, test_circuit, pub_input.to_vec())
 }
 
+// Asserts that the given failure is a gate constraint failure
+// with `expected_gate_name` as the gate name.
+pub fn expect_gate_failure(actual: &VerifyFailure, expected_gate_name: &'static str) {
+    match actual {
+        VerifyFailure::ConstraintNotSatisfied { constraint, .. } => {
+            // Could match, for example: Constraint 0 in gate 7 ('Gate name')
+            let pattern = format!(
+                r"Constraint (\d+) in gate (\d+) \('{}'\)",
+                expected_gate_name
+            );
+
+            assert!(Regex::new(&pattern)
+                .unwrap()
+                .is_match(&constraint.to_string()));
+        }
+        _ => panic!("Unexpected error"),
+    }
+}
+
 // Asserts that the `Vec<VerifyFailure>` is as expected for a failed public input constraint, i.e.:
 //  - exactly 2 failures, 1 for advice and 1 for instance,
 //  - `expected_advice_region_name` is present in the advice `FailureLocation`,
@@ -134,15 +153,19 @@ pub fn expect_instance_permutation_failures(
     let mut matched_advice = false;
     let mut matched_instance = false;
 
+    // Matches, for example: Region 123 ('Expected region name')
+    let in_region_regex = Regex::new(&format!(
+        r"Region \d+ \('{}'\)",
+        expected_advice_region_name
+    ))
+    .unwrap();
+
     for failure in actual {
         match failure {
             VerifyFailure::Permutation { column, location } => match column.column_type() {
                 Any::Advice(_) => match location {
                     FailureLocation::InRegion { region, offset: _ } => {
-                        // Could match, for example: Region 123 ('Region name')
-                        let pattern = format!(r"Region \d+ \('{}'\)", expected_advice_region_name);
-
-                        matched_advice = Regex::new(&pattern).unwrap().is_match(&region.to_string())
+                        matched_advice = in_region_regex.is_match(&region.to_string())
                     }
                     _ => panic!("Unexpected failure location"),
                 },
