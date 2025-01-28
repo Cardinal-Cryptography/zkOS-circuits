@@ -18,6 +18,8 @@ use crate::{
 };
 
 pub mod off_circuit {
+    use alloc::vec::Vec;
+
     use halo2_proofs::arithmetic::Field;
 
     use crate::{consts::NUM_TOKENS, Fr, Value};
@@ -31,7 +33,7 @@ pub mod off_circuit {
     }
 
     pub fn index_from_indicator_values(indicators: &[Value; NUM_TOKENS]) -> Value {
-        halo2_proofs::circuit::Value::<alloc::vec::Vec<_>>::from_iter(*indicators)
+        halo2_proofs::circuit::Value::<Vec<_>>::from_iter(*indicators)
             .map(|vec| vec.try_into().unwrap())
             .map(|array| index_from_indicators(&array))
     }
