@@ -1,7 +1,4 @@
-use halo2_proofs::{
-    halo2curves::ff::PrimeField,
-    plonk::{Advice, ConstraintSystem, Fixed},
-};
+use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
@@ -14,7 +11,6 @@ use crate::{
         token_index::{TokenIndexChip, TokenIndexInstance},
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
-    // >>>>>>> main
     consts::merkle_constants::{ARITY, WIDTH},
     gates::{
         balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
@@ -235,43 +231,13 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn with_scalar_multiply_chip(mut self) -> Self {
         check_if_cached!(self, points_add);
 
-        let advice_pool = self.advice_pool_with_capacity((15) as usize);
-
-        let p1 = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let s1 = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-
-        let p2 = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let q2 = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let s2 = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
+        self = self.with_point_double_chip().with_points_add_chip();
 
         self.scalar_multiply = Some(ScalarMultiplyChip {
-            point_double: PointDoubleChip {
-                gate: PointDoubleGate::create_gate(self.system, (p1, s1)),
-            },
-            points_add: PointsAddChip {
-                gate: PointsAddGate::create_gate(self.system, (p2, q2, s2)),
-            },
+            point_double: self.point_double.clone().unwrap(),
+            points_add: self.points_add.clone().unwrap(),
         });
+
         self
     }
 

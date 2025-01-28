@@ -184,12 +184,7 @@ fn to_bits(num: &[u8]) -> Vec<bool> {
 mod tests {
     use halo2_proofs::{
         arithmetic::Field,
-        halo2curves::{
-            bn256::{Fq, Fr},
-            ff::PrimeField,
-            group::Group,
-            grumpkin::G1,
-        },
+        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
     };
 
     use super::field_to_bits;

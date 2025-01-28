@@ -5,7 +5,7 @@ use halo2_proofs::{circuit::Value, halo2curves::bn256::Fr, plonk::Error};
 use super::{point_double::PointDoubleChip, points_add::PointsAddChip};
 use crate::{
     chips::{point_double::PointDoubleChipInput, points_add::PointsAddChipInput},
-    curve_arithmetic::{self, GrumpkinPoint},
+    curve_arithmetic::GrumpkinPoint,
     embed::Embed,
     synthesizer::Synthesizer,
     AssignedCell,
@@ -47,13 +47,6 @@ impl ScalarMultiplyChip {
     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
         let ScalarMultiplyChipInput { scalar_bits, p } = input;
 
-        // let scalar_bits_values: Vec<Value<Fr>> = scalar_bits
-        //     .into_iter()
-        //     .map(|cell| cell.value().cloned())
-        //     .collect();
-        // let s_value: GrumpkinPoint<Value<Fr>> =
-        //     curve_arithmetic::scalar_multiply(p.clone().into(), scalar_bits_values);
-
         let zero_value = GrumpkinPoint::new(
             Value::known(Fr::zero()),
             Value::known(Fr::one()),
@@ -94,12 +87,7 @@ mod tests {
         arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
-        halo2curves::{
-            bn256::{Fq, Fr},
-            ff::PrimeField,
-            group::Group,
-            grumpkin::G1,
-        },
+        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
@@ -107,6 +95,8 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
+        consts::GRUMPKIN_3B,
+        curve_arithmetic::{self, field_to_bits},
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
@@ -150,6 +140,7 @@ mod tests {
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
             let p = p.embed(&mut synthesizer, "P")?;
+
             let scalar_bits = scalar_bits.embed(&mut synthesizer, "scalar_bits")?;
 
             let ScalarMultiplyChipOutput { s } = chip.scalar_multiply(
@@ -187,19 +178,25 @@ mod tests {
     }
 
     #[test]
-    fn multiply_point_at_infinity() {
-        let p = G1 {
-            x: Fr::ZERO,
-            y: Fr::ONE,
-            z: Fr::ZERO,
-        };
+    fn multiply_random_point() {
+        let rng = rng();
 
-        let n = Fq::from_u128(1);
-        let expected = p * n;
+        let p = G1::random(rng.clone());
 
-        // let input = input(p, q);
-        // let output = PointsAddChipOutput { s: expected.into() };
+        let n = Fr::from_u128(3);
+        let bits = field_to_bits(n);
 
-        // assert!(verify(input, output).is_ok());
+        let expected = curve_arithmetic::scalar_multiply(
+            p.into(),
+            bits.clone(),
+            *GRUMPKIN_3B,
+            Fr::ZERO,
+            Fr::ONE,
+        );
+
+        let input = input(p, bits);
+        let output = ScalarMultiplyChipOutput { s: expected };
+
+        assert!(verify(input, output).is_ok());
     }
 }

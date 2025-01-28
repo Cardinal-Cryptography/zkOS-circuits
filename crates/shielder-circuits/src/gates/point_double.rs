@@ -43,8 +43,6 @@ pub struct PointDoubleGate {
     )
 )]
 pub struct PointDoubleGateInput<T> {
-    // pub p: [T; 3], // x1,y1,z1
-    // pub s: [T; 3], // x2,y2,z2
     pub p: GrumpkinPoint<T>,
     pub s: GrumpkinPoint<T>,
 }
@@ -160,8 +158,6 @@ mod tests {
         PointDoubleGateInput {
             p: p.into(),
             s: s.into(),
-            // p: [p.x, p.y, p.z],
-            // s: [s.x, s.y, s.z],
         }
     }
 
