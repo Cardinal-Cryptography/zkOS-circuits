@@ -16,6 +16,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct NoteChip {
     poseidon: PoseidonChip,
+    shortlist_hash: ShortlistHashChip<NUM_TOKENS>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -62,8 +63,11 @@ pub mod off_circuit {
 }
 
 impl NoteChip {
-    pub fn new(poseidon: PoseidonChip) -> Self {
-        Self { poseidon }
+    pub fn new(poseidon: PoseidonChip, shortlist_hash: ShortlistHashChip<NUM_TOKENS>) -> Self {
+        Self {
+            poseidon,
+            shortlist_hash,
+        }
     }
 
     fn assign_note_version(
@@ -84,7 +88,8 @@ impl NoteChip {
     ) -> Result<AssignedCell, Error> {
         let note_version = self.assign_note_version(note, synthesizer)?;
 
-        let h_balance = ShortlistHashChip::new(self.poseidon.clone())
+        let h_balance = self
+            .shortlist_hash
             .shortlist_hash(synthesizer, &note.balances)?;
 
         let input = [

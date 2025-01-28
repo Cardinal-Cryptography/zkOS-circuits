@@ -28,12 +28,13 @@ impl Circuit<Fr> for NewAccountCircuit {
 
     fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let public_inputs = InstanceWrapper::<NewAccountInstance>::new(meta);
-        let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
+        let configs_builder = ConfigsBuilder::new(meta).with_note();
 
         (
             NewAccountChip {
                 public_inputs,
                 poseidon: configs_builder.poseidon_chip(),
+                note_chip: configs_builder.note_chip(),
             },
             configs_builder.finish(),
         )

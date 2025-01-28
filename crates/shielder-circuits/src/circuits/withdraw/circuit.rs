@@ -31,7 +31,8 @@ impl Circuit<Fr> for WithdrawCircuit {
 
         let configs_builder = ConfigsBuilder::new(meta)
             .with_merkle(public_inputs.narrow())
-            .with_range_check();
+            .with_range_check()
+            .with_note();
 
         (
             WithdrawChip {
@@ -40,6 +41,7 @@ impl Circuit<Fr> for WithdrawCircuit {
                 merkle: configs_builder.merkle_chip(),
                 range_check: configs_builder.range_check_chip(),
                 sum_chip: configs_builder.sum_chip(),
+                note_chip: configs_builder.note_chip(),
             },
             configs_builder.finish(),
         )

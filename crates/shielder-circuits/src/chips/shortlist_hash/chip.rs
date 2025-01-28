@@ -1,9 +1,15 @@
 use core::array;
 
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
 
 use crate::{
-    chips::shortlist_hash::{Shortlist, CHUNK_SIZE},
+    chips::shortlist_hash::{
+        skip_hash_gate,
+        skip_hash_gate::{SkipHashGate, SkipHashGateInput},
+        Shortlist, CHUNK_SIZE,
+    },
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    gates::Gate,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     AssignedCell, Fr,
@@ -13,11 +19,26 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ShortlistHashChip<const N: usize> {
     poseidon: PoseidonChip,
+    ship_hash_gate: SkipHashGate,
 }
 
 impl<const N: usize> ShortlistHashChip<N> {
-    pub fn new(poseidon: PoseidonChip) -> Self {
-        Self { poseidon }
+    pub fn new(
+        poseidon: PoseidonChip,
+        system: &mut ConstraintSystem<Fr>,
+        advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
+    ) -> Self {
+        advice_pool.ensure_capacity(system, skip_hash_gate::NUM_COLUMNS);
+        let advice = SkipHashGateInput {
+            input: advice_pool.get_column_array(),
+            sum_inverse: advice_pool.get_column(skip_hash_gate::INPUT_WIDTH),
+            hash: advice_pool.get_column(skip_hash_gate::INPUT_WIDTH + 1),
+            result: advice_pool.get_column(skip_hash_gate::INPUT_WIDTH + 2),
+        };
+        Self {
+            poseidon,
+            ship_hash_gate: SkipHashGate::create_gate(system, advice),
+        }
     }
 
     /// Calculate the shortlist hash by chunking the shortlist by POSEIDON_RATE - 1
@@ -31,12 +52,19 @@ impl<const N: usize> ShortlistHashChip<N> {
         let mut last = zero_cell.clone();
         let items = &shortlist.items[..];
 
-        for chunk in items.chunks(CHUNK_SIZE).rev() {
+        for (i, chunk) in items.chunks(CHUNK_SIZE).enumerate().rev() {
             let mut input: [AssignedCell; CHUNK_SIZE + 1] = array::from_fn(|_| zero_cell.clone());
             input[CHUNK_SIZE] = last;
             input[0..CHUNK_SIZE].clone_from_slice(chunk);
-            // TODO: APPLY GATE
-            last = hash(synthesizer, self.poseidon.clone(), input)?;
+
+            let (sum_inverse, actual_result) =
+
+            last = self.ship_hash_gate.apply_in_new_region(synthesizer, SkipHashGateInput{
+                input: chunk.try_into().unwrap(),
+                sum_inverse,
+                hash: hash(synthesizer, self.poseidon.clone(), input)?,
+                result: actual_result,
+            })?;
         }
 
         Ok(last)
@@ -84,10 +112,12 @@ mod chip_tests {
             meta.enable_equality(instance);
             // Register Poseidon.
             let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
-            // Create Shortlist chip.
-            let chip = ShortlistHashChip::new(configs_builder.poseidon_chip());
+            // Create Shortlist chip (manually with independent pool, to have control over `N`).
+            let poseidon = configs_builder.poseidon_chip();
+            let pool = configs_builder.finish();
+            let chip = ShortlistHashChip::new(poseidon, meta, &mut ColumnPool::new());
 
-            (configs_builder.finish(), chip, instance)
+            (pool, chip, instance)
         }
 
         fn synthesize(

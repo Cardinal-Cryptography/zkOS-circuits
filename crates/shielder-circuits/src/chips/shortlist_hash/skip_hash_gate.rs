@@ -16,7 +16,7 @@ use crate::{
     AssignedCell, Fr,
 };
 
-const INPUT_WIDTH: usize = POSEIDON_RATE - 1;
+pub const INPUT_WIDTH: usize = POSEIDON_RATE - 1;
 
 #[derive(Clone, Debug)]
 #[embeddable(
@@ -30,6 +30,8 @@ pub struct SkipHashGateInput<T> {
     pub hash: T,
     pub result: T,
 }
+
+pub const NUM_COLUMNS: usize = INPUT_WIDTH + 3;
 
 impl<T: Default + Copy> Default for SkipHashGateInput<T> {
     fn default() -> Self {
