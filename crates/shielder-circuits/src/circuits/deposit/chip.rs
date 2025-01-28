@@ -133,21 +133,15 @@ impl DepositChip {
         todo.check_off(HashedNewNoteInstanceIsConstrainedToAdvice)
     }
 
-    pub fn check_token_indicators(
-        &self,
-        synthesizer: &mut impl Synthesizer,
-        knowledge: &DepositProverKnowledge<AssignedCell>,
-        todo: &mut Todo<DepositConstraints>,
-    ) -> Result<(), Error> {
-        self.token_index
-            .constrain_indicators(synthesizer, &knowledge.token_indicators, todo)
-    }
     pub fn check_token_index(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
         todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
+        self.token_index
+            .constrain_indicators(synthesizer, &knowledge.token_indicators, todo)?;
+
         self.token_index
             .constrain_index(synthesizer, &knowledge.token_indicators, todo)
     }

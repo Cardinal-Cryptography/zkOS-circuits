@@ -62,7 +62,6 @@ impl Circuit<Fr> for DepositCircuit {
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_token_indicators(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_token_index(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }

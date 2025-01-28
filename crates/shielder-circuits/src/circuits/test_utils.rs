@@ -153,15 +153,19 @@ pub fn expect_instance_permutation_failures(
     let mut matched_advice = false;
     let mut matched_instance = false;
 
+    // Matches, for example: Region 123 ('Expected region name')
+    let in_region_regex = Regex::new(&format!(
+        r"Region \d+ \('{}'\)",
+        expected_advice_region_name
+    ))
+    .unwrap();
+
     for failure in actual {
         match failure {
             VerifyFailure::Permutation { column, location } => match column.column_type() {
                 Any::Advice(_) => match location {
                     FailureLocation::InRegion { region, offset: _ } => {
-                        // Could match, for example: Region 123 ('Region name')
-                        let pattern = format!(r"Region \d+ \('{}'\)", expected_advice_region_name);
-
-                        matched_advice = Regex::new(&pattern).unwrap().is_match(&region.to_string())
+                        matched_advice = in_region_regex.is_match(&region.to_string())
                     }
                     _ => panic!("Unexpected failure location"),
                 },

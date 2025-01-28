@@ -228,6 +228,7 @@ mod tests {
         circuit::{floor_planner, Layouter},
         plonk::{Advice, Circuit, ConstraintSystem, Error},
     };
+    use parameterized::parameterized;
 
     use super::{gates, TokenIndexChip, TokenIndexConstraints, TokenIndexInstance};
     use crate::{
@@ -340,10 +341,16 @@ mod tests {
         }
     }
 
-    #[test]
-    fn indicators_are_constrained_to_sum_to_one() {
-        let circuit = TestCircuit::new([0, 0, 0, 0, 0, 0], 0);
-        let pub_input = [0];
+    #[parameterized(witnesses = {
+        ([0, 0, 0, 0, 0, 0], 0),
+        ([1, 1, 0, 0, 0, 0], 1),
+        ([1, 1, 1, 1, 1, 1], 15)
+    })]
+    fn indicators_are_constrained_to_sum_to_one(witnesses: ([u64; NUM_TOKENS], u64)) {
+        let (indicators, token_index) = witnesses;
+
+        let circuit = TestCircuit::new(indicators, token_index);
+        let pub_input = [token_index];
 
         let failures =
             expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
