@@ -8,9 +8,8 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
-#[cfg(test)]
-use crate::column_pool::{AccessColumn, ConfigPhase};
 use crate::{
+    column_pool::{AccessColumn, ConfigPhase},
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
     AssignedCell, Fr,
@@ -58,7 +57,7 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
     type Input = LinearEquationGateInput<N, AssignedCell>;
     type Advice = [Column<Advice>; N];
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, variables: Self::Advice) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, variables: Self::Advice) -> Self {
         ensure_unique_columns(&variables);
 
         let coefficients = Config::coefficients();
@@ -107,7 +106,6 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
@@ -190,7 +188,7 @@ mod tests {
         let column_2 = cs.advice_column();
         let column_3 = cs.advice_column();
 
-        LinearEquationGate::<4, DecimalExampleConfig>::create_gate(
+        LinearEquationGate::<4, DecimalExampleConfig>::create_gate_custom(
             &mut cs,
             [column_1, column_2, column_3, column_3],
         );

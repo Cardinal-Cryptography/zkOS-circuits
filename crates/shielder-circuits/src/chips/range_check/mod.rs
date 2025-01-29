@@ -6,7 +6,7 @@ use crate::{
         range_check::{gate::RangeCheckGateInput, running_sum::running_sum},
         sum::SumChip,
     },
-    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    column_pool::{ColumnPool, ConfigPhase},
     consts::RANGE_PROOF_CHUNK_SIZE,
     embed::Embed,
     gates::Gate,
@@ -30,10 +30,8 @@ impl RangeCheckChip {
         advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
         sum_chip: SumChip,
     ) -> Self {
-        advice_pool.ensure_capacity(system, 1);
-        let range_gate = RangeCheckGate::create_gate(system, advice_pool.get_any_column());
         Self {
-            range_gate,
+            range_gate: RangeCheckGate::create_gate(system, advice_pool),
             sum_chip,
         }
     }

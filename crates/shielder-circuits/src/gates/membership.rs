@@ -4,14 +4,11 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
-#[cfg(test)]
-use {
-    crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-    crate::embed::Embed,
-    macros::embeddable,
-};
+use macros::embeddable;
 
 use crate::{
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell, Fr,
@@ -26,13 +23,10 @@ pub struct MembershipGate<const N: usize> {
 }
 
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    test,
-    embeddable(
-        receiver = "MembershipGateInput<Fr, N>",
-        impl_generics = "<const N: usize>",
-        embedded = "MembershipGateInput<AssignedCell, N>"
-    )
+#[embeddable(
+    receiver = "MembershipGateInput<Fr, N>",
+    impl_generics = "<const N: usize>",
+    embedded = "MembershipGateInput<AssignedCell, N>"
 )]
 pub struct MembershipGateInput<T, const N: usize> {
     pub needle: T,
@@ -52,7 +46,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
     ///
     /// `(needle[x] - haystack_1[x]) · … · (needle[x] - haystack_N[x]) = 0`, where `x` is the row
     /// where the gate is enabled.
-    fn create_gate(
+    fn create_gate_custom(
         cs: &mut ConstraintSystem<Fr>,
         (needle_advice, haystack_advice): Self::Advice,
     ) -> Self {
@@ -107,7 +101,6 @@ impl<const N: usize> Gate for MembershipGate<N> {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
@@ -130,7 +123,7 @@ mod tests {
     fn gate_creation_with_proper_columns_passes() {
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice = (cs.advice_column(), [cs.advice_column(), cs.advice_column()]);
-        MembershipGate::<2>::create_gate(&mut cs, advice);
+        MembershipGate::<2>::create_gate_custom(&mut cs, advice);
     }
 
     #[test]
@@ -140,7 +133,7 @@ mod tests {
         let col_1 = cs.advice_column();
         let col_2 = cs.advice_column();
         let improper_advice = (col_1, [col_1, col_2]);
-        MembershipGate::<2>::create_gate(&mut cs, improper_advice);
+        MembershipGate::<2>::create_gate_custom(&mut cs, improper_advice);
     }
 
     #[test]
@@ -150,7 +143,7 @@ mod tests {
         let col_1 = cs.advice_column();
         let col_2 = cs.advice_column();
         let improper_advice = (col_1, [col_2, col_2]);
-        MembershipGate::<2>::create_gate(&mut cs, improper_advice);
+        MembershipGate::<2>::create_gate_custom(&mut cs, improper_advice);
     }
 
     fn input(needle: impl Into<Fr>, [h0, h1]: [impl Into<Fr>; 2]) -> MembershipGateInput<Fr, 2> {

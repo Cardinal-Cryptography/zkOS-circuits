@@ -63,11 +63,8 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
     /// we create the gate instance.
     fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let mut advice_pool = ColumnPool::<Advice, _>::new();
-        let advice = G::organize_advice_columns(&mut advice_pool, meta);
-        (
-            advice_pool.conclude_configuration(),
-            G::create_gate(meta, advice),
-        )
+        let gate = G::create_gate(meta, &mut advice_pool);
+        (advice_pool.conclude_configuration(), gate)
     }
 
     /// Embed the input and apply the gate.

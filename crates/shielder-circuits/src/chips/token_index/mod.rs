@@ -1,14 +1,12 @@
-use core::{array, cmp::max};
+use core::array;
 
-use gates::{
-    IndexGate, IndexGateInput, IndicatorSumGate, IndicatorSumGateInput, NUM_INDEX_GATE_COLUMNS,
-};
+use gates::{IndexGate, IndexGateInput, IndicatorSumGate, IndicatorSumGateInput};
 use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
-    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    column_pool::{ColumnPool, ConfigPhase},
     consts::NUM_TOKENS,
     gates::{is_binary::IsBinaryGate, Gate},
     instance_wrapper::InstanceWrapper,
@@ -72,16 +70,10 @@ impl TokenIndexChip {
         advice_pool: &mut ColumnPool<Advice, ConfigPhase>,
         public_inputs: InstanceWrapper<TokenIndexInstance>,
     ) -> Self {
-        advice_pool.ensure_capacity(system, max(NUM_TOKENS, NUM_INDEX_GATE_COLUMNS));
-
-        let is_binary_gate_advice = advice_pool.get_any_column();
-        let indicator_sum_gate_advices = advice_pool.get_column_array();
-        let index_gate_advices = advice_pool.get_column_array();
-
         Self {
-            is_binary_gate: IsBinaryGate::create_gate(system, is_binary_gate_advice),
-            indicator_sum_gate: IndicatorSumGate::create_gate(system, indicator_sum_gate_advices),
-            index_gate: IndexGate::create_gate(system, index_gate_advices),
+            is_binary_gate: IsBinaryGate::create_gate(system, advice_pool),
+            indicator_sum_gate: IndicatorSumGate::create_gate(system, advice_pool),
+            index_gate: IndexGate::create_gate(system, advice_pool),
             public_inputs,
         }
     }
@@ -155,7 +147,6 @@ impl TokenIndexChip {
 
 #[cfg(test)]
 mod tests {
-
     use halo2_proofs::{
         arithmetic::Field,
         circuit::{floor_planner, Layouter},

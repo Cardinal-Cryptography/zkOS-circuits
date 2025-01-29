@@ -4,16 +4,11 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
-#[cfg(test)]
-use {
-    crate::{
-        column_pool::{AccessColumn, ConfigPhase},
-        embed::Embed,
-    },
-    macros::embeddable,
-};
+use macros::embeddable;
 
 use crate::{
+    column_pool::{AccessColumn, ConfigPhase},
+    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell, Fr,
@@ -27,13 +22,10 @@ pub struct SumGate {
 }
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(
-    test,
-    embeddable(
-        receiver = "SumGateInput<Fr>",
-        impl_generics = "",
-        embedded = "SumGateInput<AssignedCell>"
-    )
+#[embeddable(
+    receiver = "SumGateInput<Fr>",
+    impl_generics = "",
+    embedded = "SumGateInput<AssignedCell>"
 )]
 pub struct SumGateInput<T> {
     pub summand_1: T,
@@ -51,7 +43,7 @@ impl Gate for SumGate {
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
     /// `A[x] + B[x] = C[x]`, where `x` is the row where the gate is enabled.
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self {
         ensure_unique_columns(&advice);
         let selector = cs.selector();
 
@@ -91,7 +83,6 @@ impl Gate for SumGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
@@ -127,7 +118,7 @@ mod tests {
     fn gate_creation_with_proper_columns_passes() {
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
-        SumGate::create_gate(&mut cs, advice);
+        SumGate::create_gate_custom(&mut cs, advice);
     }
 
     #[test]
@@ -135,7 +126,7 @@ mod tests {
     fn gate_creation_with_not_distinct_columns_fails() {
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice_column = cs.advice_column();
-        SumGate::create_gate(&mut cs, [advice_column; 3]);
+        SumGate::create_gate_custom(&mut cs, [advice_column; 3]);
     }
 
     #[test]

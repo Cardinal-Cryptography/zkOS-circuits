@@ -29,8 +29,18 @@ pub trait Gate: Sized {
     /// How the gate expects advice columns to be passed to it during creation.
     type Advice;
 
-    /// Register the gate in the `ConstraintSystem`. It should create a new gate instance.
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self;
+    /// Register the gate in the `ConstraintSystem`. It will use the provided `pool` to maintain
+    /// needed columns.
+    fn create_gate(
+        cs: &mut ConstraintSystem<Fr>,
+        pool: &mut ColumnPool<Advice, ConfigPhase>,
+    ) -> Self {
+        let advice = Self::organize_advice_columns(pool, cs);
+        Self::create_gate_custom(cs, advice)
+    }
+
+    /// Register the gate in the `ConstraintSystem` with already prepared advice columns.
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self;
 
     /// Apply the gate in a new region. The gate MUST enable its selector, copy (constrained if
     /// applicable) the inputs to the region and return new `Gate::Values` struct with the newly
@@ -43,9 +53,8 @@ pub trait Gate: Sized {
 
     /// Organize the advices in a way that the gate expects them to be passed during creation.
     ///
-    /// This should be used only in tests. In production, it shouldn't be a gate responsibility to
-    /// govern advice columns.
-    #[cfg(test)]
+    /// This should be treated as a suggestion, not a requirement. The gate consumer is free to pass
+    /// `advice: Self::Advice` in any way they see fit.
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
