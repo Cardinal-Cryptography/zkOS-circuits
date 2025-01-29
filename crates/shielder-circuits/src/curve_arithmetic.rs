@@ -134,7 +134,7 @@ where
 
 pub fn scalar_multiply<T>(
     p: GrumpkinPoint<T>,
-    scalar_bits: Vec<T>,
+    scalar_bits: [T; 254],
     b3: T,
     zero: T,
     one: T,
@@ -160,14 +160,17 @@ where
     r
 }
 
-/// Converts given field element to the bits.
-pub fn field_to_bits(n: Fr) -> Vec<Fr> {
-    let bits = to_bits(n.to_repr().as_ref());
+/// Converts given field element to the individual bit representation.
+///
+/// panics if value is not 254 bits
+pub fn field_element_to_bits(value: Fr) -> [Fr; 254] {
+    let bits = to_bits(value.to_repr().as_ref());
     let sliced_bits = bits[..Fr::NUM_BITS as usize].to_vec();
-    sliced_bits
+    let vec: Vec<Fr> = sliced_bits
         .iter()
         .map(|&x| Fr::from(u64::from(x)))
-        .collect()
+        .collect();
+    vec.try_into().expect("value is not 254 bits")
 }
 
 fn to_bits(num: &[u8]) -> Vec<bool> {
@@ -187,7 +190,7 @@ mod tests {
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
     };
 
-    use super::field_to_bits;
+    use super::field_element_to_bits;
     use crate::{
         consts::GRUMPKIN_3B,
         curve_arithmetic::{
@@ -202,7 +205,7 @@ mod tests {
 
         let p = G1::random(rng.clone());
         let n = Fr::from_u128(3);
-        let bits = field_to_bits(n);
+        let bits = field_element_to_bits(n);
 
         let expected: GrumpkinPoint<Fr> = (p + p + p).into();
         let z_inverse = expected.z.invert().unwrap();

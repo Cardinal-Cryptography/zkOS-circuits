@@ -231,8 +231,7 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn with_scalar_multiply_chip(mut self) -> Self {
         check_if_cached!(self, scalar_multiply);
 
-        self = self.with_points_add_chip();
-        self = self.with_point_double_chip();
+        self = self.with_points_add_chip().with_point_double_chip();
 
         self.scalar_multiply = Some(ScalarMultiplyChip {
             point_double: self.point_double_chip(),

@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use halo2_proofs::{circuit::Value, halo2curves::bn256::Fr, plonk::Error};
 
 use super::{point_double::PointDoubleChip, points_add::PointsAddChip};
@@ -11,10 +9,19 @@ use crate::{
     AssignedCell,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ScalarMultiplyChipInput<T> {
     pub p: GrumpkinPoint<T>,
-    pub scalar_bits: Vec<T>,
+    pub scalar_bits: [T; 254],
+}
+
+impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
+    fn default() -> Self {
+        Self {
+            p: GrumpkinPoint::default(),
+            scalar_bits: [T::default(); 254],
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -96,7 +103,7 @@ mod tests {
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         consts::GRUMPKIN_3B,
-        curve_arithmetic::{self, field_to_bits},
+        curve_arithmetic::{self, field_element_to_bits},
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
@@ -134,6 +141,8 @@ mod tests {
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
+            println!("@synthesize");
+
             let ScalarMultiplyChipInput { p, scalar_bits } = self.0.clone();
 
             let column_pool = column_pool.start_synthesis();
@@ -141,9 +150,9 @@ mod tests {
 
             let p = p.embed(&mut synthesizer, "P")?;
 
-            let scalar_bits = scalar_bits.embed(&mut synthesizer, "scalar_bits")?;
+            println!("LEN: {:?} {}", scalar_bits.len(), Fr::NUM_BITS);
 
-            // println!("{scalar_bits:?}");
+            let scalar_bits = scalar_bits.embed(&mut synthesizer, "scalar_bits")?;
 
             let ScalarMultiplyChipOutput { s } = chip.scalar_multiply(
                 &mut synthesizer,
@@ -154,11 +163,13 @@ mod tests {
             synthesizer.constrain_instance(s.y.cell(), instance, 1)?;
             synthesizer.constrain_instance(s.z.cell(), instance, 2)?;
 
+            println!("@end: synthesize");
+
             Ok(())
         }
     }
 
-    fn input(p: G1, scalar_bits: Vec<Fr>) -> ScalarMultiplyChipInput<Fr> {
+    fn input(p: G1, scalar_bits: [Fr; 254]) -> ScalarMultiplyChipInput<Fr> {
         ScalarMultiplyChipInput {
             p: p.into(),
             scalar_bits: scalar_bits.into(),
@@ -188,7 +199,7 @@ mod tests {
         println!("P: {p:?}");
 
         let n = Fr::from_u128(3);
-        let bits = field_to_bits(n);
+        let bits = field_element_to_bits(n);
 
         let expected = curve_arithmetic::scalar_multiply(
             p.into(),
