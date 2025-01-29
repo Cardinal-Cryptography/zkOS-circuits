@@ -47,11 +47,11 @@ const GATE_NAME: &str = "Sum gate";
 
 impl Gate for SumGate {
     type Input = SumGateInput<AssignedCell>;
-    type Advices = [Column<Advice>; 3];
+    type Advice = [Column<Advice>; 3];
 
     /// The gate operates on three advice columns `A`, `B`, and `C`. It enforces that:
     /// `A[x] + B[x] = C[x]`, where `x` is the row where the gate is enabled.
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self {
         ensure_unique_columns(&advice);
         let selector = cs.selector();
 
@@ -95,7 +95,7 @@ impl Gate for SumGate {
     fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 3);
         pool.get_column_array()
     }

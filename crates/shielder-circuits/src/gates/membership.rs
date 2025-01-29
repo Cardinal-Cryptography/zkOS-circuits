@@ -45,7 +45,7 @@ const GATE_NAME: &str = "Membership gate";
 
 impl<const N: usize> Gate for MembershipGate<N> {
     type Input = MembershipGateInput<AssignedCell, N>;
-    type Advices = (Column<Advice>, [Column<Advice>; N]);
+    type Advice = (Column<Advice>, [Column<Advice>; N]);
 
     /// The gate operates on a single advice column `needle` and `N` advice columns `haystack`. It
     /// enforces that:
@@ -54,7 +54,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
     /// where the gate is enabled.
     fn create_gate(
         cs: &mut ConstraintSystem<Fr>,
-        (needle_advice, haystack_advice): Self::Advices,
+        (needle_advice, haystack_advice): Self::Advice,
     ) -> Self {
         ensure_unique_columns(&[haystack_advice.to_vec(), vec![needle_advice]].concat());
         let selector = cs.selector();
@@ -111,7 +111,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, N + 1);
         let haystack_advice = pool.get_column_array();
         let needle_advice = pool.get_column(N);

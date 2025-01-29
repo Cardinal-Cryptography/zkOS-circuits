@@ -56,13 +56,13 @@ const GATE_NAME: &str = "Point add gate";
 impl Gate for PointsAddGate {
     type Input = PointsAddGateInput<AssignedCell>;
 
-    type Advices = (
+    type Advice = (
         [Column<Advice>; 3], // p
         [Column<Advice>; 3], // q
         [Column<Advice>; 3], // s
     );
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, (p, q, s): Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, (p, q, s): Self::Advice) -> Self {
         ensure_unique_columns(&[p.to_vec(), q.to_vec(), s.to_vec()].concat());
         let selector = cs.selector();
 
@@ -120,7 +120,7 @@ impl Gate for PointsAddGate {
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 9);
 
         (

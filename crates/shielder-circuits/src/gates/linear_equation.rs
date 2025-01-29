@@ -56,9 +56,9 @@ const ADVICE_OFFSET: usize = 0;
 
 impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquationGate<N, Config> {
     type Input = LinearEquationGateInput<N, AssignedCell>;
-    type Advices = [Column<Advice>; N];
+    type Advice = [Column<Advice>; N];
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, variables: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, variables: Self::Advice) -> Self {
         ensure_unique_columns(&variables);
 
         let coefficients = Config::coefficients();
@@ -111,7 +111,7 @@ impl<const N: usize, Config: LinearEquationGateConfig<N>> Gate for LinearEquatio
     fn organize_advice_columns(
         pool: &mut crate::column_pool::ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, N);
         pool.get_column_array()
     }

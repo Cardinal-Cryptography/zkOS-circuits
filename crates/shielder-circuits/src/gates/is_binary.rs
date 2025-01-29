@@ -22,7 +22,7 @@ const GATE_NAME: &str = "IsBinary gate";
 
 impl Gate for IsBinaryGate {
     type Input = AssignedCell;
-    type Advices = Column<Advice>;
+    type Advice = Column<Advice>;
 
     /// The gate operates on a single advice columns `A` and enforces that:
     /// `A[x] * (1 - A[x]) = 0`, where `x` is the row where the gate is enabled.
@@ -59,7 +59,7 @@ impl Gate for IsBinaryGate {
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 1);
         pool.get_any_column()
     }

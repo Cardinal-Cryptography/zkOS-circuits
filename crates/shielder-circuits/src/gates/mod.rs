@@ -2,9 +2,11 @@ use alloc::collections::BTreeSet;
 
 use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error};
 
-#[cfg(test)]
-use crate::column_pool::{ColumnPool, ConfigPhase};
-use crate::{synthesizer::Synthesizer, Fr};
+use crate::{
+    column_pool::{ColumnPool, ConfigPhase},
+    synthesizer::Synthesizer,
+    Fr,
+};
 
 pub mod balance_increase;
 pub mod is_binary;
@@ -25,10 +27,10 @@ pub trait Gate: Sized {
     /// Represents the value structure that the gate operates on.
     type Input;
     /// How the gate expects advice columns to be passed to it during creation.
-    type Advices;
+    type Advice;
 
     /// Register the gate in the `ConstraintSystem`. It should create a new gate instance.
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self;
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self;
 
     /// Apply the gate in a new region. The gate MUST enable its selector, copy (constrained if
     /// applicable) the inputs to the region and return new `Gate::Values` struct with the newly
@@ -47,7 +49,7 @@ pub trait Gate: Sized {
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices;
+    ) -> Self::Advice;
 }
 
 fn ensure_unique_columns(advice: &[Column<Advice>]) {

@@ -53,12 +53,12 @@ const GATE_NAME: &str = "Point double gate";
 impl Gate for PointDoubleGate {
     type Input = PointDoubleGateInput<AssignedCell>;
 
-    type Advices = (
+    type Advice = (
         [Column<Advice>; 3], // p
         [Column<Advice>; 3], // s
     );
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, (p, s): Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, (p, s): Self::Advice) -> Self {
         ensure_unique_columns(&[p.to_vec(), s.to_vec()].concat());
         let selector = cs.selector();
 
@@ -126,7 +126,7 @@ impl Gate for PointDoubleGate {
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 6);
 
         (

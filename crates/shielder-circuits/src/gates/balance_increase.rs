@@ -56,9 +56,9 @@ pub struct BalanceIncreaseGateInput<T> {
 
 impl Gate for BalanceIncreaseGate {
     type Input = BalanceIncreaseGateInput<AssignedCell>;
-    type Advices = BalanceIncreaseGateAdvices;
+    type Advice = BalanceIncreaseGateAdvices;
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advices: Self::Advices) -> Self {
+    fn create_gate(cs: &mut ConstraintSystem<Fr>, advices: Self::Advice) -> Self {
         ensure_unique_columns(&[
             advices.balance_old,
             advices.increase_value,
@@ -124,7 +124,7 @@ impl Gate for BalanceIncreaseGate {
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
         let columns = pool.get_column_array::<NUM_ADVICE_COLUMNS>();
         BalanceIncreaseGateAdvices {
