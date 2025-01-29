@@ -44,13 +44,13 @@ impl<T: Default + Copy> Default for SkipHashGateInput<T> {
 
 /// SkipHash gate represents the relation `R(result, sum, hash)` defined as:
 ///
-/// `result := if (sum == 0) { 0 } else { hash }`
+/// `result = if (sum == 0) { 0 } else { hash }`
 ///
 /// In order to implement it with arithmetic constraints, it is convenient to introduce an auxiliary
 /// one `R'(result, sum, hash, sum_inverse)`, defined as:
 ///
-/// `if (sum == 0) { result := 0    && sum_inverse is arbitrary`
-/// `else          { result := hash && sum_inverse = 1 / sum }`
+/// `if (sum == 0) { result = 0    && sum_inverse is arbitrary }`
+/// `else          { result = hash && sum_inverse = 1 / sum }`
 ///
 /// It is quite straightforward to see that `(result, sum, hash) ∈ R` if and only if there exists
 /// `sum_inverse` such that `(result, sum, hash, sum_inverse) ∈ R'`.
