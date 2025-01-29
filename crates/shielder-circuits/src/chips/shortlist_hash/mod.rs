@@ -7,6 +7,7 @@ use crate::{consts::POSEIDON_RATE, embed::Embed, synthesizer::Synthesizer, Assig
 
 mod chip;
 pub mod off_circuit;
+mod skip_hash_gate;
 
 const CHUNK_SIZE: usize = POSEIDON_RATE - 1;
 
