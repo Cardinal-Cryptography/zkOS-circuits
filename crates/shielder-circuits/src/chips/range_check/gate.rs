@@ -6,11 +6,14 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
-#[cfg(test)]
-use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{
-    consts::RANGE_PROOF_CHUNK_SIZE, embed::Embed, gates::Gate, range_table::RangeTable,
-    synthesizer::Synthesizer, AssignedCell, Fr,
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    consts::RANGE_PROOF_CHUNK_SIZE,
+    embed::Embed,
+    gates::Gate,
+    range_table::RangeTable,
+    synthesizer::Synthesizer,
+    AssignedCell, Fr,
 };
 
 /// Represents inequality: `base - shifted * 2^RANGE_PROOF_CHUNK_SIZE < 2^RANGE_PROOF_CHUNK_SIZE`.
@@ -40,7 +43,7 @@ const SHIFTED_OFFSET: usize = 1;
 
 impl Gate for RangeCheckGate {
     type Input = RangeCheckGateInput<AssignedCell>;
-    type Advices = Column<Advice>;
+    type Advice = Column<Advice>;
 
     /// The gate operates on a single advice column `A` and a table `T`. It enforces that:
     ///
@@ -49,7 +52,7 @@ impl Gate for RangeCheckGate {
     /// where:
     ///  - `x` is the row where the gate is enabled
     ///  - `T` represents set `[0, 2^CHUNK_SIZE)`
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self {
         let selector = cs.complex_selector();
         let table = RangeTable::new(cs);
 
@@ -95,11 +98,10 @@ impl Gate for RangeCheckGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 1);
         pool.get_any_column()
     }

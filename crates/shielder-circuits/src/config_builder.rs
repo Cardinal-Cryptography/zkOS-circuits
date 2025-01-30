@@ -12,17 +12,10 @@ use crate::{
         token_index::{TokenIndexChip, TokenIndexInstance},
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
-    consts::{
-        merkle_constants::{ARITY, WIDTH},
-        NUM_TOKENS,
-    },
+    consts::{merkle_constants::WIDTH, NUM_TOKENS},
     gates::{
-        balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
-        membership::MembershipGate,
-        point_double::PointDoubleGate,
-        points_add::PointsAddGate,
-        sum::SumGate,
-        Gate,
+        balance_increase::BalanceIncreaseGate, membership::MembershipGate,
+        point_double::PointDoubleGate, points_add::PointsAddGate, sum::SumGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -82,18 +75,9 @@ impl<'cs> ConfigsBuilder<'cs> {
     pub fn with_balances_increase(mut self) -> Self {
         check_if_cached!(self, balances_increase);
 
-        let advice_pool = self.advice_pool_with_capacity(4);
-        let gate_advice =
-            advice_pool.get_column_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
-
         self.balances_increase = Some(BalancesIncreaseChip::new(BalanceIncreaseGate::create_gate(
             self.system,
-            BalanceIncreaseGateAdvices {
-                balance_old: gate_advice[0],
-                increase_value: gate_advice[1],
-                token_indicator: gate_advice[2],
-                balance_new: gate_advice[3],
-            },
+            &mut self.advice_pool,
         )));
         self
     }
@@ -129,12 +113,8 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, merkle);
         self = self.with_poseidon();
 
-        let advice_pool = self.advice_pool_with_capacity(ARITY + 1);
-        let needle = advice_pool.get_column(ARITY);
-        let advice_path = advice_pool.get_column_array::<ARITY>();
-
         self.merkle = Some(MerkleChip {
-            membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
+            membership_gate: MembershipGate::create_gate(self.system, &mut self.advice_pool),
             public_inputs,
             poseidon: self.poseidon_chip(),
         });
@@ -164,8 +144,10 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_sum(mut self) -> Self {
         check_if_cached!(self, sum);
-        let advice = self.advice_pool_with_capacity(3).get_column_array();
-        self.sum = Some(SumChip::new(SumGate::create_gate(self.system, advice)));
+        self.sum = Some(SumChip::new(SumGate::create_gate(
+            self.system,
+            &mut self.advice_pool,
+        )));
         self
     }
 
@@ -175,27 +157,8 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_points_add_chip(mut self) -> Self {
         check_if_cached!(self, points_add);
-
-        let advice_pool = self.advice_pool_with_capacity(9);
-
-        let p = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let q = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let s = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-
         self.points_add = Some(PointsAddChip {
-            gate: PointsAddGate::create_gate(self.system, (p, q, s)),
+            gate: PointsAddGate::create_gate(self.system, &mut self.advice_pool),
         });
         self
     }
@@ -208,22 +171,8 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_point_double_chip(mut self) -> Self {
         check_if_cached!(self, points_add);
-
-        let advice_pool = self.advice_pool_with_capacity(6);
-
-        let p = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let s = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-
         self.point_double = Some(PointDoubleChip {
-            gate: PointDoubleGate::create_gate(self.system, (p, s)),
+            gate: PointDoubleGate::create_gate(self.system, &mut self.advice_pool),
         });
         self
     }

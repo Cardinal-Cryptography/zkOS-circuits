@@ -6,9 +6,8 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
-#[cfg(test)]
-use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
 use crate::{
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::POSEIDON_RATE,
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
@@ -75,9 +74,9 @@ const GATE_NAME: &str = "SkipHash gate";
 
 impl Gate for SkipHashGate {
     type Input = SkipHashGateInput<AssignedCell>;
-    type Advices = SkipHashGateInput<Column<Advice>>;
+    type Advice = SkipHashGateInput<Column<Advice>>;
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Self::Advices) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self {
         ensure_unique_columns(
             &[
                 advice.input.to_vec(),
@@ -146,11 +145,10 @@ impl Gate for SkipHashGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, INPUT_WIDTH + 3);
         SkipHashGateInput {
             input: pool.get_column_array(),
@@ -179,7 +177,7 @@ mod tests {
     fn gate_creation_with_proper_columns_passes() {
         let mut cs = ConstraintSystem::<Fr>::default();
         let advice = SkipHashGate::organize_advice_columns(&mut ColumnPool::new(), &mut cs);
-        SkipHashGate::create_gate(&mut cs, advice);
+        SkipHashGate::create_gate_custom(&mut cs, advice);
     }
 
     #[test]
@@ -190,7 +188,7 @@ mod tests {
         let advice = SkipHashGate::organize_advice_columns(&mut pool, &mut cs);
         let mut advice = advice;
         advice.result = pool.get_column(0);
-        SkipHashGate::create_gate(&mut cs, advice);
+        SkipHashGate::create_gate_custom(&mut cs, advice);
     }
 
     fn input(

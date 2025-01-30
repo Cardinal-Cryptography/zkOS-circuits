@@ -5,9 +5,12 @@ use halo2_proofs::{
     poly::Rotation,
 };
 
-#[cfg(test)]
-use crate::column_pool::{AccessColumn, ColumnPool, ConfigPhase};
-use crate::{gates::Gate, synthesizer::Synthesizer, AssignedCell, Fr};
+use crate::{
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    gates::Gate,
+    synthesizer::Synthesizer,
+    AssignedCell, Fr,
+};
 
 /// Represents the relation: `x * (1-x) = 0`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -22,11 +25,11 @@ const GATE_NAME: &str = "IsBinary gate";
 
 impl Gate for IsBinaryGate {
     type Input = AssignedCell;
-    type Advices = Column<Advice>;
+    type Advice = Column<Advice>;
 
     /// The gate operates on a single advice columns `A` and enforces that:
     /// `A[x] * (1 - A[x]) = 0`, where `x` is the row where the gate is enabled.
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advice: Column<Advice>) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, advice: Column<Advice>) -> Self {
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -55,11 +58,10 @@ impl Gate for IsBinaryGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 1);
         pool.get_any_column()
     }
@@ -77,7 +79,7 @@ mod tests {
     fn gate_creation_with_proper_columns_passes() {
         let mut cs = ConstraintSystem::<Fr>::default();
         let col = cs.advice_column();
-        IsBinaryGate::create_gate(&mut cs, col);
+        IsBinaryGate::create_gate_custom(&mut cs, col);
     }
 
     #[test]

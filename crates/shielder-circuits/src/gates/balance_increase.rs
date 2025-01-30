@@ -4,15 +4,11 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
-#[cfg(test)]
-use {
-    crate::column_pool::AccessColumn,
-    crate::column_pool::{ColumnPool, ConfigPhase},
-    crate::embed::Embed,
-    macros::embeddable,
-};
+use macros::embeddable;
 
 use crate::{
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell, Fr,
@@ -26,7 +22,7 @@ pub const NUM_ADVICE_COLUMNS: usize = 4;
 /// Enforces the equation `balance_new = balance_old + increase_value * token_indicator`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BalanceIncreaseGate {
-    advices: BalanceIncreaseGateAdvices,
+    advice: BalanceIncreaseGateAdvices,
     selector: Selector,
 }
 
@@ -39,13 +35,10 @@ pub struct BalanceIncreaseGateAdvices {
 }
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(
-    test,
-    embeddable(
-        receiver = "BalanceIncreaseGateInput<Fr>",
-        impl_generics = "",
-        embedded = "BalanceIncreaseGateInput<crate::AssignedCell>"
-    )
+#[embeddable(
+    receiver = "BalanceIncreaseGateInput<Fr>",
+    impl_generics = "",
+    embedded = "BalanceIncreaseGateInput<crate::AssignedCell>"
 )]
 pub struct BalanceIncreaseGateInput<T> {
     pub balance_old: T,
@@ -56,28 +49,28 @@ pub struct BalanceIncreaseGateInput<T> {
 
 impl Gate for BalanceIncreaseGate {
     type Input = BalanceIncreaseGateInput<AssignedCell>;
-    type Advices = BalanceIncreaseGateAdvices;
+    type Advice = BalanceIncreaseGateAdvices;
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, advices: Self::Advices) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self {
         ensure_unique_columns(&[
-            advices.balance_old,
-            advices.increase_value,
-            advices.token_indicator,
-            advices.balance_new,
+            advice.balance_old,
+            advice.increase_value,
+            advice.token_indicator,
+            advice.balance_new,
         ]);
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
             let selector = vc.query_selector(selector);
-            let balance_old = vc.query_advice(advices.balance_old, Rotation(ADVICE_OFFSET as i32));
+            let balance_old = vc.query_advice(advice.balance_old, Rotation(ADVICE_OFFSET as i32));
             let increase_value =
-                vc.query_advice(advices.increase_value, Rotation(ADVICE_OFFSET as i32));
+                vc.query_advice(advice.increase_value, Rotation(ADVICE_OFFSET as i32));
             let token_indicator =
-                vc.query_advice(advices.token_indicator, Rotation(ADVICE_OFFSET as i32));
-            let balance_new = vc.query_advice(advices.balance_new, Rotation(ADVICE_OFFSET as i32));
+                vc.query_advice(advice.token_indicator, Rotation(ADVICE_OFFSET as i32));
+            let balance_new = vc.query_advice(advice.balance_new, Rotation(ADVICE_OFFSET as i32));
             vec![selector * (balance_old + increase_value * token_indicator - balance_new)]
         });
-        Self { advices, selector }
+        Self { advice, selector }
     }
 
     fn apply_in_new_region(
@@ -93,25 +86,25 @@ impl Gate for BalanceIncreaseGate {
                 input.balance_old.copy_advice(
                     || "balance_old",
                     &mut region,
-                    self.advices.balance_old,
+                    self.advice.balance_old,
                     ADVICE_OFFSET,
                 )?;
                 input.increase_value.copy_advice(
                     || "increase_value",
                     &mut region,
-                    self.advices.increase_value,
+                    self.advice.increase_value,
                     ADVICE_OFFSET,
                 )?;
                 input.token_indicator.copy_advice(
                     || "token_indicator",
                     &mut region,
-                    self.advices.token_indicator,
+                    self.advice.token_indicator,
                     ADVICE_OFFSET,
                 )?;
                 input.balance_new.copy_advice(
                     || "balance_new",
                     &mut region,
-                    self.advices.balance_new,
+                    self.advice.balance_new,
                     ADVICE_OFFSET,
                 )?;
 
@@ -120,11 +113,10 @@ impl Gate for BalanceIncreaseGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, NUM_ADVICE_COLUMNS);
         let columns = pool.get_column_array::<NUM_ADVICE_COLUMNS>();
         BalanceIncreaseGateAdvices {
@@ -209,7 +201,7 @@ mod tests {
         let column_1 = cs.advice_column();
         let column_2 = cs.advice_column();
         let column_3 = cs.advice_column();
-        BalanceIncreaseGate::create_gate(
+        BalanceIncreaseGate::create_gate_custom(
             &mut cs,
             BalanceIncreaseGateAdvices {
                 balance_old: column_1,
