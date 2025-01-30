@@ -5,6 +5,7 @@ use crate::{
     chips::{point_double::PointDoubleChipInput, points_add::PointsAddChipInput},
     curve_arithmetic::GrumpkinPoint,
     embed::Embed,
+    gates::scalar_multiply::{self, ScalarMultiplyGate},
     synthesizer::Synthesizer,
     AssignedCell,
 };
@@ -30,60 +31,56 @@ pub struct ScalarMultiplyChipOutput<T> {
     pub s: GrumpkinPoint<T>,
 }
 
-// /// Chip that computes the result of adding a point P on the grumpkin to itself n times.
-// ///
-// /// nP = S
-// #[derive(Clone, Debug)]
-// pub struct ScalarMultiplyChip {
-//     pub points_add: PointsAddChip,
-//     pub point_double: PointDoubleChip,
-// }
+/// Chip that computes the result of adding a point P on the grumpkin curve to itself n times.
+///
+/// nP = S
+#[derive(Clone, Debug)]
+pub struct ScalarMultiplyChip {
+    pub gate: ScalarMultiplyGate,
+}
 
-// impl ScalarMultiplyChip {
-//     pub fn new(points_add: PointsAddChip, point_double: PointDoubleChip) -> Self {
-//         Self {
-//             point_double,
-//             points_add,
-//         }
-//     }
+impl ScalarMultiplyChip {
+    pub fn new(gate: ScalarMultiplyChip) -> Self {
+        Self { gate }
+    }
 
-//     pub fn scalar_multiply(
-//         &self,
-//         synthesizer: &mut impl Synthesizer,
-//         input: &ScalarMultiplyChipInput<AssignedCell>,
-//     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
-//         let ScalarMultiplyChipInput { scalar_bits, p } = input;
+    pub fn scalar_multiply(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        input: &ScalarMultiplyChipInput<AssignedCell>,
+    ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
+        let ScalarMultiplyChipInput { scalar_bits, p } = input;
 
-//         let r_value = GrumpkinPoint::new(
-//             Value::known(Fr::zero()),
-//             Value::known(Fr::one()),
-//             Value::known(Fr::zero()),
-//         );
-//         let mut r = r_value.embed(synthesizer, "r")?;
+        // let r_value = GrumpkinPoint::new(
+        //     Value::known(Fr::zero()),
+        //     Value::known(Fr::one()),
+        //     Value::known(Fr::zero()),
+        // );
+        // let mut r = r_value.embed(synthesizer, "r")?;
 
-//         let mut doubled = p.clone();
+        // let mut doubled = p.clone();
 
-//         for bit in scalar_bits {
-//             let mut is_one = false;
-//             bit.value().map(|f| {
-//                 is_one = Fr::one() == *f;
-//             });
+        // for bit in scalar_bits {
+        //     let mut is_one = false;
+        //     bit.value().map(|f| {
+        //         is_one = Fr::one() == *f;
+        //     });
 
-//             if is_one {
-//                 let chip_input = PointsAddChipInput {
-//                     p: r.clone(),
-//                     q: doubled.clone(),
-//                 };
-//                 r = self.points_add.points_add(synthesizer, &chip_input)?.s;
-//             }
+        //     if is_one {
+        //         let chip_input = PointsAddChipInput {
+        //             p: r.clone(),
+        //             q: doubled.clone(),
+        //         };
+        //         r = self.points_add.points_add(synthesizer, &chip_input)?.s;
+        //     }
 
-//             let chip_input = PointDoubleChipInput { p: doubled.clone() };
-//             doubled = self.point_double.point_double(synthesizer, &chip_input)?.s;
-//         }
+        //     let chip_input = PointDoubleChipInput { p: doubled.clone() };
+        //     doubled = self.point_double.point_double(synthesizer, &chip_input)?.s;
+        // }
 
-//         Ok(ScalarMultiplyChipOutput { s: r })
-//     }
-// }
+        // Ok(ScalarMultiplyChipOutput { s: r })
+    }
+}
 
 #[cfg(test)]
 mod tests {
