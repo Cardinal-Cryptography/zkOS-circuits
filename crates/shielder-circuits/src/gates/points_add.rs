@@ -15,6 +15,7 @@ use {
     macros::embeddable,
 };
 
+use super::copy_grumpkin_advices;
 use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
@@ -129,65 +130,6 @@ impl Gate for PointsAddGate {
             [pool.get_column(6), pool.get_column(7), pool.get_column(8)],
         )
     }
-}
-
-pub fn copy_grumpkin_advices(
-    cell: &GrumpkinPoint<AssignedCell>,
-    annotation: &str,
-    region: &mut Region<'_, Fr>,
-    columns: [Column<Advice>; 3],
-    advice_offset: usize,
-) -> Result<(), Error> {
-    cell.x.copy_advice(
-        || alloc::format!("{}[x]", annotation),
-        region,
-        columns[0],
-        advice_offset,
-    )?;
-    cell.y.copy_advice(
-        || alloc::format!("{}[y]", annotation),
-        region,
-        columns[1],
-        advice_offset,
-    )?;
-    cell.z.copy_advice(
-        || alloc::format!("{}[z]", annotation),
-        region,
-        columns[2],
-        advice_offset,
-    )?;
-    Ok(())
-}
-
-pub fn assign_grumpkin_advices(
-    cell: &GrumpkinPoint<Value<Fr>>,
-    annotation: &str,
-    region: &mut Region<'_, Fr>,
-    columns: [Column<Advice>; 3],
-    offset: usize,
-) -> Result<GrumpkinPoint<AssignedCell>, Error> {
-    let x = region.assign_advice(
-        || alloc::format!("{}[x]", annotation),
-        columns[0],
-        offset,
-        || cell.x,
-    )?;
-
-    let y = region.assign_advice(
-        || alloc::format!("{}[y]", annotation),
-        columns[1],
-        offset,
-        || cell.y,
-    )?;
-
-    let z = region.assign_advice(
-        || alloc::format!("{}[z]", annotation),
-        columns[2],
-        offset,
-        || cell.z,
-    )?;
-
-    Ok(GrumpkinPoint::new(x, y, z))
 }
 
 #[cfg(test)]

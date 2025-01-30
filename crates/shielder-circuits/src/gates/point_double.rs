@@ -14,7 +14,7 @@ use {
     macros::embeddable,
 };
 
-use super::points_add::copy_grumpkin_advices;
+use super::copy_grumpkin_advices;
 use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},

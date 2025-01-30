@@ -1,10 +1,13 @@
 use alloc::collections::BTreeSet;
 
-use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error};
+use halo2_proofs::{
+    circuit::{Region, Value},
+    plonk::{Advice, Column, ConstraintSystem, Error},
+};
 
 #[cfg(test)]
 use crate::column_pool::{ColumnPool, ConfigPhase};
-use crate::{synthesizer::Synthesizer, Fr};
+use crate::{curve_arithmetic::GrumpkinPoint, synthesizer::Synthesizer, AssignedCell, Fr};
 
 pub mod balance_increase;
 pub mod is_binary;
@@ -54,4 +57,63 @@ pub trait Gate: Sized {
 fn ensure_unique_columns(advice: &[Column<Advice>]) {
     let set = BTreeSet::from_iter(advice.iter().map(|column| column.index()));
     assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
+}
+
+pub fn copy_grumpkin_advices(
+    cell: &GrumpkinPoint<AssignedCell>,
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    columns: [Column<Advice>; 3],
+    advice_offset: usize,
+) -> Result<(), Error> {
+    cell.x.copy_advice(
+        || alloc::format!("{}[x]", annotation),
+        region,
+        columns[0],
+        advice_offset,
+    )?;
+    cell.y.copy_advice(
+        || alloc::format!("{}[y]", annotation),
+        region,
+        columns[1],
+        advice_offset,
+    )?;
+    cell.z.copy_advice(
+        || alloc::format!("{}[z]", annotation),
+        region,
+        columns[2],
+        advice_offset,
+    )?;
+    Ok(())
+}
+
+pub fn assign_grumpkin_advices(
+    cell: &GrumpkinPoint<Value<Fr>>,
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    columns: [Column<Advice>; 3],
+    offset: usize,
+) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+    let x = region.assign_advice(
+        || alloc::format!("{}[x]", annotation),
+        columns[0],
+        offset,
+        || cell.x,
+    )?;
+
+    let y = region.assign_advice(
+        || alloc::format!("{}[y]", annotation),
+        columns[1],
+        offset,
+        || cell.y,
+    )?;
+
+    let z = region.assign_advice(
+        || alloc::format!("{}[z]", annotation),
+        columns[2],
+        offset,
+        || cell.z,
+    )?;
+
+    Ok(GrumpkinPoint::new(x, y, z))
 }

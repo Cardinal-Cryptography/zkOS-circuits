@@ -14,7 +14,7 @@ use {
     macros::embeddable,
 };
 
-use super::points_add::{assign_grumpkin_advices, copy_grumpkin_advices};
+use super::assign_grumpkin_advices;
 use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
@@ -119,6 +119,8 @@ impl Gate for ScalarMultiplyGate {
                 vec![
                     // TODO: conditional addition
                     next_result_x - added_x,
+                    next_result_y - added_y,
+                    next_result_z - added_z,
                     // next_P = 2 * P
                     next_input_x - doubled_x,
                     next_input_y - doubled_y,
@@ -127,7 +129,12 @@ impl Gate for ScalarMultiplyGate {
             )
         });
 
-        todo!()
+        Self {
+            selector,
+            scalar_bits,
+            result,
+            input,
+        }
     }
 
     fn apply_in_new_region(
@@ -169,6 +176,8 @@ impl Gate for ScalarMultiplyGate {
                         Value::known(*GRUMPKIN_3B),
                     );
 
+                    // TODO: conditional addition
+
                     next_result =
                         assign_grumpkin_advices(&added, "result", &mut region, self.result, i + 1)?;
 
@@ -188,4 +197,21 @@ impl Gate for ScalarMultiplyGate {
     ) -> Self::Advices {
         todo!()
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{vec, vec::Vec};
+
+    use halo2_proofs::{
+        arithmetic::Field,
+        dev::{MockProver, VerifyFailure},
+        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
+        plonk::ConstraintSystem,
+    };
+    use rand::{rngs::StdRng, SeedableRng};
+
+    use super::*;
+    use crate::gates::{test_utils::OneGateCircuit, Gate as _};
 }
