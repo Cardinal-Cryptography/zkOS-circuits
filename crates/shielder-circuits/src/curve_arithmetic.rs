@@ -31,6 +31,16 @@ impl From<G1> for GrumpkinPoint<Fr> {
     }
 }
 
+impl From<GrumpkinPoint<Fr>> for G1 {
+    fn from(p: GrumpkinPoint<Fr>) -> Self {
+        G1 {
+            x: p.x,
+            y: p.y,
+            z: p.z,
+        }
+    }
+}
+
 impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value<Fr>> {
     fn from(p: GrumpkinPoint<AssignedCell>) -> Self {
         GrumpkinPoint {

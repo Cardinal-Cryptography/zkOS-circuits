@@ -204,14 +204,47 @@ mod tests {
 
     use std::{vec, vec::Vec};
 
+    use curve_arithmetic::field_element_to_bits;
     use halo2_proofs::{
         arithmetic::Field,
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
+        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
         plonk::ConstraintSystem,
     };
     use rand::{rngs::StdRng, SeedableRng};
 
     use super::*;
-    use crate::gates::{test_utils::OneGateCircuit, Gate as _};
+    use crate::{
+        gates::{test_utils::OneGateCircuit, Gate as _},
+        rng,
+    };
+
+    fn input(scalar_bits: [Fr; 254], p: G1, result: G1) -> ScalarMultiplyGateInput<Fr> {
+        ScalarMultiplyGateInput {
+            scalar_bits,
+            result: result.into(),
+            input: p.into(),
+        }
+    }
+
+    fn verify(input: ScalarMultiplyGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = OneGateCircuit::<ScalarMultiplyGate, _>::new(input);
+        MockProver::run(10, &circuit, vec![])
+            .expect("Mock prover should run")
+            .verify()
+    }
+
+    #[test]
+    fn multiply_random_points() {
+        let rng = rng();
+
+        let p = G1::random(rng.clone());
+        let n = Fr::from_u128(3);
+        let bits = field_element_to_bits(n);
+
+        let result =
+            curve_arithmetic::scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
+
+        assert!(verify(input(bits, p, result.into())).is_ok());
+    }
 }

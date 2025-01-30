@@ -145,11 +145,10 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     use super::{PointsAddGate, PointsAddGateInput};
-    use crate::gates::{test_utils::OneGateCircuit, Gate as _};
-
-    fn rng() -> StdRng {
-        StdRng::from_seed(*b"00000000000000000000100001011001")
-    }
+    use crate::{
+        gates::{test_utils::OneGateCircuit, Gate as _},
+        rng,
+    };
 
     fn input(p: G1, q: G1, s: G1) -> PointsAddGateInput<Fr> {
         PointsAddGateInput {
