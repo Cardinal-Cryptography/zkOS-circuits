@@ -1,7 +1,7 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Region,
+    circuit::{Region, Value},
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
@@ -157,6 +157,37 @@ pub fn copy_grumpkin_advices(
         advice_offset,
     )?;
     Ok(())
+}
+
+pub fn assign_grumpkin_advices(
+    cell: &GrumpkinPoint<Value<Fr>>,
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    columns: [Column<Advice>; 3],
+    offset: usize,
+) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+    let x = region.assign_advice(
+        || alloc::format!("{}[x]", annotation),
+        columns[0],
+        offset,
+        || cell.x,
+    )?;
+
+    let y = region.assign_advice(
+        || alloc::format!("{}[y]", annotation),
+        columns[1],
+        offset,
+        || cell.y,
+    )?;
+
+    let z = region.assign_advice(
+        || alloc::format!("{}[z]", annotation),
+        columns[2],
+        offset,
+        || cell.z,
+    )?;
+
+    Ok(GrumpkinPoint::new(x, y, z))
 }
 
 #[cfg(test)]

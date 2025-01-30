@@ -14,13 +14,13 @@ use {
     macros::embeddable,
 };
 
-use super::points_add::copy_grumpkin_advices;
+use super::points_add::{assign_grumpkin_advices, copy_grumpkin_advices};
 use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
-    AssignedCell,
+    AssignedCell, Value,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -98,7 +98,11 @@ impl Gate for ScalarMultiplyGate {
             let input = GrumpkinPoint::new(input_x, input_y, input_z);
             let result = GrumpkinPoint::new(result_x, result_y, result_z);
 
-            let GrumpkinPoint { x, y, z } = curve_arithmetic::points_add(
+            let GrumpkinPoint {
+                x: added_x,
+                y: added_y,
+                z: added_z,
+            } = curve_arithmetic::points_add(
                 result,
                 input.clone(),
                 Expression::Constant(*GRUMPKIN_3B),
@@ -114,7 +118,7 @@ impl Gate for ScalarMultiplyGate {
                 vc.query_selector(selector),
                 vec![
                     // TODO: conditional addition
-
+                    next_result_x - added_x,
                     // next_P = 2 * P
                     next_input_x - doubled_x,
                     next_input_y - doubled_y,
@@ -123,7 +127,6 @@ impl Gate for ScalarMultiplyGate {
             )
         });
 
-        //
         todo!()
     }
 
@@ -139,17 +142,38 @@ impl Gate for ScalarMultiplyGate {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
-                self.selector
-                    .enable(&mut region, SELECTOR_OFFSET as usize)?;
+                // self.selector
+                //     .enable(&mut region, SELECTOR_OFFSET as usize)?;
 
-                // copy_grumpkin_advices(&input.p, "P", &mut region, self.p, ADVICE_OFFSET as usize)?;
-                // copy_grumpkin_advices(&input.s, "S", &mut region, self.s, ADVICE_OFFSET as usize)?;
+                let mut next_result = result.clone();
+                let mut next_input = input.clone();
 
                 for (i, bit) in scalar_bits.iter().enumerate() {
+                    self.selector.enable(&mut region, i)?;
 
-                    //
+                    bit.copy_advice(
+                        || alloc::format!("bit[{i}]"),
+                        &mut region,
+                        self.scalar_bits,
+                        i,
+                    )?;
 
-                    //
+                    let added = curve_arithmetic::points_add(
+                        next_result.into(),
+                        next_input.clone().into(),
+                        Value::known(*GRUMPKIN_3B),
+                    );
+
+                    let doubled = curve_arithmetic::point_double(
+                        next_input.into(),
+                        Value::known(*GRUMPKIN_3B),
+                    );
+
+                    next_result =
+                        assign_grumpkin_advices(&added, "result", &mut region, self.result, i + 1)?;
+
+                    next_input =
+                        assign_grumpkin_advices(&doubled, "input", &mut region, self.input, i + 1)?;
                 }
 
                 Ok(())

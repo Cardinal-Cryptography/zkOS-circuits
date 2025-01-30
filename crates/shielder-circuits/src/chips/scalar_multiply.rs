@@ -150,49 +150,10 @@ mod tests {
             (column_pool, point_double, points_add, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            // println!("@synthesize");
-
-            let ScalarMultiplyChipInput { p, scalar_bits } = self.0.clone();
+            let ScalarMultiplyChipInput { p, scalar_bits } = self.0;
 
             let column_pool = column_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
-
-            let r_value = GrumpkinPoint::new(
-                Value::known(Fr::zero()),
-                Value::known(Fr::one()),
-                Value::known(Fr::zero()),
-            );
-            let mut r = r_value.embed(&mut synthesizer, "R")?;
-
-            let scalar_bits = scalar_bits.embed(&mut synthesizer, "scalar_bits")?;
-
-            let mut p = p.embed(&mut synthesizer, "P")?;
-
-            // let res =
-            //     curve_arithmetic::scalar_multiply(p, scalar_bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
-
-            for bit in scalar_bits {
-                let mut is_one = false;
-                bit.value().map(|f| {
-                    is_one = Fr::one() == *f;
-                });
-
-                if is_one {
-                    r = points_add
-                        .points_add(&mut synthesizer, &PointsAddChipInput { p: r, q: p.clone() })?
-                        .s;
-                }
-
-                p = point_double
-                    .point_double(&mut synthesizer, &PointDoubleChipInput { p })?
-                    .s;
-            }
-
-            // synthesizer.constrain_instance(s.x.cell(), instance, 0)?;
-            // synthesizer.constrain_instance(s.y.cell(), instance, 1)?;
-            // synthesizer.constrain_instance(s.z.cell(), instance, 2)?;
-
-            // println!("@end: synthesize");
 
             Ok(())
         }
@@ -225,10 +186,12 @@ mod tests {
 
         let p = G1::random(rng.clone());
 
-        println!("P: {p:?}");
+        // println!("P: {p:?}");
 
         let n = Fr::from_u128(3);
         let bits = field_element_to_bits(n);
+
+        // println!("BITS: {bits:?}");
 
         let expected = curve_arithmetic::scalar_multiply(
             p.into(),
@@ -242,5 +205,6 @@ mod tests {
         let output = ScalarMultiplyChipOutput { s: expected };
 
         assert!(verify(input, output).is_ok());
+        // assert!(false)
     }
 }
