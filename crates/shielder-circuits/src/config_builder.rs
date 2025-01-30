@@ -6,7 +6,6 @@ use crate::{
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
         range_check::RangeCheckChip,
-        scalar_multiply::ScalarMultiplyChip,
         sum::SumChip,
         token_index::{TokenIndexChip, TokenIndexInstance},
     },
@@ -37,7 +36,6 @@ pub struct ConfigsBuilder<'cs> {
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
     points_add: Option<PointsAddChip>,
-    scalar_multiply: Option<ScalarMultiplyChip>,
     point_double: Option<PointDoubleChip>,
     token_index: Option<TokenIndexChip>,
 }
@@ -64,7 +62,6 @@ impl<'cs> ConfigsBuilder<'cs> {
             sum: None,
             points_add: None,
             point_double: None,
-            scalar_multiply: None,
             token_index: None,
         }
     }
@@ -228,24 +225,24 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("PointDoubleChip not configured")
     }
 
-    pub fn with_scalar_multiply_chip(mut self) -> Self {
-        check_if_cached!(self, scalar_multiply);
+    // pub fn with_scalar_multiply_chip(mut self) -> Self {
+    //     check_if_cached!(self, scalar_multiply);
 
-        self = self.with_points_add_chip().with_point_double_chip();
+    //     self = self.with_points_add_chip().with_point_double_chip();
 
-        self.scalar_multiply = Some(ScalarMultiplyChip {
-            point_double: self.point_double_chip(),
-            points_add: self.points_add_chip(),
-        });
+    //     self.scalar_multiply = Some(ScalarMultiplyChip {
+    //         point_double: self.point_double_chip(),
+    //         points_add: self.points_add_chip(),
+    //     });
 
-        self
-    }
+    //     self
+    // }
 
-    pub fn scalar_multiply_chip(&self) -> ScalarMultiplyChip {
-        self.scalar_multiply
-            .clone()
-            .expect("ScalarMultiplyChip is not configured")
-    }
+    // pub fn scalar_multiply_chip(&self) -> ScalarMultiplyChip {
+    //     self.scalar_multiply
+    //         .clone()
+    //         .expect("ScalarMultiplyChip is not configured")
+    // }
 
     pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
         check_if_cached!(self, token_index);

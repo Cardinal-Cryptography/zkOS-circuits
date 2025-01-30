@@ -28,9 +28,9 @@ use crate::{
 /// where P,S  points on the G1 of the Grumpkin curve
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PointDoubleGate {
-    p: [Column<Advice>; 3],
-    s: [Column<Advice>; 3],
-    selector: Selector,
+    pub p: [Column<Advice>; 3],
+    pub s: [Column<Advice>; 3],
+    pub selector: Selector,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -99,24 +99,6 @@ impl Gate for PointDoubleGate {
             |mut region| {
                 self.selector
                     .enable(&mut region, SELECTOR_OFFSET as usize)?;
-
-                // for (i, cell) in input.p.iter().enumerate() {
-                //     cell.copy_advice(
-                //         || alloc::format!("P[{i}]"),
-                //         &mut region,
-                //         self.p[i],
-                //         ADVICE_OFFSET as usize,
-                //     )?;
-                // }
-
-                // for (i, cell) in input.s.iter().enumerate() {
-                //     cell.copy_advice(
-                //         || alloc::format!("S[{i}]"),
-                //         &mut region,
-                //         self.s[i],
-                //         ADVICE_OFFSET as usize,
-                //     )?;
-                // }
 
                 copy_grumpkin_advices(&input.p, "P", &mut region, self.p, ADVICE_OFFSET as usize)?;
                 copy_grumpkin_advices(&input.s, "S", &mut region, self.s, ADVICE_OFFSET as usize)?;

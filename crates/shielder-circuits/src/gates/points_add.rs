@@ -28,10 +28,10 @@ use crate::{
 /// where P,Q,S are points on the G1 of the Grumpkin curve
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PointsAddGate {
-    p: [Column<Advice>; 3],
-    q: [Column<Advice>; 3],
-    s: [Column<Advice>; 3],
-    selector: Selector,
+    pub p: [Column<Advice>; 3],
+    pub q: [Column<Advice>; 3],
+    pub s: [Column<Advice>; 3],
+    pub selector: Selector,
 }
 
 #[derive(Clone, Debug, Default)]
