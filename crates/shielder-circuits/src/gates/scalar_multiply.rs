@@ -195,7 +195,12 @@ impl Gate for ScalarMultiplyGate {
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advices {
-        todo!()
+        pool.ensure_capacity(cs, 7);
+        (
+            pool.get_column(0),
+            [pool.get_column(1), pool.get_column(2), pool.get_column(3)],
+            [pool.get_column(4), pool.get_column(5), pool.get_column(6)],
+        )
     }
 }
 
