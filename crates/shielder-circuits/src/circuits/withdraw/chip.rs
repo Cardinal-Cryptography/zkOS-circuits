@@ -3,7 +3,7 @@ use halo2_proofs::plonk::Error;
 use crate::{
     chips::{
         id_hiding::IdHidingChip,
-        note::{balances_from_native_balance, Note, NoteChip},
+        note::{Note, NoteChip},
         range_check::RangeCheckChip,
         sum::SumChip,
     },
@@ -41,9 +41,6 @@ impl WithdrawChip {
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
         todo: &mut Todo<WithdrawConstraints>,
     ) -> Result<(), Error> {
-        let balances =
-            balances_from_native_balance(knowledge.account_old_balance.clone(), synthesizer)?;
-
         let old_note = self.note.note(
             synthesizer,
             &Note {
@@ -51,7 +48,7 @@ impl WithdrawChip {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_old.clone(),
                 trapdoor: knowledge.trapdoor_old.clone(),
-                balances,
+                account_balance: knowledge.account_old_balance.clone(),
             },
         )?;
         todo.check_off(OldNullifierIsIncludedInTheOldNote)?;
@@ -125,8 +122,6 @@ impl WithdrawChip {
         )?;
         todo.check_off(WithdrawalValueInstanceIsConstrainedToAdvice)?;
 
-        let balances = balances_from_native_balance(new_balance, synthesizer)?;
-
         let new_note = self.note.note(
             synthesizer,
             &Note {
@@ -134,7 +129,7 @@ impl WithdrawChip {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_new.clone(),
                 trapdoor: knowledge.trapdoor_new.clone(),
-                balances,
+                account_balance: new_balance,
             },
         )?;
         todo.check_off(HashedNewNoteIsCorrect)?;

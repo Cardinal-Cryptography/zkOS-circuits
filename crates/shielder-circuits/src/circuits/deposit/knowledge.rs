@@ -5,10 +5,6 @@ use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
-    chips::{
-        balances_increase::off_circuit::increase_balances, shortlist_hash::Shortlist,
-        token_index::off_circuit::index_from_indicators,
-    },
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         NONCE_UPPER_LIMIT, NUM_TOKENS,
@@ -38,7 +34,7 @@ pub struct DepositProverKnowledge<T> {
     pub id: T,
     pub nullifier_old: T,
     pub trapdoor_old: T,
-    pub balances_old: Shortlist<T, NUM_TOKENS>,
+    pub account_old_balance: T,
 
     // Merkle proof
     pub path: [[T; ARITY]; NOTE_TREE_HEIGHT],
@@ -69,13 +65,13 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
 
         let nullifier_old = Fr::random(&mut *rng);
         let trapdoor_old = Fr::random(&mut *rng);
-        let balances_old = Shortlist::new(array::from_fn(|i| Fr::from((i + 10) as u64)));
+        let account_old_balance = Fr::from(10);
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
             nullifier: nullifier_old,
             trapdoor: trapdoor_old,
-            balances: balances_old,
+            account_balance: account_old_balance,
         });
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
         let token_indicators = array::from_fn(|i| Fr::from((i == 0) as u64));
@@ -84,7 +80,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             nonce,
             nullifier_old,
             trapdoor_old,
-            balances_old,
+            account_old_balance,
             path,
             nullifier_new: Fr::random(&mut *rng),
             trapdoor_new: Fr::random(rng),
@@ -99,7 +95,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             trapdoor_old: Value::known(self.trapdoor_old),
             nullifier_new: Value::known(self.nullifier_new),
             nullifier_old: Value::known(self.nullifier_old),
-            balances_old: self.balances_old.map(Value::known),
+            account_old_balance: Value::known(self.account_old_balance),
             id: Value::known(self.id),
             nonce: Value::known(self.nonce),
             path: self.path.map(|level| level.map(Value::known)),
@@ -120,14 +116,9 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
                 id: self.id,
                 nullifier: self.nullifier_new,
                 trapdoor: self.trapdoor_new,
-                balances: increase_balances(
-                    &self.balances_old,
-                    &self.token_indicators,
-                    self.deposit_value,
-                ),
+                account_balance: self.account_old_balance + self.deposit_value,
             }),
             DepositInstance::DepositValue => self.deposit_value,
-            DepositInstance::TokenIndex => index_from_indicators(&self.token_indicators),
         }
     }
 }

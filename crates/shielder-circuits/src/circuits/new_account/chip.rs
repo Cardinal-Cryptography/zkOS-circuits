@@ -1,7 +1,7 @@
 use halo2_proofs::plonk::Error;
 
 use crate::{
-    chips::note::{balances_from_native_balance, Note, NoteChip},
+    chips::note::{Note, NoteChip},
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     instance_wrapper::InstanceWrapper,
     new_account::{
@@ -40,9 +40,6 @@ impl NewAccountChip {
         let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
         todo.check_off(HashedIdIsCorrect)?;
 
-        let balances =
-            balances_from_native_balance(knowledge.initial_deposit.clone(), synthesizer)?;
-
         let note = self.note.note(
             synthesizer,
             &Note {
@@ -50,7 +47,7 @@ impl NewAccountChip {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier.clone(),
                 trapdoor: knowledge.trapdoor.clone(),
-                balances,
+                account_balance: knowledge.initial_deposit.clone(),
             },
         )?;
         todo.check_off(IdIsIncludedInTheNote)?;

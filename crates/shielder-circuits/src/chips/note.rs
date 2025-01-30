@@ -1,11 +1,6 @@
-use core::array;
-
 use halo2_proofs::{arithmetic::Field, plonk::Error};
 
-use super::shortlist_hash::Shortlist;
 use crate::{
-    chips::shortlist_hash::ShortlistHashChip,
-    consts::NUM_TOKENS,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NoteVersion,
@@ -18,40 +13,35 @@ pub struct Note<T> {
     pub id: T,
     pub nullifier: T,
     pub trapdoor: T,
-    pub balances: Shortlist<T, NUM_TOKENS>,
+    pub account_balance: T,
 }
 
 pub mod off_circuit {
     use halo2_proofs::arithmetic::Field;
 
-    use crate::{
-        chips::{
-            note::Note,
-            shortlist_hash::{off_circuit::shortlist_hash, Shortlist},
-        },
-        consts::NUM_TOKENS,
-        poseidon::off_circuit::hash,
-        Fr,
-    };
+    use crate::{chips::note::Note, consts::POSEIDON_RATE, poseidon::off_circuit::hash, Fr};
 
     pub fn note_hash(note: &Note<Fr>) -> Fr {
+        // TODO: move to a separate chip, which will also handle the token address.
+        let balance_hash = hash::<POSEIDON_RATE>(&[
+            note.account_balance,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+        ]);
+
         let input = [
             note.version.as_field(),
             note.id,
             note.nullifier,
             note.trapdoor,
-            shortlist_hash(&note.balances),
+            balance_hash,
         ];
 
         hash(&input)
-    }
-
-    /// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
-    /// Produces the balance shortlist tuple from a single native balance.
-    pub fn balances_from_native_balance(native_balance: Fr) -> Shortlist<Fr, NUM_TOKENS> {
-        let mut balances = [Fr::ZERO; NUM_TOKENS];
-        balances[0] = native_balance;
-        Shortlist::new(balances)
     }
 }
 
@@ -59,15 +49,11 @@ pub mod off_circuit {
 #[derive(Clone, Debug)]
 pub struct NoteChip {
     poseidon: PoseidonChip,
-    shortlist_hash: ShortlistHashChip<NUM_TOKENS>,
 }
 
 impl NoteChip {
-    pub fn new(poseidon: PoseidonChip, shortlist_hash: ShortlistHashChip<NUM_TOKENS>) -> Self {
-        Self {
-            poseidon,
-            shortlist_hash,
-        }
+    pub fn new(poseidon: PoseidonChip) -> Self {
+        Self { poseidon }
     }
 
     fn assign_note_version(
@@ -88,9 +74,7 @@ impl NoteChip {
     ) -> Result<AssignedCell, Error> {
         let note_version = self.assign_note_version(note, synthesizer)?;
 
-        let h_balance = self
-            .shortlist_hash
-            .shortlist_hash(synthesizer, &note.balances)?;
+        let h_balance = self.balance_hash(synthesizer, note)?;
 
         let input = [
             note_version,
@@ -102,21 +86,25 @@ impl NoteChip {
 
         hash(synthesizer, self.poseidon.clone(), input)
     }
-}
 
-/// TODO: Remove this temporary helper once NewAccount and Withdraw support balance tuples.
-/// Converts a single native balance to a balance tuple with the remaining balances
-/// constrained to 0.
-pub fn balances_from_native_balance(
-    native_balance: AssignedCell,
-    synthesizer: &mut impl Synthesizer,
-) -> Result<Shortlist<AssignedCell, NUM_TOKENS>, Error> {
-    let zero_cell = synthesizer.assign_constant("Balance placeholder (zero)", Fr::ZERO)?;
-    Ok(Shortlist::new(array::from_fn(|i| {
-        if i == 0 {
-            native_balance.clone()
-        } else {
-            zero_cell.clone()
-        }
-    })))
+    // TODO: move to a separate chip, which will also handle the token address.
+    fn balance_hash(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        note: &Note<AssignedCell>,
+    ) -> Result<AssignedCell, Error> {
+        let zero_cell = synthesizer.assign_constant("Zero", Fr::ZERO)?;
+
+        let input = [
+            note.account_balance.clone(),
+            zero_cell.clone(),
+            zero_cell.clone(),
+            zero_cell.clone(),
+            zero_cell.clone(),
+            zero_cell.clone(),
+            zero_cell.clone(),
+        ];
+
+        hash(synthesizer, self.poseidon.clone(), input)
+    }
 }
