@@ -12,6 +12,7 @@ pub mod linear_equation;
 pub mod membership;
 pub mod point_double;
 pub mod points_add;
+pub mod scalar_multiply;
 pub mod sum;
 
 #[cfg(test)]
