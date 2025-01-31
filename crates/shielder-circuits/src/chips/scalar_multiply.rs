@@ -60,6 +60,20 @@ impl Add for V {
     }
 }
 
+impl Sub for V {
+    type Output = V;
+    fn sub(self, other: Self) -> Self {
+        V(self.0 - other.0)
+    }
+}
+
+impl Mul for V {
+    type Output = V;
+    fn mul(self, other: Self) -> Self {
+        V(self.0 * other.0)
+    }
+}
+
 impl ScalarMultiplyChip {
     pub fn new(gate: ScalarMultiplyGate) -> Self {
         Self { gate }
