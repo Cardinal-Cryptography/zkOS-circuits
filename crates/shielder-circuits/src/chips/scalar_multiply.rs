@@ -1,9 +1,13 @@
-use halo2_proofs::{circuit::Value, halo2curves::bn256::Fr, plonk::Error};
+use core::ops::{Add, Mul, Sub};
+
+use halo2_proofs::{arithmetic::Field, circuit::Value, halo2curves::bn256::Fr, plonk::Error};
+use rayon::result;
 
 use super::{point_double::PointDoubleChip, points_add::PointsAddChip};
 use crate::{
     chips::{point_double::PointDoubleChipInput, points_add::PointsAddChipInput},
-    curve_arithmetic::GrumpkinPoint,
+    consts::GRUMPKIN_3B,
+    curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::scalar_multiply::{self, ScalarMultiplyGate},
     synthesizer::Synthesizer,
@@ -39,8 +43,25 @@ pub struct ScalarMultiplyChip {
     pub gate: ScalarMultiplyGate,
 }
 
+#[derive(Clone, Debug)]
+struct V(Value<Fr>);
+
+impl PartialEq for V {
+    fn eq(&self, other: &Self) -> bool {
+        // let is_equal = false;
+        todo!()
+    }
+}
+
+impl Add for V {
+    type Output = V;
+    fn add(self, other: Self) -> Self {
+        V(self.0 + other.0)
+    }
+}
+
 impl ScalarMultiplyChip {
-    pub fn new(gate: ScalarMultiplyChip) -> Self {
+    pub fn new(gate: ScalarMultiplyGate) -> Self {
         Self { gate }
     }
 
@@ -51,34 +72,28 @@ impl ScalarMultiplyChip {
     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
         let ScalarMultiplyChipInput { scalar_bits, p } = input;
 
-        // let r_value = GrumpkinPoint::new(
-        //     Value::known(Fr::zero()),
-        //     Value::known(Fr::one()),
-        //     Value::known(Fr::zero()),
-        // );
-        // let mut r = r_value.embed(synthesizer, "r")?;
+        let bits: Vec<V> = scalar_bits
+            .iter()
+            .map(|cell| V(cell.value().cloned()))
+            .collect();
+        let bits: [V; 254] = bits.try_into().expect("not 254 bit array");
+        let p: GrumpkinPoint<V> = GrumpkinPoint {
+            x: V(p.x.value().cloned()),
+            y: V(p.y.value().cloned()),
+            z: V(p.z.value().cloned()),
+        };
 
-        // let mut doubled = p.clone();
+        let r_value: GrumpkinPoint<V> = curve_arithmetic::scalar_multiply(
+            p,
+            bits,
+            V(Value::known(*GRUMPKIN_3B)),
+            V(Value::known(Fr::ZERO)),
+            V(Value::known(Fr::ONE)),
+        );
 
-        // for bit in scalar_bits {
-        //     let mut is_one = false;
-        //     bit.value().map(|f| {
-        //         is_one = Fr::one() == *f;
-        //     });
+        // let result = r_value.embed(synthesizer, "S")?;
 
-        //     if is_one {
-        //         let chip_input = PointsAddChipInput {
-        //             p: r.clone(),
-        //             q: doubled.clone(),
-        //         };
-        //         r = self.points_add.points_add(synthesizer, &chip_input)?.s;
-        //     }
-
-        //     let chip_input = PointDoubleChipInput { p: doubled.clone() };
-        //     doubled = self.point_double.point_double(synthesizer, &chip_input)?.s;
-        // }
-
-        // Ok(ScalarMultiplyChipOutput { s: r })
+        todo!()
     }
 }
 
