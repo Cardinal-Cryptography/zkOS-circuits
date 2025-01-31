@@ -65,26 +65,26 @@ pub fn copy_grumpkin_advices(
     region: &mut Region<'_, Fr>,
     columns: [Column<Advice>; 3],
     advice_offset: usize,
-) -> Result<(), Error> {
-    assigned_point.x.copy_advice(
+) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+    let x = assigned_point.x.copy_advice(
         || alloc::format!("{}[x]", annotation),
         region,
         columns[0],
         advice_offset,
     )?;
-    assigned_point.y.copy_advice(
+    let y = assigned_point.y.copy_advice(
         || alloc::format!("{}[y]", annotation),
         region,
         columns[1],
         advice_offset,
     )?;
-    assigned_point.z.copy_advice(
+    let z = assigned_point.z.copy_advice(
         || alloc::format!("{}[z]", annotation),
         region,
         columns[2],
         advice_offset,
     )?;
-    Ok(())
+    Ok(GrumpkinPoint::new(x, y, z))
 }
 
 pub fn assign_grumpkin_advices(
