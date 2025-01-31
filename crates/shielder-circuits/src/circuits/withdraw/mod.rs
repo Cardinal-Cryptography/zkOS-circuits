@@ -1,6 +1,6 @@
 use strum_macros::{EnumCount, EnumIter};
 
-use crate::merkle::{MerkleConstraints, MerkleInstance};
+use crate::merkle::MerkleInstance;
 
 mod chip;
 mod circuit;
@@ -26,56 +26,6 @@ impl TryFrom<WithdrawInstance> for MerkleInstance {
         match value {
             WithdrawInstance::MerkleRoot => Ok(Self::MerkleRoot),
             _ => Err(()),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-pub enum WithdrawConstraints {
-    /// Merkle path should be a correct membership proof.
-    MembershipProofIsCorrect,
-    /// The old note belongs to the first level of the Merkle path.
-    MembershipProofRelatesToTheOldNote,
-    /// The public instance is a commitment to the Merkle path.
-    MerkleRootInstanceIsConstrainedToAdvice,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    HashedOldNullifierInstanceIsConstrainedToAdvice,
-    /// The old nullifier is correctly hashed.
-    HashedOldNullifierIsCorrect,
-    /// The old nullifier is correctly included in the old note.
-    OldNullifierIsIncludedInTheOldNote,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    WithdrawalValueInstanceIsConstrainedToAdvice,
-    /// The withdrawal value is correctly included in the new note.
-    WithdrawalValueInstanceIsIncludedInTheNewNote,
-    /// New balance is within permissible range.
-    NewBalanceIsInRange,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    HashedNewNoteInstanceIsConstrainedToAdvice,
-    /// The new note is correctly hashed.
-    HashedNewNoteIsCorrect,
-
-    /// IdHiding is correctly calculated from a `nonce` and `id` advice cells
-    IdHidingIsCorrect,
-    /// The public instance is copy-constrained to some cell in advice area.
-    IdHidingInstanceIsConstrainedToAdvice,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    CommitmentInstanceIsConstrainedToAdvice,
-}
-
-impl From<MerkleConstraints> for WithdrawConstraints {
-    fn from(merkle: MerkleConstraints) -> Self {
-        use crate::circuits::merkle::MerkleConstraints::*;
-        match merkle {
-            MembershipProofIsCorrect => Self::MembershipProofIsCorrect,
-            MembershipProofContainsSpecificLeaf => Self::MembershipProofRelatesToTheOldNote,
-            MerkleRootInstanceIsConstrainedToAdvice => {
-                Self::MerkleRootInstanceIsConstrainedToAdvice
-            }
         }
     }
 }

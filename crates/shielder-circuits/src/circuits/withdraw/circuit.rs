@@ -10,8 +10,7 @@ use crate::{
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     synthesizer::create_synthesizer,
-    todo::Todo,
-    withdraw::{WithdrawConstraints, WithdrawInstance, WithdrawProverKnowledge},
+    withdraw::{WithdrawInstance, WithdrawProverKnowledge},
     Fr, Value,
 };
 
@@ -54,20 +53,17 @@ impl Circuit<Fr> for WithdrawCircuit {
     ) -> Result<(), Error> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
-        let mut todo = Todo::<WithdrawConstraints>::new();
         let knowledge = self.0.embed(&mut synthesizer, "WithdrawProverKnowledge")?;
         let intermediate = self
             .0
             .compute_intermediate_values()
             .embed(&mut synthesizer, "WithdrawIntermediateValues")?;
 
-        main_chip.check_old_note(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut synthesizer, &knowledge, &intermediate, &mut todo)?;
-        main_chip.check_commitment(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
-
-        todo.assert_done()
+        main_chip.check_old_note(&mut synthesizer, &knowledge)?;
+        main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
+        main_chip.check_new_note(&mut synthesizer, &knowledge, &intermediate)?;
+        main_chip.check_commitment(&mut synthesizer, &knowledge)?;
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge)
     }
 }
 

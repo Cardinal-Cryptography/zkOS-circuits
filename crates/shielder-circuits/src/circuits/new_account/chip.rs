@@ -4,13 +4,9 @@ use crate::{
     chips::note::{Note, NoteChip},
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     instance_wrapper::InstanceWrapper,
-    new_account::{
-        NewAccountConstraints::{self, *},
-        NewAccountInstance::{self, *},
-    },
+    new_account::NewAccountInstance::{self, *},
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
-    todo::Todo,
     version::NOTE_VERSION,
     AssignedCell,
 };
@@ -27,7 +23,6 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-        todo: &mut Todo<NewAccountConstraints>,
     ) -> Result<(), Error> {
         let public_inputs = &self.public_inputs;
 
@@ -35,10 +30,8 @@ impl NewAccountChip {
             synthesizer,
             [(knowledge.initial_deposit.clone(), InitialDeposit)],
         )?;
-        todo.check_off(InitialDepositInstanceIsConstrainedToAdvice)?;
 
         let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
-        todo.check_off(HashedIdIsCorrect)?;
 
         let note = self.note.note(
             synthesizer,
@@ -50,12 +43,7 @@ impl NewAccountChip {
                 account_balance: knowledge.initial_deposit.clone(),
             },
         )?;
-        todo.check_off(IdIsIncludedInTheNote)?;
-        todo.check_off(InitialDepositIsIncludedInTheNewNote)?;
-        todo.check_off(HashedNoteIsCorrect)?;
 
-        public_inputs.constrain_cells(synthesizer, [(note, HashedNote), (h_id, HashedId)])?;
-        todo.check_off(HashedNoteInstanceIsConstrainedToAdvice)?;
-        todo.check_off(HashedIdInstanceIsConstrainedToAdvice)
+        public_inputs.constrain_cells(synthesizer, [(note, HashedNote), (h_id, HashedId)])
     }
 }

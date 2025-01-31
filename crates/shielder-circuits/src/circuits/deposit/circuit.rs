@@ -7,11 +7,10 @@ use crate::{
     circuits::deposit::{chip::DepositChip, knowledge::DepositProverKnowledge},
     column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
-    deposit::{DepositConstraints, DepositInstance},
+    deposit::DepositInstance,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     synthesizer::create_synthesizer,
-    todo::Todo,
     Fr, Value,
 };
 
@@ -54,20 +53,17 @@ impl Circuit<Fr> for DepositCircuit {
     ) -> Result<(), Error> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
-        let mut todo = Todo::<DepositConstraints>::new();
         let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;
 
-        main_chip.check_old_note(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
-        todo.assert_done()
+        main_chip.check_old_note(&mut synthesizer, &knowledge)?;
+        main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
+        main_chip.check_new_note(&mut synthesizer, &knowledge)?;
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge)
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand_core::OsRng;
 
