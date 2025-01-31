@@ -77,7 +77,6 @@ mod tests {
     use rand_core::OsRng;
 
     use crate::{
-        chips::note::off_circuit::balances_from_native_balance,
         circuits::{
             merkle::generate_example_path_with_given_leaf,
             test_utils::{
@@ -152,7 +151,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_old,
                 trapdoor: pk.trapdoor_old,
-                balances: balances_from_native_balance(pk.account_old_balance),
+                account_balance: pk.account_old_balance,
             }) + modification /* Modification here! */;
             let h_nullifier_old = hash(&[pk.nullifier_old]);
 
@@ -169,7 +168,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_new,
                 trapdoor: pk.trapdoor_new,
-                balances: balances_from_native_balance(account_balance_new),
+                account_balance: account_balance_new,
             });
 
             let pub_input = |instance: WithdrawInstance| match instance {

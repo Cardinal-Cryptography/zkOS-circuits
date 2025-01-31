@@ -30,10 +30,8 @@ impl Circuit<Fr> for DepositCircuit {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
-            .with_balances_increase()
             .with_merkle(public_inputs.narrow())
             .with_range_check()
-            .with_token_index(public_inputs.narrow())
             .with_note();
 
         (
@@ -42,8 +40,7 @@ impl Circuit<Fr> for DepositCircuit {
                 poseidon: configs_builder.poseidon_chip(),
                 merkle: configs_builder.merkle_chip(),
                 range_check: configs_builder.range_check_chip(),
-                balances_increase: configs_builder.balances_increase_chip(),
-                token_index: configs_builder.token_index_chip(),
+                sum_chip: configs_builder.sum_chip(),
                 note: configs_builder.note_chip(),
             },
             configs_builder.finish(),
@@ -64,7 +61,6 @@ impl Circuit<Fr> for DepositCircuit {
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge, &mut todo)?;
         main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_token_index(&mut synthesizer, &knowledge, &mut todo)?;
         todo.assert_done()
     }
 }
@@ -73,26 +69,20 @@ impl Circuit<Fr> for DepositCircuit {
 mod tests {
 
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
-    use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;
 
     use crate::{
-        chips::{
-            balances_increase::off_circuit::increase_balances,
-            token_index::off_circuit::index_from_indicators,
-        },
         circuits::{
             deposit::knowledge::DepositProverKnowledge,
             merkle::generate_example_path_with_given_leaf,
             test_utils::{
-                expect_instance_permutation_failures, expect_prover_success_and_run_verification,
-                run_full_pipeline, PublicInputProviderExt,
+                expect_prover_success_and_run_verification, run_full_pipeline,
+                PublicInputProviderExt,
             },
         },
         deposit::DepositInstance::{self, *},
         note_hash,
         poseidon::off_circuit::hash,
-        test_utils::expect_gate_failure,
         version::NOTE_VERSION,
         Note, ProverKnowledge, PublicInputProvider,
     };
@@ -152,7 +142,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_old,
                 trapdoor: pk.trapdoor_old,
-                balances: pk.balances_old,
+                account_balance: pk.account_old_balance,
             }) + modification /* Modification here! */;
             let h_nullifier_old = hash(&[pk.nullifier_old]);
 
@@ -161,8 +151,7 @@ mod tests {
             pk.path = path;
 
             // Build the new account state.
-            let balances_new =
-                increase_balances(&pk.balances_old, &pk.token_indicators, pk.deposit_value);
+            let account_balance_new = pk.account_old_balance + pk.deposit_value;
 
             // Build the new note.
             let h_note_new = note_hash(&Note {
@@ -170,7 +159,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_new,
                 trapdoor: pk.trapdoor_new,
-                balances: balances_new,
+                account_balance: account_balance_new,
             });
 
             let pub_input = |instance: DepositInstance| match instance {
@@ -179,7 +168,6 @@ mod tests {
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
                 DepositValue => pk.deposit_value,
-                TokenIndex => index_from_indicators(&pk.token_indicators),
             };
 
             assert_eq!(
@@ -191,82 +179,6 @@ mod tests {
                 verify_is_expected_to_pass
             );
         }
-    }
-    #[test]
-    fn passes_if_deposited_nonnative_token() {
-        let mut rng = SmallRng::from_seed([42; 32]);
-        let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
-
-        pk.token_indicators = [0, 1, 0, 0, 0, 0].map(Fr::from);
-        let pub_input = pk.serialize_public_input();
-
-        assert!(
-            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_ok()
-        );
-
-        // Manually verify the new note hash used in the circuit.
-        let mut hash_input = [Fr::ZERO; 7];
-        for i in 0..6 {
-            hash_input[i] = pk.balances_old.items()[i];
-        }
-        hash_input[1] += pk.deposit_value;
-        let new_balances_hash = hash(&hash_input);
-        let new_note_hash = hash(&[
-            Fr::ZERO, // Note version.
-            pk.id,
-            pk.nullifier_new,
-            pk.trapdoor_new,
-            new_balances_hash,
-        ]);
-        assert_eq!(new_note_hash, pub_input[3]);
-
-        // Verify the token index.
-        assert_eq!(Fr::ONE, pub_input[5]);
-    }
-
-    #[test]
-    fn fails_if_token_indicators_incorrect() {
-        // In this test, we ensure that all constraints are satisfied
-        // except for some applications of the `IsBinary` gate.
-
-        let mut rng = SmallRng::from_seed([42; 32]);
-        let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
-        assert_eq!(Fr::ZERO, pk.compute_public_input(TokenIndex));
-
-        // The sum is 1. The token index, as computed from the indicators, is 0.
-        pk.token_indicators = [
-            Fr::from(1),
-            Fr::from(1).neg(),
-            Fr::from(2),
-            Fr::from(1).neg(),
-            Fr::ZERO,
-            Fr::ZERO,
-        ];
-
-        let failures = expect_prover_success_and_run_verification(
-            pk.create_circuit(),
-            &pk.serialize_public_input(),
-        )
-        .expect_err("Verification must fail");
-
-        assert_eq!(3, failures.len()); // Exactly 3 indicators are nonbinary.
-        for failure in failures {
-            expect_gate_failure(&failure, "IsBinary gate");
-        }
-    }
-
-    #[test]
-    fn fails_if_token_index_pub_input_incorrect() {
-        let mut rng = SmallRng::from_seed([42; 32]);
-        let pk = DepositProverKnowledge::random_correct_example(&mut rng);
-
-        let mut pub_input = pk.serialize_public_input();
-        pub_input[5] += Fr::ONE;
-
-        let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
-            .expect_err("Verification must fail");
-
-        expect_instance_permutation_failures(&failures, "Token index", 5);
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.

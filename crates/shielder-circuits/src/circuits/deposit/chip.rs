@@ -3,11 +3,10 @@ use DepositInstance::DepositValue;
 
 use crate::{
     chips::{
-        balances_increase::BalancesIncreaseChip,
         id_hiding::IdHidingChip,
         note::{Note, NoteChip},
         range_check::RangeCheckChip,
-        token_index::TokenIndexChip,
+        sum::SumChip,
     },
     circuits::{
         deposit::knowledge::DepositProverKnowledge,
@@ -30,9 +29,8 @@ pub struct DepositChip {
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip,
     pub range_check: RangeCheckChip,
+    pub sum_chip: SumChip,
     pub merkle: MerkleChip,
-    pub balances_increase: BalancesIncreaseChip,
-    pub token_index: TokenIndexChip,
     pub note: NoteChip,
 }
 
@@ -50,7 +48,7 @@ impl DepositChip {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_old.clone(),
                 trapdoor: knowledge.trapdoor_old.clone(),
-                balances: knowledge.balances_old.clone(),
+                account_balance: knowledge.account_old_balance.clone(),
             },
         )?;
         todo.check_off(OldNullifierIsIncludedInTheOldNote)?;
@@ -109,11 +107,16 @@ impl DepositChip {
         )?;
         todo.check_off(DepositValueInstanceIsConstrainedToAdvice)?;
 
-        let balances_new = self.balances_increase.increase_balances(
+        // TODO: move to another chip or `IntermediateValues`.
+        let account_balance_new = synthesizer.assign_value(
+            "balance new",
+            knowledge.account_old_balance.value() + knowledge.deposit_value.value(),
+        )?;
+        self.sum_chip.constrain_sum(
             synthesizer,
-            &knowledge.balances_old,
-            &knowledge.token_indicators,
-            &knowledge.deposit_value,
+            knowledge.account_old_balance.clone(),
+            knowledge.deposit_value.clone(),
+            account_balance_new.clone(),
         )?;
         todo.check_off(DepositValueInstanceIsIncludedInTheNewNote)?;
 
@@ -124,7 +127,7 @@ impl DepositChip {
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_new.clone(),
                 trapdoor: knowledge.trapdoor_new.clone(),
-                balances: balances_new,
+                account_balance: account_balance_new,
             },
         )?;
         todo.check_off(HashedNewNoteIsCorrect)?;
@@ -132,18 +135,5 @@ impl DepositChip {
         self.public_inputs
             .constrain_cells(synthesizer, [(new_note, HashedNewNote)])?;
         todo.check_off(HashedNewNoteInstanceIsConstrainedToAdvice)
-    }
-
-    pub fn check_token_index(
-        &self,
-        synthesizer: &mut impl Synthesizer,
-        knowledge: &DepositProverKnowledge<AssignedCell>,
-        todo: &mut Todo<DepositConstraints>,
-    ) -> Result<(), Error> {
-        self.token_index
-            .constrain_indicators(synthesizer, &knowledge.token_indicators, todo)?;
-
-        self.token_index
-            .constrain_index(synthesizer, &knowledge.token_indicators, todo)
     }
 }

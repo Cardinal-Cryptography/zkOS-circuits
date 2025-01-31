@@ -8,9 +8,6 @@ use crate::{
     Fr,
 };
 
-pub mod balance_increase;
-pub mod is_binary;
-pub mod linear_equation;
 pub mod membership;
 pub mod point_double;
 pub mod points_add;

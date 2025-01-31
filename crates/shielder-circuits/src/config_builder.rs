@@ -2,20 +2,14 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
-        balances_increase::BalancesIncreaseChip,
-        note::NoteChip,
-        point_double::PointDoubleChip,
-        points_add::PointsAddChip,
-        range_check::RangeCheckChip,
-        shortlist_hash::ShortlistHashChip,
-        sum::SumChip,
-        token_index::{TokenIndexChip, TokenIndexInstance},
+        note::NoteChip, point_double::PointDoubleChip, points_add::PointsAddChip,
+        range_check::RangeCheckChip, sum::SumChip,
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
-    consts::{merkle_constants::WIDTH, NUM_TOKENS},
+    consts::merkle_constants::WIDTH,
     gates::{
-        balance_increase::BalanceIncreaseGate, membership::MembershipGate,
-        point_double::PointDoubleGate, points_add::PointsAddGate, sum::SumGate, Gate,
+        membership::MembershipGate, point_double::PointDoubleGate, points_add::PointsAddGate,
+        sum::SumGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -28,15 +22,12 @@ pub struct ConfigsBuilder<'cs> {
     advice_pool: ColumnPool<Advice, ConfigPhase>,
     fixed_pool: ColumnPool<Fixed, ConfigPhase>,
 
-    balances_increase: Option<BalancesIncreaseChip>,
     merkle: Option<MerkleChip>,
     poseidon: Option<PoseidonChip>,
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
     points_add: Option<PointsAddChip>,
     point_double: Option<PointDoubleChip>,
-    token_index: Option<TokenIndexChip>,
-    shortlist_hash: Option<ShortlistHashChip<{ NUM_TOKENS }>>,
     note: Option<NoteChip>,
 }
 
@@ -55,37 +46,18 @@ impl<'cs> ConfigsBuilder<'cs> {
             advice_pool: ColumnPool::<Advice, _>::new(),
             fixed_pool: ColumnPool::<Fixed, _>::new(),
 
-            balances_increase: None,
             merkle: None,
             poseidon: None,
             range_check: None,
             sum: None,
             points_add: None,
             point_double: None,
-            token_index: None,
-            shortlist_hash: None,
             note: None,
         }
     }
 
     pub fn finish(self) -> ColumnPool<Advice, PreSynthesisPhase> {
         self.advice_pool.conclude_configuration()
-    }
-
-    pub fn with_balances_increase(mut self) -> Self {
-        check_if_cached!(self, balances_increase);
-
-        self.balances_increase = Some(BalancesIncreaseChip::new(BalanceIncreaseGate::create_gate(
-            self.system,
-            &mut self.advice_pool,
-        )));
-        self
-    }
-
-    pub fn balances_increase_chip(&self) -> BalancesIncreaseChip {
-        self.balances_increase
-            .clone()
-            .expect("BalancesIncrease not configured")
     }
 
     pub fn with_poseidon(mut self) -> Self {
@@ -183,44 +155,11 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("PointDoubleChip not configured")
     }
 
-    pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
-        check_if_cached!(self, token_index);
-
-        self.token_index = Some(TokenIndexChip::new(
-            self.system,
-            &mut self.advice_pool,
-            public_inputs,
-        ));
-        self
-    }
-
-    pub fn token_index_chip(&self) -> TokenIndexChip {
-        self.token_index.clone().expect("TokenIndex not configured")
-    }
-
-    pub fn with_shortlist_hash(mut self) -> Self {
-        check_if_cached!(self, shortlist_hash);
-        self = self.with_poseidon();
-
-        self.shortlist_hash = Some(ShortlistHashChip::new(self.poseidon_chip()));
-        self
-    }
-
-    pub fn shortlist_hash_chip(&self) -> ShortlistHashChip<NUM_TOKENS> {
-        self.shortlist_hash
-            .clone()
-            .expect("ShortlistHash not configured")
-    }
-
     pub fn with_note(mut self) -> Self {
         check_if_cached!(self, note);
         self = self.with_poseidon();
-        self = self.with_shortlist_hash();
 
-        self.note = Some(NoteChip::new(
-            self.poseidon_chip(),
-            self.shortlist_hash_chip(),
-        ));
+        self.note = Some(NoteChip::new(self.poseidon_chip()));
         self
     }
 

@@ -1,9 +1,6 @@
 use strum_macros::{EnumCount, EnumIter};
 
-use crate::{
-    chips::token_index::{TokenIndexConstraints, TokenIndexInstance},
-    merkle::{MerkleConstraints, MerkleInstance},
-};
+use crate::merkle::{MerkleConstraints, MerkleInstance};
 
 mod chip;
 mod circuit;
@@ -19,7 +16,6 @@ pub enum DepositInstance {
     HashedOldNullifier,
     HashedNewNote,
     DepositValue,
-    TokenIndex,
 }
 
 impl TryFrom<DepositInstance> for MerkleInstance {
@@ -28,17 +24,6 @@ impl TryFrom<DepositInstance> for MerkleInstance {
     fn try_from(value: DepositInstance) -> Result<Self, Self::Error> {
         match value {
             DepositInstance::MerkleRoot => Ok(MerkleInstance::MerkleRoot),
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<DepositInstance> for TokenIndexInstance {
-    type Error = ();
-
-    fn try_from(value: DepositInstance) -> Result<Self, Self::Error> {
-        match value {
-            DepositInstance::TokenIndex => Ok(TokenIndexInstance::TokenIndex),
             _ => Err(()),
         }
     }
@@ -74,11 +59,6 @@ pub enum DepositConstraints {
     IdHidingIsCorrect,
     /// The public instance is copy-constrained to some cell in advice area.
     IdHidingInstanceIsConstrainedToAdvice,
-
-    /// The token index indicator witnesses are binary and their sum is equal to 1.
-    TokenIndicatorsAreCorrect,
-    /// The index indicators agree with the token index public instance.
-    TokenIndexInstanceIsConstrainedToAdvice,
 }
 
 impl From<MerkleConstraints> for DepositConstraints {
@@ -89,18 +69,6 @@ impl From<MerkleConstraints> for DepositConstraints {
             MembershipProofContainsSpecificLeaf => Self::MembershipProofRelatesToTheOldNote,
             MerkleRootInstanceIsConstrainedToAdvice => {
                 Self::MerkleRootInstanceIsConstrainedToAdvice
-            }
-        }
-    }
-}
-
-impl From<TokenIndexConstraints> for DepositConstraints {
-    fn from(constraint: TokenIndexConstraints) -> Self {
-        use TokenIndexConstraints::*;
-        match constraint {
-            TokenIndicatorsAreCorrect => Self::TokenIndicatorsAreCorrect,
-            TokenIndexInstanceIsConstrainedToAdvice => {
-                Self::TokenIndexInstanceIsConstrainedToAdvice
             }
         }
     }
@@ -123,7 +91,6 @@ mod tests {
             HashedOldNullifier,
             HashedNewNote,
             DepositValue,
-            TokenIndex,
         ];
         assert_eq!(expected_order, DepositInstance::iter().collect::<Vec<_>>());
     }
