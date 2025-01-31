@@ -31,7 +31,6 @@ mod tests {
             HashedNote,
             HashedId,
             InitialDeposit,
-            InitialDeposit,
             AnonymityRevokerPublicKey,
             SymKeyEncryption,
         ];
