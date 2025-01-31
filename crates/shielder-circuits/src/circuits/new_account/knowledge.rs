@@ -2,6 +2,7 @@ use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
+    chips::{asymmetric_encryption, skey},
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
@@ -21,6 +22,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub nullifier: T,
     pub trapdoor: T,
     pub initial_deposit: T,
+    pub anonymity_revoker_public_key: T,
 }
 
 impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
@@ -31,8 +33,9 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
         Self {
             id: Fr::random(&mut *rng),
             nullifier: Fr::random(&mut *rng),
-            trapdoor: Fr::random(rng),
+            trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
+            anonymity_revoker_public_key: Fr::random(rng),
         }
     }
 
@@ -42,6 +45,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Value::known(self.trapdoor),
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
+            anonymity_revoker_public_key: Value::known(self.anonymity_revoker_public_key),
         })
     }
 }
@@ -58,6 +62,11 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             }),
             NewAccountInstance::HashedId => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,
+            NewAccountInstance::AnonymityRevokerPublicKey => self.anonymity_revoker_public_key,
+            NewAccountInstance::SKeyEncryption => asymmetric_encryption::off_circuit::encrypt(
+                self.anonymity_revoker_public_key,
+                skey::off_circuit::derive(self.id),
+            ),
         }
     }
 }

@@ -49,7 +49,9 @@ impl Circuit<Fr> for NewAccountCircuit {
         let knowledge = self
             .0
             .embed(&mut synthesizer, "NewAccountProverKnowledge")?;
-        main_chip.synthesize(&mut synthesizer, &knowledge)
+
+        main_chip.check_note(&mut synthesizer, &knowledge)?;
+        main_chip.constrain_hashed_id(&mut synthesizer, &knowledge)
     }
 }
 
