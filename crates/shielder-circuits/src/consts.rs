@@ -46,3 +46,8 @@ pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
 lazy_static! {
     pub static ref GRUMPKIN_3B: Fr = G1::b() + G1::b() + G1::b();
 }
+
+/// The salt used for deriving the symmetric key for encrypting op_priv and deriving MAC.
+///
+/// This is the ASCII encoding of "key for AR".
+pub const SKEY_SALT: u128 = 0x6B657920666F72204152;
