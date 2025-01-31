@@ -9,7 +9,10 @@ use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint, V},
     embed::Embed,
-    gates::scalar_multiply::{self, ScalarMultiplyGate},
+    gates::{
+        scalar_multiply::{self, ScalarMultiplyGate, ScalarMultiplyGateInput},
+        Gate,
+    },
     synthesizer::Synthesizer,
     AssignedCell,
 };
@@ -60,14 +63,14 @@ impl ScalarMultiplyChip {
             .map(|cell| V(cell.value().cloned()))
             .collect();
         let bits: [V; 254] = bits.try_into().expect("not 254 bit array");
-        let p: GrumpkinPoint<V> = GrumpkinPoint {
+        let input: GrumpkinPoint<V> = GrumpkinPoint {
             x: V(p.x.value().cloned()),
             y: V(p.y.value().cloned()),
             z: V(p.z.value().cloned()),
         };
 
         let r_value: GrumpkinPoint<V> = curve_arithmetic::scalar_multiply(
-            p,
+            input,
             bits,
             V(Value::known(*GRUMPKIN_3B)),
             V(Value::known(Fr::ZERO)),
@@ -76,7 +79,16 @@ impl ScalarMultiplyChip {
 
         let result = r_value.embed(synthesizer, "S")?;
 
-        todo!()
+        self.gate.apply_in_new_region(
+            synthesizer,
+            ScalarMultiplyGateInput {
+                scalar_bits: scalar_bits.clone(),
+                result: result.clone(),
+                input: p.clone(),
+            },
+        )?;
+
+        Ok(ScalarMultiplyChipOutput { s: result })
     }
 }
 
