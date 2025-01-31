@@ -74,7 +74,7 @@ impl ScalarMultiplyChip {
             V(Value::known(Fr::ONE)),
         );
 
-        // let result = r_value.embed(synthesizer, "S")?;
+        let result = r_value.embed(synthesizer, "S")?;
 
         todo!()
     }
