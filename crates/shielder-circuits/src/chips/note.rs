@@ -1,6 +1,9 @@
+use core::array;
+
 use halo2_proofs::{arithmetic::Field, plonk::Error};
 
 use crate::{
+    consts::POSEIDON_RATE,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NoteVersion,
@@ -95,15 +98,8 @@ impl NoteChip {
     ) -> Result<AssignedCell, Error> {
         let zero_cell = synthesizer.assign_constant("Zero", Fr::ZERO)?;
 
-        let input = [
-            note.account_balance.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-            zero_cell.clone(),
-        ];
+        let mut input: [_; POSEIDON_RATE] = array::from_fn(|_| zero_cell.clone());
+        input[0] = note.account_balance.clone();
 
         hash(synthesizer, self.poseidon.clone(), input)
     }

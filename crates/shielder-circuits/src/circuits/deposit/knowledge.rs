@@ -1,5 +1,3 @@
-use core::array;
-
 use macros::embeddable;
 use rand::Rng;
 use rand_core::RngCore;
@@ -7,7 +5,7 @@ use rand_core::RngCore;
 use crate::{
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
-        NONCE_UPPER_LIMIT, NUM_TOKENS,
+        NONCE_UPPER_LIMIT,
     },
     deposit::{circuit::DepositCircuit, DepositInstance},
     embed::Embed,
@@ -43,10 +41,6 @@ pub struct DepositProverKnowledge<T> {
     pub nullifier_new: T,
     pub trapdoor_new: T,
 
-    // `token_indicators[i] = 1` if token i is deposited, 0 otherwise.
-    // Exactly one entry is 1, the rest are 0.
-    pub token_indicators: [T; NUM_TOKENS],
-
     // Nonce for id_hiding
     pub nonce: T,
 
@@ -74,7 +68,6 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             account_balance: account_old_balance,
         });
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
-        let token_indicators = array::from_fn(|i| Fr::from((i == 0) as u64));
         Self {
             id,
             nonce,
@@ -85,7 +78,6 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             nullifier_new: Fr::random(&mut *rng),
             trapdoor_new: Fr::random(rng),
             deposit_value: Fr::ONE,
-            token_indicators,
         }
     }
 
@@ -100,7 +92,6 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             nonce: Value::known(self.nonce),
             path: self.path.map(|level| level.map(Value::known)),
             deposit_value: Value::known(self.deposit_value),
-            token_indicators: self.token_indicators.map(Value::known),
         })
     }
 }

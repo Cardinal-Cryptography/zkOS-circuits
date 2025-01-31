@@ -43,10 +43,6 @@ static_assertions::const_assert_eq!(POSEIDON_RATE + 1, merkle_constants::WIDTH);
 /// Nonces that make up pow-anonymity are drawn randomly from [0...2^MAX_NONCE_BIT_LENGTH].
 pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
 
-// Number of tokens supported via shortlist, including AZERO.
-// Required to be a multiple of `POSEIDON_RATE - 1`.
-pub const NUM_TOKENS: usize = POSEIDON_RATE - 1;
-
 lazy_static! {
     pub static ref GRUMPKIN_3B: Fr = G1::b() + G1::b() + G1::b();
 }
