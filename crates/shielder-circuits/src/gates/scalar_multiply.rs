@@ -219,15 +219,10 @@ mod tests {
         arithmetic::Field,
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
-        plonk::ConstraintSystem,
     };
-    use rand::{rngs::StdRng, SeedableRng};
 
     use super::*;
-    use crate::{
-        gates::{test_utils::OneGateCircuit, Gate as _},
-        rng,
-    };
+    use crate::{gates::test_utils::OneGateCircuit, rng};
 
     fn input(scalar_bits: [Fr; 254], p: G1, result: G1) -> ScalarMultiplyGateInput<Fr> {
         ScalarMultiplyGateInput {

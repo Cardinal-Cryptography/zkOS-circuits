@@ -1,7 +1,6 @@
 use core::ops::{Add, Mul, Sub};
 
 use halo2_proofs::{arithmetic::Field, circuit::Value, halo2curves::bn256::Fr, plonk::Error};
-use rayon::result;
 
 use super::{point_double::PointDoubleChip, points_add::PointsAddChip};
 use crate::{
