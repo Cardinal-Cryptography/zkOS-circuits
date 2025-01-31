@@ -47,9 +47,9 @@ lazy_static! {
     pub static ref GRUMPKIN_3B: Fr = G1::b() + G1::b() + G1::b();
 }
 
-/// The salt used for deriving the symmetric key for encrypting op_priv and deriving MAC.
-///
-/// This is the ASCII encoding of "key for AR".
 lazy_static! {
+    /// The salt used for deriving the symmetric key for encrypting `op_priv` and deriving MAC.
+    ///
+    /// This is the ASCII encoding of "key for AR".
     pub static ref SYM_KEY_SALT: Fr = Fr::from_u128(0x6B657920666F72204152);
 }
