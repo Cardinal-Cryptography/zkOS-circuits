@@ -9,9 +9,8 @@ use crate::{
     config_builder::ConfigsBuilder,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
-    new_account::{NewAccountConstraints, NewAccountInstance},
+    new_account::NewAccountInstance,
     synthesizer::create_synthesizer,
-    todo::Todo,
     Fr, Value,
 };
 
@@ -47,12 +46,10 @@ impl Circuit<Fr> for NewAccountCircuit {
     ) -> Result<(), Error> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
-        let mut todo = Todo::<NewAccountConstraints>::new();
         let knowledge = self
             .0
             .embed(&mut synthesizer, "NewAccountProverKnowledge")?;
-        main_chip.synthesize(&mut synthesizer, &knowledge, &mut todo)?;
-        todo.assert_done()
+        main_chip.synthesize(&mut synthesizer, &knowledge)
     }
 }
 
