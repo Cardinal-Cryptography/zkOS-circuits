@@ -2,7 +2,7 @@ use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
-    chips::{asymmetric_encryption, skey},
+    chips::{asymmetric_encryption, sym_key},
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
@@ -63,9 +63,9 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             NewAccountInstance::HashedId => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,
             NewAccountInstance::AnonymityRevokerPublicKey => self.anonymity_revoker_public_key,
-            NewAccountInstance::SKeyEncryption => asymmetric_encryption::off_circuit::encrypt(
+            NewAccountInstance::SymKeyEncryption => asymmetric_encryption::off_circuit::encrypt(
                 self.anonymity_revoker_public_key,
-                skey::off_circuit::derive(self.id),
+                sym_key::off_circuit::derive(self.id),
             ),
         }
     }

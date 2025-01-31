@@ -1,9 +1,9 @@
+pub mod asymmetric_encryption;
 pub mod id_hiding;
 pub mod mac;
 pub mod note;
 pub mod point_double;
 pub mod points_add;
 pub mod range_check;
-pub mod skey;
 pub mod sum;
-pub mod asymmetric_encryption;
+pub mod sym_key;

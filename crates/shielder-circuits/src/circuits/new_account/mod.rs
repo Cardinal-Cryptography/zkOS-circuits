@@ -13,7 +13,7 @@ pub enum NewAccountInstance {
     HashedId,
     InitialDeposit,
     AnonymityRevokerPublicKey,
-    SKeyEncryption,
+    SymKeyEncryption,
 }
 
 #[cfg(test)]
@@ -33,7 +33,7 @@ mod tests {
             InitialDeposit,
             InitialDeposit,
             AnonymityRevokerPublicKey,
-            SKeyEncryption,
+            SymKeyEncryption,
         ];
         assert_eq!(
             expected_order,

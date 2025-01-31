@@ -1,7 +1,11 @@
 use halo2_proofs::plonk::Error;
 
 use crate::{
-    chips::note::{Note, NoteChip},
+    chips::{
+        asymmetric_encryption::ElGamalEncryptionChip,
+        note::{Note, NoteChip},
+        sym_key::SymKeyChip,
+    },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
@@ -54,9 +58,24 @@ impl NewAccountChip {
             .constrain_cells(synthesizer, [(h_id, HashedId)])
     }
 
-    pub fn constrain_hashed_id(
+    pub fn constrain_sym_key_encryption(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {}
+    ) -> Result<(), Error> {
+        let sym_key =
+            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+
+        let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
+        let sym_key_encryption =
+            ElGamalEncryptionChip {}.encrypt(synthesizer, revoker_pkey.clone(), sym_key)?;
+
+        self.public_inputs.constrain_cells(
+            synthesizer,
+            [
+                (revoker_pkey, AnonymityRevokerPublicKey),
+                (sym_key_encryption, SymKeyEncryption),
+            ],
+        )
+    }
 }

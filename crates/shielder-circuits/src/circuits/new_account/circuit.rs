@@ -51,7 +51,8 @@ impl Circuit<Fr> for NewAccountCircuit {
             .embed(&mut synthesizer, "NewAccountProverKnowledge")?;
 
         main_chip.check_note(&mut synthesizer, &knowledge)?;
-        main_chip.constrain_hashed_id(&mut synthesizer, &knowledge)
+        main_chip.constrain_hashed_id(&mut synthesizer, &knowledge)?;
+        main_chip.constrain_sym_key_encryption(&mut synthesizer, &knowledge)
     }
 }
 

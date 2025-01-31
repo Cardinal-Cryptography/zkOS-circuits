@@ -1,9 +1,12 @@
+use halo2_proofs::plonk::Error;
+
+use crate::{synthesizer::Synthesizer, AssignedCell};
+
 pub mod off_circuit {
     use crate::Fr;
 
-    pub fn encrypt(_key: Fr, _message: Fr) -> Fr {
-        // TODO: Implement encryption
-        Fr::zero()
+    pub fn encrypt(_key: Fr, message: Fr) -> Fr {
+        message
     }
 }
 
@@ -11,5 +14,12 @@ pub mod off_circuit {
 pub struct ElGamalEncryptionChip;
 
 impl ElGamalEncryptionChip {
-    pub fn encrypt() {}
+    pub fn encrypt(
+        &self,
+        _synthesizer: &mut impl Synthesizer,
+        _key: AssignedCell,
+        message: AssignedCell,
+    ) -> Result<AssignedCell, Error> {
+        Ok(message)
+    }
 }

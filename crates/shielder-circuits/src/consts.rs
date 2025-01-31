@@ -1,6 +1,6 @@
 use halo2_proofs::{
     arithmetic::CurveExt,
-    halo2curves::{bn256::Fr, grumpkin::G1},
+    halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
 use lazy_static::lazy_static;
 
@@ -50,4 +50,6 @@ lazy_static! {
 /// The salt used for deriving the symmetric key for encrypting op_priv and deriving MAC.
 ///
 /// This is the ASCII encoding of "key for AR".
-pub const SKEY_SALT: u128 = 0x6B657920666F72204152;
+lazy_static! {
+    pub static ref SYM_KEY_SALT: Fr = Fr::from_u128(0x6B657920666F72204152);
+}
