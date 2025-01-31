@@ -19,14 +19,14 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChipInput<T> {
-    pub p: GrumpkinPoint<T>,
+    pub input: GrumpkinPoint<T>,
     pub scalar_bits: [T; 254],
 }
 
 impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
     fn default() -> Self {
         Self {
-            p: GrumpkinPoint::default(),
+            input: GrumpkinPoint::default(),
             scalar_bits: [T::default(); 254],
         }
     }
@@ -35,7 +35,7 @@ impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct ScalarMultiplyChipOutput<T> {
-    pub s: GrumpkinPoint<T>,
+    pub result: GrumpkinPoint<T>,
 }
 
 /// Chip that computes the result of adding a point P on the grumpkin curve to itself n times.
@@ -56,7 +56,10 @@ impl ScalarMultiplyChip {
         synthesizer: &mut impl Synthesizer,
         input: &ScalarMultiplyChipInput<AssignedCell>,
     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
-        let ScalarMultiplyChipInput { scalar_bits, p } = input;
+        let ScalarMultiplyChipInput {
+            scalar_bits,
+            input: p,
+        } = input;
 
         let bits: Vec<V> = scalar_bits
             .iter()
@@ -83,12 +86,11 @@ impl ScalarMultiplyChip {
             synthesizer,
             ScalarMultiplyGateInput {
                 scalar_bits: scalar_bits.clone(),
-                result: result.clone(),
                 input: p.clone(),
             },
         )?;
 
-        Ok(ScalarMultiplyChipOutput { s: result })
+        Ok(ScalarMultiplyChipOutput { result })
     }
 }
 
@@ -105,17 +107,14 @@ mod tests {
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
-    use super::{ScalarMultiplyChipInput, ScalarMultiplyChipOutput};
+    use super::{ScalarMultiplyChip, ScalarMultiplyChipInput, ScalarMultiplyChipOutput};
     use crate::{
-        chips::{
-            point_double::{PointDoubleChip, PointDoubleChipInput},
-            points_add::{PointsAddChip, PointsAddChipInput},
-        },
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         consts::GRUMPKIN_3B,
         curve_arithmetic::{self, field_element_to_bits, GrumpkinPoint},
         embed::Embed,
+        gates::scalar_multiply::ScalarMultiplyGateInput,
         rng,
         synthesizer::create_synthesizer,
         Value,
@@ -127,8 +126,7 @@ mod tests {
     impl Circuit<Fr> for ScalarMultiplyCircuit {
         type Config = (
             ColumnPool<Advice, PreSynthesisPhase>,
-            PointDoubleChip,
-            PointsAddChip,
+            ScalarMultiplyChip,
             Column<Instance>,
         );
 
@@ -143,24 +141,33 @@ mod tests {
             let instance = meta.instance_column();
             meta.enable_equality(instance);
             // register chip
-            let configs_builder = ConfigsBuilder::new(meta)
-                .with_point_double_chip()
-                .with_points_add_chip();
-            let points_add = configs_builder.points_add_chip();
-            let point_double = configs_builder.point_double_chip();
+            let configs_builder = ConfigsBuilder::new(meta).with_scalar_multiply_chip();
+            let chip = configs_builder.scalar_multiply_chip();
 
-            (configs_builder.finish(), point_double, points_add, instance)
+            (configs_builder.finish(), chip, instance)
         }
 
         fn synthesize(
             &self,
-            (column_pool, point_double, points_add, instance): Self::Config,
+            (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            let ScalarMultiplyChipInput { p, scalar_bits } = self.0;
+            let ScalarMultiplyChipInput { input, scalar_bits } = self.0;
 
             let column_pool = column_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
+
+            let input = input.embed(&mut synthesizer, "input")?;
+            let scalar_bits = scalar_bits.embed(&mut synthesizer, "input")?;
+
+            let ScalarMultiplyChipOutput { result } = chip.scalar_multiply(
+                &mut synthesizer,
+                &ScalarMultiplyChipInput { input, scalar_bits },
+            )?;
+
+            synthesizer.constrain_instance(result.x.cell(), instance, 0)?;
+            synthesizer.constrain_instance(result.y.cell(), instance, 1)?;
+            synthesizer.constrain_instance(result.z.cell(), instance, 2)?;
 
             Ok(())
         }
@@ -168,7 +175,7 @@ mod tests {
 
     fn input(p: G1, scalar_bits: [Fr; 254]) -> ScalarMultiplyChipInput<Fr> {
         ScalarMultiplyChipInput {
-            p: p.into(),
+            input: p.into(),
             scalar_bits: scalar_bits.into(),
         }
     }
@@ -181,7 +188,11 @@ mod tests {
         MockProver::run(
             10,
             &circuit,
-            vec![vec![expected.s.x, expected.s.y, expected.s.z]],
+            vec![vec![
+                expected.result.x,
+                expected.result.y,
+                expected.result.z,
+            ]],
         )
         .expect("Mock prover should run")
         .verify()
@@ -193,12 +204,8 @@ mod tests {
 
         let p = G1::random(rng.clone());
 
-        // println!("P: {p:?}");
-
         let n = Fr::from_u128(3);
         let bits = field_element_to_bits(n);
-
-        // println!("BITS: {bits:?}");
 
         let expected = curve_arithmetic::scalar_multiply(
             p.into(),
@@ -209,9 +216,8 @@ mod tests {
         );
 
         let input = input(p, bits);
-        let output = ScalarMultiplyChipOutput { s: expected };
+        let output = ScalarMultiplyChipOutput { result: expected };
 
         assert!(verify(input, output).is_ok());
-        // assert!(false)
     }
 }

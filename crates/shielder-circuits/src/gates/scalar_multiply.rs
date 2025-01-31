@@ -1,6 +1,8 @@
 use alloc::vec;
 
 use halo2_proofs::{
+    arithmetic::Field,
+    circuit::Value,
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
@@ -20,15 +22,15 @@ use crate::{
     curve_arithmetic::{self, GrumpkinPoint},
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
-    AssignedCell, Value,
+    AssignedCell,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ScalarMultiplyGate {
     pub selector: Selector,
-    scalar_bits: Column<Advice>,
-    result: [Column<Advice>; 3],
-    input: [Column<Advice>; 3],
+    pub scalar_bits: Column<Advice>,
+    pub result: [Column<Advice>; 3],
+    pub input: [Column<Advice>; 3],
 }
 
 #[derive(Clone, Debug)]
@@ -42,14 +44,12 @@ pub struct ScalarMultiplyGate {
 )]
 pub struct ScalarMultiplyGateInput<T> {
     pub scalar_bits: [T; 254],
-    pub result: GrumpkinPoint<T>,
     pub input: GrumpkinPoint<T>,
 }
 
 impl<T: Default + Copy> Default for ScalarMultiplyGateInput<T> {
     fn default() -> Self {
         Self {
-            result: GrumpkinPoint::default(),
             input: GrumpkinPoint::default(),
             scalar_bits: [T::default(); 254],
         }
@@ -132,19 +132,15 @@ impl Gate for ScalarMultiplyGate {
         Self {
             selector,
             scalar_bits,
-            result,
             input,
+            result,
         }
     }
 
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        ScalarMultiplyGateInput {
-            scalar_bits,
-            result,
-            input,
-        }: Self::Input,
+        ScalarMultiplyGateInput { scalar_bits, input }: Self::Input,
     ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
@@ -152,8 +148,19 @@ impl Gate for ScalarMultiplyGate {
                 // self.selector
                 //     .enable(&mut region, SELECTOR_OFFSET as usize)?;
 
-                let mut next_result = result.clone();
-                let mut next_input = input.clone();
+                let mut result = assign_grumpkin_advices(
+                    &GrumpkinPoint::new(
+                        Value::known(Fr::ZERO),
+                        Value::known(Fr::ONE),
+                        Value::known(Fr::ZERO),
+                    ),
+                    "initial result",
+                    &mut region,
+                    self.result,
+                    ADVICE_OFFSET as usize,
+                )?;
+
+                let mut input = input.clone();
 
                 for (i, bit) in scalar_bits.iter().enumerate() {
                     self.selector.enable(&mut region, i)?;
@@ -166,22 +173,20 @@ impl Gate for ScalarMultiplyGate {
                     )?;
 
                     let added = curve_arithmetic::points_add(
-                        next_result.into(),
-                        next_input.clone().into(),
+                        result.into(),
+                        input.clone().into(),
                         Value::known(*GRUMPKIN_3B),
                     );
 
-                    let doubled = curve_arithmetic::point_double(
-                        next_input.into(),
-                        Value::known(*GRUMPKIN_3B),
-                    );
+                    let doubled =
+                        curve_arithmetic::point_double(input.into(), Value::known(*GRUMPKIN_3B));
 
                     // TODO: conditional addition
 
-                    next_result =
+                    result =
                         assign_grumpkin_advices(&added, "result", &mut region, self.result, i + 1)?;
 
-                    next_input =
+                    input =
                         assign_grumpkin_advices(&doubled, "input", &mut region, self.input, i + 1)?;
                 }
 
@@ -227,7 +232,7 @@ mod tests {
     fn input(scalar_bits: [Fr; 254], p: G1, result: G1) -> ScalarMultiplyGateInput<Fr> {
         ScalarMultiplyGateInput {
             scalar_bits,
-            result: result.into(),
+            // result: result.into(),
             input: p.into(),
         }
     }

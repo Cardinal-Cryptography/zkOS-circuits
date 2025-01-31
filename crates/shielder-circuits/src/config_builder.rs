@@ -6,6 +6,7 @@ use crate::{
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
         range_check::RangeCheckChip,
+        scalar_multiply::ScalarMultiplyChip,
         sum::SumChip,
         token_index::{TokenIndexChip, TokenIndexInstance},
     },
@@ -16,6 +17,7 @@ use crate::{
         membership::MembershipGate,
         point_double::PointDoubleGate,
         points_add::PointsAddGate,
+        scalar_multiply::ScalarMultiplyGate,
         sum::SumGate,
         Gate,
     },
@@ -37,6 +39,7 @@ pub struct ConfigsBuilder<'cs> {
     sum: Option<SumChip>,
     points_add: Option<PointsAddChip>,
     point_double: Option<PointDoubleChip>,
+    scalar_multiply: Option<ScalarMultiplyChip>,
     token_index: Option<TokenIndexChip>,
 }
 
@@ -62,6 +65,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             sum: None,
             points_add: None,
             point_double: None,
+            scalar_multiply: None,
             token_index: None,
         }
     }
@@ -225,24 +229,34 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("PointDoubleChip not configured")
     }
 
-    // pub fn with_scalar_multiply_chip(mut self) -> Self {
-    //     check_if_cached!(self, scalar_multiply);
+    pub fn with_scalar_multiply_chip(mut self) -> Self {
+        check_if_cached!(self, scalar_multiply);
+        let advice_pool = self.advice_pool_with_capacity(7);
 
-    //     self = self.with_points_add_chip().with_point_double_chip();
+        let scalar_bits = advice_pool.get_any_column();
+        let input = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
+        let result = [
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+            advice_pool.get_any_column(),
+        ];
 
-    //     self.scalar_multiply = Some(ScalarMultiplyChip {
-    //         point_double: self.point_double_chip(),
-    //         points_add: self.points_add_chip(),
-    //     });
+        self.scalar_multiply = Some(ScalarMultiplyChip {
+            gate: ScalarMultiplyGate::create_gate(self.system, (scalar_bits, input, result)),
+        });
 
-    //     self
-    // }
+        self
+    }
 
-    // pub fn scalar_multiply_chip(&self) -> ScalarMultiplyChip {
-    //     self.scalar_multiply
-    //         .clone()
-    //         .expect("ScalarMultiplyChip is not configured")
-    // }
+    pub fn scalar_multiply_chip(&self) -> ScalarMultiplyChip {
+        self.scalar_multiply
+            .clone()
+            .expect("ScalarMultiplyChip is not configured")
+    }
 
     pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
         check_if_cached!(self, token_index);
