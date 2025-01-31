@@ -7,7 +7,7 @@ use super::{point_double::PointDoubleChip, points_add::PointsAddChip};
 use crate::{
     chips::{point_double::PointDoubleChipInput, points_add::PointsAddChipInput},
     consts::GRUMPKIN_3B,
-    curve_arithmetic::{self, GrumpkinPoint},
+    curve_arithmetic::{self, GrumpkinPoint, V},
     embed::Embed,
     gates::scalar_multiply::{self, ScalarMultiplyGate},
     synthesizer::Synthesizer,
@@ -41,37 +41,6 @@ pub struct ScalarMultiplyChipOutput<T> {
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChip {
     pub gate: ScalarMultiplyGate,
-}
-
-#[derive(Clone, Debug)]
-struct V(Value<Fr>);
-
-impl PartialEq for V {
-    fn eq(&self, other: &Self) -> bool {
-        // let is_equal = false;
-        todo!()
-    }
-}
-
-impl Add for V {
-    type Output = V;
-    fn add(self, other: Self) -> Self {
-        V(self.0 + other.0)
-    }
-}
-
-impl Sub for V {
-    type Output = V;
-    fn sub(self, other: Self) -> Self {
-        V(self.0 - other.0)
-    }
-}
-
-impl Mul for V {
-    type Output = V;
-    fn mul(self, other: Self) -> Self {
-        V(self.0 * other.0)
-    }
 }
 
 impl ScalarMultiplyChip {

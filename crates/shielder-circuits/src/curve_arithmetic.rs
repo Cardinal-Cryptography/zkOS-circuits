@@ -51,6 +51,37 @@ impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value<Fr>> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct V(pub Value<Fr>);
+
+impl PartialEq for V {
+    fn eq(&self, other: &Self) -> bool {
+        // let is_equal = false;
+        todo!()
+    }
+}
+
+impl Add for V {
+    type Output = V;
+    fn add(self, other: Self) -> Self {
+        V(self.0 + other.0)
+    }
+}
+
+impl Sub for V {
+    type Output = V;
+    fn sub(self, other: Self) -> Self {
+        V(self.0 - other.0)
+    }
+}
+
+impl Mul for V {
+    type Output = V;
+    fn mul(self, other: Self) -> Self {
+        V(self.0 * other.0)
+    }
+}
+
 /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
 pub fn points_add<T>(p: GrumpkinPoint<T>, q: GrumpkinPoint<T>, b3: T) -> GrumpkinPoint<T>
 where
