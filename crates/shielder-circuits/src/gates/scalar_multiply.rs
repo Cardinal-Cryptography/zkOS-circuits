@@ -122,10 +122,10 @@ impl Gate for ScalarMultiplyGate {
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
-                    // next_result = input + result (if bit == 1) else next_result = result
-                    ("x: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_x - bit.clone () * (added_x + result_x.clone ()) - result_x),
-                    ("y: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_y - bit.clone () * (added_y + result_y.clone ()) - result_y),
-                    ("z: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_z - bit.clone () * (added_z + result_z.clone ()) - result_z),
+                    // next_result = P + result (if bit == 1) else next_result = result
+                    ("x: next_result = input + result if bit == 1; next_result = result if bit == 0", bit.clone () * (added_x - result_x.clone ()) - (next_result_x - result_x)),
+                    ("y: next_result = input + result if bit == 1; next_result = result if bit == 0", bit.clone () * (added_y - result_y.clone ()) - (next_result_y - result_y)),
+                    ("z: next_result = input + result if bit == 1; next_result = result if bit == 0", bit.clone () * (added_z - result_z.clone ()) - (next_result_z - result_z)),
                     // next_P = 2 * P
                     ("x: next_input = 2 * input", next_input_x - doubled_x),
                     ("y: next_input = 2 * input", next_input_y - doubled_y),
@@ -153,8 +153,6 @@ impl Gate for ScalarMultiplyGate {
             |mut region| {
                 self.selector
                     .enable(&mut region, SELECTOR_OFFSET as usize)?;
-
-                // let mut input = input.clone();
 
                 let mut input = copy_grumpkin_advices(
                     &input,
@@ -215,10 +213,19 @@ impl Gate for ScalarMultiplyGate {
                             self.result,
                             i + 1,
                         )?
+                    } else {
+                        result = assign_grumpkin_advices(
+                            &GrumpkinPoint::new(
+                                result.x.value().cloned(),
+                                result.y.value().cloned(),
+                                result.z.value().cloned(),
+                            ),
+                            "result",
+                            &mut region,
+                            self.result,
+                            i + 1,
+                        )?
                     };
-
-                    // result =
-                    //     assign_grumpkin_advices(&added, "result", &mut region, self.result, i + 1)?;
 
                     input =
                         assign_grumpkin_advices(&doubled, "input", &mut region, self.input, i + 1)?;
@@ -282,7 +289,7 @@ mod tests {
         //         .collect()
         // });
 
-        println!("{res:?}");
+        // println!("{res:?}");
 
         res
     }
