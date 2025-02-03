@@ -1,9 +1,6 @@
 use strum_macros::{EnumCount, EnumIter};
 
-use crate::{
-    chips::token_index::{TokenIndexConstraints, TokenIndexInstance},
-    merkle::{MerkleConstraints, MerkleInstance},
-};
+use crate::merkle::MerkleInstance;
 
 mod chip;
 mod circuit;
@@ -19,7 +16,6 @@ pub enum DepositInstance {
     HashedOldNullifier,
     HashedNewNote,
     DepositValue,
-    TokenIndex,
 }
 
 impl TryFrom<DepositInstance> for MerkleInstance {
@@ -29,77 +25,6 @@ impl TryFrom<DepositInstance> for MerkleInstance {
         match value {
             DepositInstance::MerkleRoot => Ok(MerkleInstance::MerkleRoot),
             _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<DepositInstance> for TokenIndexInstance {
-    type Error = ();
-
-    fn try_from(value: DepositInstance) -> Result<Self, Self::Error> {
-        match value {
-            DepositInstance::TokenIndex => Ok(TokenIndexInstance::TokenIndex),
-            _ => Err(()),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-pub enum DepositConstraints {
-    /// Merkle path should be a correct membership proof.
-    MembershipProofIsCorrect,
-    /// The old note belongs to the first level of the Merkle path.
-    MembershipProofRelatesToTheOldNote,
-    /// The public instance is a commitment to the Merkle path.
-    MerkleRootInstanceIsConstrainedToAdvice,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    HashedOldNullifierInstanceIsConstrainedToAdvice,
-    /// The old nullifier is correctly hashed.
-    HashedOldNullifierIsCorrect,
-    /// The old nullifier is correctly included in the old note.
-    OldNullifierIsIncludedInTheOldNote,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    DepositValueInstanceIsConstrainedToAdvice,
-    /// The deposit value is correctly included in the new note.
-    DepositValueInstanceIsIncludedInTheNewNote,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    HashedNewNoteInstanceIsConstrainedToAdvice,
-    /// The new note is correctly hashed.
-    HashedNewNoteIsCorrect,
-
-    /// IdHiding is correctly calculated from a `nonce` and `id` advice cells
-    IdHidingIsCorrect,
-    /// The public instance is copy-constrained to some cell in advice area.
-    IdHidingInstanceIsConstrainedToAdvice,
-
-    /// The private token index indicator witnesses agree with the public instance.
-    TokenIndexInstanceIsConstrainedToAdvice,
-    // TODO: Token index indicator variables are a correct representation of the token index.
-}
-
-impl From<MerkleConstraints> for DepositConstraints {
-    fn from(constraint: MerkleConstraints) -> Self {
-        use MerkleConstraints::*;
-        match constraint {
-            MembershipProofIsCorrect => Self::MembershipProofIsCorrect,
-            MembershipProofContainsSpecificLeaf => Self::MembershipProofRelatesToTheOldNote,
-            MerkleRootInstanceIsConstrainedToAdvice => {
-                Self::MerkleRootInstanceIsConstrainedToAdvice
-            }
-        }
-    }
-}
-
-impl From<TokenIndexConstraints> for DepositConstraints {
-    fn from(constraint: TokenIndexConstraints) -> Self {
-        use TokenIndexConstraints::*;
-        match constraint {
-            TokenIndexInstanceIsConstrainedToAdvice => {
-                Self::TokenIndexInstanceIsConstrainedToAdvice
-            }
         }
     }
 }
@@ -121,7 +46,6 @@ mod tests {
             HashedOldNullifier,
             HashedNewNote,
             DepositValue,
-            TokenIndex,
         ];
         assert_eq!(expected_order, DepositInstance::iter().collect::<Vec<_>>());
     }

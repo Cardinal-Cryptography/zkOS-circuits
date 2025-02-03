@@ -7,19 +7,14 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-#[cfg(test)]
-use {
-    crate::{
-        column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-        embed::Embed,
-    },
-    macros::embeddable,
-};
+use macros::embeddable;
 
 use super::{assign_grumpkin_advices, copy_grumpkin_advices};
 use crate::{
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
+    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -34,13 +29,10 @@ pub struct ScalarMultiplyGate {
 }
 
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    test,
-    embeddable(
-        receiver = "ScalarMultiplyGateInput<Fr>",
-        impl_generics = "",
-        embedded = "ScalarMultiplyGateInput<crate::AssignedCell>"
-    )
+#[embeddable(
+    receiver = "ScalarMultiplyGateInput<Fr>",
+    impl_generics = "",
+    embedded = "ScalarMultiplyGateInput<crate::AssignedCell>"
 )]
 pub struct ScalarMultiplyGateInput<T> {
     pub scalar_bits: [T; 254],
@@ -63,15 +55,15 @@ const GATE_NAME: &str = "Scalar multiply gate";
 impl Gate for ScalarMultiplyGate {
     type Input = ScalarMultiplyGateInput<AssignedCell>;
 
-    type Advices = (
+    type Advice = (
         Column<Advice>,      // scalar_bits
         [Column<Advice>; 3], // input
         [Column<Advice>; 3], // result
     );
 
-    fn create_gate(
+    fn create_gate_custom(
         cs: &mut ConstraintSystem<Fr>,
-        (scalar_bits, input, result): Self::Advices,
+        (scalar_bits, input, result): Self::Advice,
     ) -> Self {
         ensure_unique_columns(&[vec![scalar_bits], input.to_vec(), result.to_vec()].concat());
         let selector = cs.selector();
@@ -227,11 +219,10 @@ impl Gate for ScalarMultiplyGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 7);
         (
             pool.get_column(0),                                           // scalar_bits

@@ -5,19 +5,14 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-#[cfg(test)]
-use {
-    crate::{
-        column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-        embed::Embed,
-    },
-    macros::embeddable,
-};
+use macros::embeddable;
 
 use super::copy_grumpkin_advices;
 use crate::{
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
+    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -35,13 +30,10 @@ pub struct PointsAddGate {
 }
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(
-    test,
-    embeddable(
-        receiver = "PointsAddGateInput<Fr>",
-        impl_generics = "",
-        embedded = "PointsAddGateInput<crate::AssignedCell>"
-    )
+#[embeddable(
+    receiver = "PointsAddGateInput<Fr>",
+    impl_generics = "",
+    embedded = "PointsAddGateInput<crate::AssignedCell>"
 )]
 pub struct PointsAddGateInput<T> {
     pub p: GrumpkinPoint<T>, // x1,y1,z1
@@ -56,13 +48,13 @@ const GATE_NAME: &str = "Point add gate";
 impl Gate for PointsAddGate {
     type Input = PointsAddGateInput<AssignedCell>;
 
-    type Advices = (
+    type Advice = (
         [Column<Advice>; 3], // p
         [Column<Advice>; 3], // q
         [Column<Advice>; 3], // s
     );
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, (p, q, s): Self::Advices) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, (p, q, s): Self::Advice) -> Self {
         ensure_unique_columns(&[p.to_vec(), q.to_vec(), s.to_vec()].concat());
         let selector = cs.selector();
 
@@ -116,11 +108,10 @@ impl Gate for PointsAddGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 9);
 
         (
@@ -170,7 +161,7 @@ mod tests {
         let q = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
         let s = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
 
-        PointsAddGate::create_gate(&mut cs, (p, q, s));
+        PointsAddGate::create_gate_custom(&mut cs, (p, q, s));
     }
 
     #[test]
@@ -182,7 +173,7 @@ mod tests {
         let q = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
         let s = [cs.advice_column(), col, cs.advice_column()];
 
-        PointsAddGate::create_gate(&mut cs, (p, q, s));
+        PointsAddGate::create_gate_custom(&mut cs, (p, q, s));
     }
 
     #[test]

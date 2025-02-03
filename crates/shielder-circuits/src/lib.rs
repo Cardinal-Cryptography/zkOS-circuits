@@ -1,9 +1,8 @@
 #![no_std]
 
+extern crate alloc;
 #[cfg(test)]
 extern crate std;
-
-extern crate alloc;
 
 mod chips;
 pub mod circuits;
@@ -17,7 +16,6 @@ mod instance_wrapper;
 pub mod poseidon;
 mod range_table;
 mod synthesizer;
-mod todo;
 mod version;
 
 use alloc::{fmt::Debug, vec::Vec};

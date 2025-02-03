@@ -4,7 +4,6 @@ use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
-    chips::note::off_circuit::balances_from_native_balance,
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK, NONCE_UPPER_LIMIT,
@@ -80,7 +79,7 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             id,
             nullifier: nullifier_old,
             trapdoor: trapdoor_old,
-            balances: balances_from_native_balance(account_old_balance),
+            account_balance: account_old_balance,
         });
 
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
@@ -131,9 +130,7 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
                 id: self.id,
                 nullifier: self.nullifier_new,
                 trapdoor: self.trapdoor_new,
-                balances: balances_from_native_balance(
-                    self.account_old_balance - self.withdrawal_value,
-                ),
+                account_balance: self.account_old_balance - self.withdrawal_value,
             }),
             WithdrawInstance::WithdrawalValue => self.withdrawal_value,
             WithdrawInstance::Commitment => self.commitment,

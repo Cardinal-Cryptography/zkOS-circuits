@@ -5,19 +5,14 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-#[cfg(test)]
-use {
-    crate::{
-        column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-        embed::Embed,
-    },
-    macros::embeddable,
-};
+use macros::embeddable;
 
 use super::copy_grumpkin_advices;
 use crate::{
+    column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
+    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -34,13 +29,10 @@ pub struct PointDoubleGate {
 }
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(
-    test,
-    embeddable(
-        receiver = "PointDoubleGateInput<Fr>",
-        impl_generics = "",
-        embedded = "PointDoubleGateInput<crate::AssignedCell>"
-    )
+#[embeddable(
+    receiver = "PointDoubleGateInput<Fr>",
+    impl_generics = "",
+    embedded = "PointDoubleGateInput<crate::AssignedCell>"
 )]
 pub struct PointDoubleGateInput<T> {
     pub p: GrumpkinPoint<T>,
@@ -54,12 +46,12 @@ const GATE_NAME: &str = "Point double gate";
 impl Gate for PointDoubleGate {
     type Input = PointDoubleGateInput<AssignedCell>;
 
-    type Advices = (
+    type Advice = (
         [Column<Advice>; 3], // p
         [Column<Advice>; 3], // s
     );
 
-    fn create_gate(cs: &mut ConstraintSystem<Fr>, (p, s): Self::Advices) -> Self {
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, (p, s): Self::Advice) -> Self {
         ensure_unique_columns(&[p.to_vec(), s.to_vec()].concat());
         let selector = cs.selector();
 
@@ -108,11 +100,10 @@ impl Gate for PointDoubleGate {
         )
     }
 
-    #[cfg(test)]
     fn organize_advice_columns(
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
-    ) -> Self::Advices {
+    ) -> Self::Advice {
         pool.ensure_capacity(cs, 6);
 
         (
@@ -156,7 +147,7 @@ mod tests {
         let p = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
         let s = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
 
-        PointDoubleGate::create_gate(&mut cs, (p, s));
+        PointDoubleGate::create_gate_custom(&mut cs, (p, s));
     }
 
     #[test]
@@ -167,7 +158,7 @@ mod tests {
         let p = [col, cs.advice_column(), cs.advice_column()];
         let s = [cs.advice_column(), col, cs.advice_column()];
 
-        PointDoubleGate::create_gate(&mut cs, (p, s));
+        PointDoubleGate::create_gate_custom(&mut cs, (p, s));
     }
 
     #[test]

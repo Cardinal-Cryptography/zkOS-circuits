@@ -16,16 +16,6 @@ pub enum MerkleInstance {
     MerkleRoot,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-pub enum MerkleConstraints {
-    /// Merkle path is a correct membership proof.
-    MembershipProofIsCorrect,
-    /// A specific leaf belongs to the first level of the Merkle path.
-    MembershipProofContainsSpecificLeaf,
-    /// The public instance is a commitment to the Merkle path.
-    MerkleRootInstanceIsConstrainedToAdvice,
-}
-
 pub fn generate_example_path_with_given_leaf<const TREE_HEIGHT: usize>(
     leaf: Fr,
     rng: &mut impl RngCore,

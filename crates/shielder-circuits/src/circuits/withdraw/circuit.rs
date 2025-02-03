@@ -10,8 +10,7 @@ use crate::{
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     synthesizer::create_synthesizer,
-    todo::Todo,
-    withdraw::{WithdrawConstraints, WithdrawInstance, WithdrawProverKnowledge},
+    withdraw::{WithdrawInstance, WithdrawProverKnowledge},
     Fr, Value,
 };
 
@@ -31,7 +30,8 @@ impl Circuit<Fr> for WithdrawCircuit {
 
         let configs_builder = ConfigsBuilder::new(meta)
             .with_merkle(public_inputs.narrow())
-            .with_range_check();
+            .with_range_check()
+            .with_note();
 
         (
             WithdrawChip {
@@ -40,6 +40,7 @@ impl Circuit<Fr> for WithdrawCircuit {
                 merkle: configs_builder.merkle_chip(),
                 range_check: configs_builder.range_check_chip(),
                 sum_chip: configs_builder.sum_chip(),
+                note: configs_builder.note_chip(),
             },
             configs_builder.finish(),
         )
@@ -52,20 +53,17 @@ impl Circuit<Fr> for WithdrawCircuit {
     ) -> Result<(), Error> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
-        let mut todo = Todo::<WithdrawConstraints>::new();
         let knowledge = self.0.embed(&mut synthesizer, "WithdrawProverKnowledge")?;
         let intermediate = self
             .0
             .compute_intermediate_values()
             .embed(&mut synthesizer, "WithdrawIntermediateValues")?;
 
-        main_chip.check_old_note(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_old_nullifier(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_new_note(&mut synthesizer, &knowledge, &intermediate, &mut todo)?;
-        main_chip.check_commitment(&mut synthesizer, &knowledge, &mut todo)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge, &mut todo)?;
-
-        todo.assert_done()
+        main_chip.check_old_note(&mut synthesizer, &knowledge)?;
+        main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
+        main_chip.check_new_note(&mut synthesizer, &knowledge, &intermediate)?;
+        main_chip.check_commitment(&mut synthesizer, &knowledge)?;
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge)
     }
 }
 
@@ -75,7 +73,6 @@ mod tests {
     use rand_core::OsRng;
 
     use crate::{
-        chips::note::off_circuit::balances_from_native_balance,
         circuits::{
             merkle::generate_example_path_with_given_leaf,
             test_utils::{
@@ -150,7 +147,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_old,
                 trapdoor: pk.trapdoor_old,
-                balances: balances_from_native_balance(pk.account_old_balance),
+                account_balance: pk.account_old_balance,
             }) + modification /* Modification here! */;
             let h_nullifier_old = hash(&[pk.nullifier_old]);
 
@@ -167,7 +164,7 @@ mod tests {
                 id: pk.id,
                 nullifier: pk.nullifier_new,
                 trapdoor: pk.trapdoor_new,
-                balances: balances_from_native_balance(account_balance_new),
+                account_balance: account_balance_new,
             });
 
             let pub_input = |instance: WithdrawInstance| match instance {

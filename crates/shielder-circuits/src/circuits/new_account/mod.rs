@@ -14,26 +14,6 @@ pub enum NewAccountInstance {
     InitialDeposit,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-pub enum NewAccountConstraints {
-    /// The public instance is copy-constrained to some cell in advice area.
-    HashedNoteInstanceIsConstrainedToAdvice,
-    /// The note is correctly computed.
-    HashedNoteIsCorrect,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    HashedIdInstanceIsConstrainedToAdvice,
-    /// The id is correctly hashed.
-    HashedIdIsCorrect,
-    /// The id is correctly included in the note.
-    IdIsIncludedInTheNote,
-
-    /// The public instance is copy-constrained to some cell in advice area.
-    InitialDepositInstanceIsConstrainedToAdvice,
-    /// The initial deposit is correctly included in the note.
-    InitialDepositIsIncludedInTheNewNote,
-}
-
 #[cfg(test)]
 mod tests {
     use std::{vec, vec::Vec};

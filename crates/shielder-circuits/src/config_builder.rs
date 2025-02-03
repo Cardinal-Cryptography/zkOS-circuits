@@ -2,24 +2,14 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
-        balances_increase::BalancesIncreaseChip,
-        point_double::PointDoubleChip,
-        points_add::PointsAddChip,
-        range_check::RangeCheckChip,
-        scalar_multiply::ScalarMultiplyChip,
-        sum::SumChip,
-        token_index::{TokenIndexChip, TokenIndexInstance},
+        note::NoteChip, point_double::PointDoubleChip, points_add::PointsAddChip,
+        range_check::RangeCheckChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip,
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
-    consts::merkle_constants::{ARITY, WIDTH},
+    consts::merkle_constants::WIDTH,
     gates::{
-        balance_increase::{self, BalanceIncreaseGate, BalanceIncreaseGateAdvices},
-        membership::MembershipGate,
-        point_double::PointDoubleGate,
-        points_add::PointsAddGate,
-        scalar_multiply::ScalarMultiplyGate,
-        sum::SumGate,
-        Gate,
+        membership::MembershipGate, point_double::PointDoubleGate, points_add::PointsAddGate,
+        scalar_multiply::ScalarMultiplyGate, sum::SumGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -32,7 +22,6 @@ pub struct ConfigsBuilder<'cs> {
     advice_pool: ColumnPool<Advice, ConfigPhase>,
     fixed_pool: ColumnPool<Fixed, ConfigPhase>,
 
-    balances_increase: Option<BalancesIncreaseChip>,
     merkle: Option<MerkleChip>,
     poseidon: Option<PoseidonChip>,
     range_check: Option<RangeCheckChip>,
@@ -40,7 +29,7 @@ pub struct ConfigsBuilder<'cs> {
     points_add: Option<PointsAddChip>,
     point_double: Option<PointDoubleChip>,
     scalar_multiply: Option<ScalarMultiplyChip>,
-    token_index: Option<TokenIndexChip>,
+    note: Option<NoteChip>,
 }
 
 macro_rules! check_if_cached {
@@ -58,7 +47,6 @@ impl<'cs> ConfigsBuilder<'cs> {
             advice_pool: ColumnPool::<Advice, _>::new(),
             fixed_pool: ColumnPool::<Fixed, _>::new(),
 
-            balances_increase: None,
             merkle: None,
             poseidon: None,
             range_check: None,
@@ -66,37 +54,12 @@ impl<'cs> ConfigsBuilder<'cs> {
             points_add: None,
             point_double: None,
             scalar_multiply: None,
-            token_index: None,
+            note: None,
         }
     }
 
     pub fn finish(self) -> ColumnPool<Advice, PreSynthesisPhase> {
         self.advice_pool.conclude_configuration()
-    }
-
-    pub fn with_balances_increase(mut self) -> Self {
-        check_if_cached!(self, balances_increase);
-
-        let advice_pool = self.advice_pool_with_capacity(4);
-        let gate_advice =
-            advice_pool.get_column_array::<{ balance_increase::NUM_ADVICE_COLUMNS }>();
-
-        self.balances_increase = Some(BalancesIncreaseChip::new(BalanceIncreaseGate::create_gate(
-            self.system,
-            BalanceIncreaseGateAdvices {
-                balance_old: gate_advice[0],
-                increase_value: gate_advice[1],
-                token_indicator: gate_advice[2],
-                balance_new: gate_advice[3],
-            },
-        )));
-        self
-    }
-
-    pub fn balances_increase_chip(&self) -> BalancesIncreaseChip {
-        self.balances_increase
-            .clone()
-            .expect("BalancesIncrease not configured")
     }
 
     pub fn with_poseidon(mut self) -> Self {
@@ -124,12 +87,8 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, merkle);
         self = self.with_poseidon();
 
-        let advice_pool = self.advice_pool_with_capacity(ARITY + 1);
-        let needle = advice_pool.get_column(ARITY);
-        let advice_path = advice_pool.get_column_array::<ARITY>();
-
         self.merkle = Some(MerkleChip {
-            membership_gate: MembershipGate::create_gate(self.system, (needle, advice_path)),
+            membership_gate: MembershipGate::create_gate(self.system, &mut self.advice_pool),
             public_inputs,
             poseidon: self.poseidon_chip(),
         });
@@ -159,8 +118,10 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_sum(mut self) -> Self {
         check_if_cached!(self, sum);
-        let advice = self.advice_pool_with_capacity(3).get_column_array();
-        self.sum = Some(SumChip::new(SumGate::create_gate(self.system, advice)));
+        self.sum = Some(SumChip::new(SumGate::create_gate(
+            self.system,
+            &mut self.advice_pool,
+        )));
         self
     }
 
@@ -170,27 +131,8 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_points_add_chip(mut self) -> Self {
         check_if_cached!(self, points_add);
-
-        let advice_pool = self.advice_pool_with_capacity(9);
-
-        let p = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let q = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let s = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-
         self.points_add = Some(PointsAddChip {
-            gate: PointsAddGate::create_gate(self.system, (p, q, s)),
+            gate: PointsAddGate::create_gate(self.system, &mut self.advice_pool),
         });
         self
     }
@@ -202,23 +144,9 @@ impl<'cs> ConfigsBuilder<'cs> {
     }
 
     pub fn with_point_double_chip(mut self) -> Self {
-        check_if_cached!(self, point_double);
-
-        let advice_pool = self.advice_pool_with_capacity(6);
-
-        let p = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let s = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-
+        check_if_cached!(self, points_add);
         self.point_double = Some(PointDoubleChip {
-            gate: PointDoubleGate::create_gate(self.system, (p, s)),
+            gate: PointDoubleGate::create_gate(self.system, &mut self.advice_pool),
         });
         self
     }
@@ -231,22 +159,8 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_scalar_multiply_chip(mut self) -> Self {
         check_if_cached!(self, scalar_multiply);
-        let advice_pool = self.advice_pool_with_capacity(7);
-
-        let scalar_bits = advice_pool.get_any_column();
-        let input = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-        let result = [
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-            advice_pool.get_any_column(),
-        ];
-
         self.scalar_multiply = Some(ScalarMultiplyChip {
-            gate: ScalarMultiplyGate::create_gate(self.system, (scalar_bits, input, result)),
+            gate: ScalarMultiplyGate::create_gate(self.system, &mut self.advice_pool),
         });
 
         self
@@ -258,19 +172,16 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("ScalarMultiplyChip is not configured")
     }
 
-    pub fn with_token_index(mut self, public_inputs: InstanceWrapper<TokenIndexInstance>) -> Self {
-        check_if_cached!(self, token_index);
+    pub fn with_note(mut self) -> Self {
+        check_if_cached!(self, note);
+        self = self.with_poseidon();
 
-        self.token_index = Some(TokenIndexChip::new(
-            self.system,
-            &mut self.advice_pool,
-            public_inputs,
-        ));
+        self.note = Some(NoteChip::new(self.poseidon_chip()));
         self
     }
 
-    pub fn token_index_chip(&self) -> TokenIndexChip {
-        self.token_index.clone().expect("TokenIndex not configured")
+    pub fn note_chip(&self) -> NoteChip {
+        self.note.clone().expect("Note not configured")
     }
 
     fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {

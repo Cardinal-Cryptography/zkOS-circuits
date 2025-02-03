@@ -3,24 +3,19 @@ use DepositInstance::DepositValue;
 
 use crate::{
     chips::{
-        balances_increase::BalancesIncreaseChip,
         id_hiding::IdHidingChip,
         note::{Note, NoteChip},
         range_check::RangeCheckChip,
-        token_index::TokenIndexChip,
+        sum::SumChip,
     },
     circuits::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
     },
-    deposit::{
-        DepositConstraints::{self, *},
-        DepositInstance::{self, HashedNewNote, HashedOldNullifier, *},
-    },
+    deposit::DepositInstance::{self, HashedNewNote, HashedOldNullifier, *},
     instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
-    todo::Todo,
     version::NOTE_VERSION,
     AssignedCell,
 };
@@ -30,9 +25,9 @@ pub struct DepositChip {
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip,
     pub range_check: RangeCheckChip,
+    pub sum_chip: SumChip,
     pub merkle: MerkleChip,
-    pub balances_increase: BalancesIncreaseChip,
-    pub token_index: TokenIndexChip,
+    pub note: NoteChip,
 }
 
 impl DepositChip {
@@ -40,24 +35,21 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-        todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
-        let old_note = NoteChip::new(self.poseidon.clone()).note(
+        let old_note = self.note.note(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_old.clone(),
                 trapdoor: knowledge.trapdoor_old.clone(),
-                balances: knowledge.balances_old.clone(),
+                account_balance: knowledge.account_old_balance.clone(),
             },
         )?;
-        todo.check_off(OldNullifierIsIncludedInTheOldNote)?;
 
         self.merkle.synthesize(
             synthesizer,
             &MerkleProverKnowledge::new(old_note, &knowledge.path),
-            todo,
         )
     }
 
@@ -65,82 +57,62 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-        todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
             synthesizer,
             self.poseidon.clone(),
             [knowledge.nullifier_old.clone()],
         )?;
-        todo.check_off(HashedOldNullifierIsCorrect)?;
 
         self.public_inputs
-            .constrain_cells(synthesizer, [(hashed_old_nullifier, HashedOldNullifier)])?;
-        todo.check_off(HashedOldNullifierInstanceIsConstrainedToAdvice)
+            .constrain_cells(synthesizer, [(hashed_old_nullifier, HashedOldNullifier)])
     }
 
     pub fn check_id_hiding(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-        todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
             .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
-
-        todo.check_off(IdHidingIsCorrect)?;
-
         self.public_inputs
-            .constrain_cells(synthesizer, [(id_hiding, IdHiding)])?;
-
-        todo.check_off(IdHidingInstanceIsConstrainedToAdvice)
+            .constrain_cells(synthesizer, [(id_hiding, IdHiding)])
     }
 
     pub fn check_new_note(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-        todo: &mut Todo<DepositConstraints>,
     ) -> Result<(), Error> {
         self.public_inputs.constrain_cells(
             synthesizer,
             [(knowledge.deposit_value.clone(), DepositValue)],
         )?;
-        todo.check_off(DepositValueInstanceIsConstrainedToAdvice)?;
 
-        let balances_new = self.balances_increase.increase_balances(
-            synthesizer,
-            &knowledge.balances_old,
-            &knowledge.token_indicators,
-            &knowledge.deposit_value,
+        // TODO: move to another chip or `IntermediateValues`.
+        let account_balance_new = synthesizer.assign_value(
+            "balance new",
+            knowledge.account_old_balance.value() + knowledge.deposit_value.value(),
         )?;
-        todo.check_off(DepositValueInstanceIsIncludedInTheNewNote)?;
+        self.sum_chip.constrain_sum(
+            synthesizer,
+            knowledge.account_old_balance.clone(),
+            knowledge.deposit_value.clone(),
+            account_balance_new.clone(),
+        )?;
 
-        let new_note = NoteChip::new(self.poseidon.clone()).note(
+        let new_note = self.note.note(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier_new.clone(),
                 trapdoor: knowledge.trapdoor_new.clone(),
-                balances: balances_new,
+                account_balance: account_balance_new,
             },
         )?;
-        todo.check_off(HashedNewNoteIsCorrect)?;
 
         self.public_inputs
-            .constrain_cells(synthesizer, [(new_note, HashedNewNote)])?;
-        todo.check_off(HashedNewNoteInstanceIsConstrainedToAdvice)
-    }
-
-    pub fn check_token_index(
-        &self,
-        synthesizer: &mut impl Synthesizer,
-        knowledge: &DepositProverKnowledge<AssignedCell>,
-        todo: &mut Todo<DepositConstraints>,
-    ) -> Result<(), Error> {
-        self.token_index
-            .constrain_index(synthesizer, &knowledge.token_indicators, todo)?;
-        Ok(())
+            .constrain_cells(synthesizer, [(new_note, HashedNewNote)])
     }
 }
