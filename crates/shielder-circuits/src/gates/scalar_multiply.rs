@@ -16,7 +16,7 @@ use {
     macros::embeddable,
 };
 
-use super::assign_grumpkin_advices;
+use super::{assign_grumpkin_advices, copy_grumpkin_advices};
 use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
@@ -80,14 +80,18 @@ impl Gate for ScalarMultiplyGate {
             let bit = vc.query_advice(scalar_bits, Rotation(ADVICE_OFFSET));
 
             let input_x = vc.query_advice(input[0], Rotation(ADVICE_OFFSET));
+            println!("@input_x: {input_x:?}");
             let input_y = vc.query_advice(input[1], Rotation(ADVICE_OFFSET));
+            println!("@input_y: {input_y:?}");
             let input_z = vc.query_advice(input[2], Rotation(ADVICE_OFFSET));
+            println!("@input_z: {input_z:?}");
 
             let result_x = vc.query_advice(result[0], Rotation(ADVICE_OFFSET));
             let result_y = vc.query_advice(result[1], Rotation(ADVICE_OFFSET));
             let result_z = vc.query_advice(result[2], Rotation(ADVICE_OFFSET));
 
             let next_input_x = vc.query_advice(input[0], Rotation(ADVICE_OFFSET + 1));
+            // println!("@next_input_x: {next_input_x:?}");
             let next_input_y = vc.query_advice(input[1], Rotation(ADVICE_OFFSET + 1));
             let next_input_z = vc.query_advice(input[2], Rotation(ADVICE_OFFSET + 1));
 
@@ -96,7 +100,7 @@ impl Gate for ScalarMultiplyGate {
             let next_result_z = vc.query_advice(result[2], Rotation(ADVICE_OFFSET + 1));
 
             let input = GrumpkinPoint::new(input_x, input_y, input_z);
-            let result = GrumpkinPoint::new(result_x, result_y, result_z);
+            let result = GrumpkinPoint::new(result_x.clone (), result_y.clone (), result_z.clone ());
 
             let GrumpkinPoint {
                 x: added_x,
@@ -114,17 +118,19 @@ impl Gate for ScalarMultiplyGate {
                 z: doubled_z,
             } = curve_arithmetic::point_double(input, Expression::Constant(*GRUMPKIN_3B));
 
+            // TODO: alter contraints
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
-                    // TODO: conditional addition
-                    next_result_x - added_x,
-                    next_result_y - added_y,
-                    next_result_z - added_z,
+                    // next_result = input + result (if bit == 1) else next_result = result
+                    ("x: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_x - bit.clone () * (added_x + result_x.clone ()) - result_x),
+                    ("y: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_y - bit.clone () * (added_y + result_y.clone ()) - result_y),
+                    ("z: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_z - bit.clone () * (added_z + result_z.clone ()) - result_z),
                     // next_P = 2 * P
-                    next_input_x - doubled_x,
-                    next_input_y - doubled_y,
-                    next_input_z - doubled_z,
+                    ("x: next_input = 2 * input", next_input_x - doubled_x),
+                    ("y: next_input = 2 * input", next_input_y - doubled_y),
+                    ("z: next_input = 2 * input", next_input_z - doubled_z),
+
                 ],
             )
         });
@@ -145,8 +151,20 @@ impl Gate for ScalarMultiplyGate {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
-                // self.selector
-                //     .enable(&mut region, SELECTOR_OFFSET as usize)?;
+                self.selector
+                    .enable(&mut region, SELECTOR_OFFSET as usize)?;
+
+                // let mut input = input.clone();
+
+                let mut input = copy_grumpkin_advices(
+                    &input,
+                    "initial input",
+                    &mut region,
+                    self.input,
+                    ADVICE_OFFSET as usize,
+                )?;
+
+                println!("@ assigned initial input cell : {input:?}");
 
                 let mut result = assign_grumpkin_advices(
                     &GrumpkinPoint::new(
@@ -160,7 +178,7 @@ impl Gate for ScalarMultiplyGate {
                     ADVICE_OFFSET as usize,
                 )?;
 
-                let mut input = input.clone();
+                println!("@ assigned initial result cell : {result:?}");
 
                 for (i, bit) in scalar_bits.iter().enumerate() {
                     self.selector.enable(&mut region, i)?;
@@ -172,19 +190,35 @@ impl Gate for ScalarMultiplyGate {
                         i,
                     )?;
 
-                    let added = curve_arithmetic::points_add(
-                        result.into(),
+                    let doubled = curve_arithmetic::point_double(
                         input.clone().into(),
                         Value::known(*GRUMPKIN_3B),
                     );
 
-                    let doubled =
-                        curve_arithmetic::point_double(input.into(), Value::known(*GRUMPKIN_3B));
-
                     // TODO: conditional addition
+                    let mut is_one = false;
+                    bit.value().map(|f| {
+                        is_one = Fr::ONE == *f;
+                    });
 
-                    result =
-                        assign_grumpkin_advices(&added, "result", &mut region, self.result, i + 1)?;
+                    if is_one {
+                        let added = curve_arithmetic::points_add(
+                            result.clone().into(),
+                            input.clone().into(),
+                            Value::known(*GRUMPKIN_3B),
+                        );
+
+                        result = assign_grumpkin_advices(
+                            &added,
+                            "result",
+                            &mut region,
+                            self.result,
+                            i + 1,
+                        )?
+                    };
+
+                    // result =
+                    //     assign_grumpkin_advices(&added, "result", &mut region, self.result, i + 1)?;
 
                     input =
                         assign_grumpkin_advices(&doubled, "input", &mut region, self.input, i + 1)?;
@@ -202,9 +236,9 @@ impl Gate for ScalarMultiplyGate {
     ) -> Self::Advices {
         pool.ensure_capacity(cs, 7);
         (
-            pool.get_column(0),
-            [pool.get_column(1), pool.get_column(2), pool.get_column(3)],
-            [pool.get_column(4), pool.get_column(5), pool.get_column(6)],
+            pool.get_column(0),                                           // scalar_bits
+            [pool.get_column(1), pool.get_column(2), pool.get_column(3)], // input
+            [pool.get_column(4), pool.get_column(5), pool.get_column(6)], // result
         )
     }
 }
@@ -216,7 +250,6 @@ mod tests {
 
     use curve_arithmetic::field_element_to_bits;
     use halo2_proofs::{
-        arithmetic::Field,
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
     };
@@ -224,7 +257,11 @@ mod tests {
     use super::*;
     use crate::{gates::test_utils::OneGateCircuit, rng};
 
-    fn input(scalar_bits: [Fr; 254], p: G1, result: G1) -> ScalarMultiplyGateInput<Fr> {
+    fn input(
+        scalar_bits: [Fr; 254],
+        p: G1,
+        // result: G1
+    ) -> ScalarMultiplyGateInput<Fr> {
         ScalarMultiplyGateInput {
             scalar_bits,
             // result: result.into(),
@@ -234,9 +271,20 @@ mod tests {
 
     fn verify(input: ScalarMultiplyGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<ScalarMultiplyGate, _>::new(input);
-        MockProver::run(10, &circuit, vec![])
+
+        let res = MockProver::run(10, &circuit, vec![])
             .expect("Mock prover should run")
-            .verify()
+            .verify();
+        // .map_err(|errors| {
+        //     errors
+        //         .into_iter()
+        //         .map(|failure| failure.to_string())
+        //         .collect()
+        // });
+
+        println!("{res:?}");
+
+        res
     }
 
     #[test]
@@ -244,12 +292,19 @@ mod tests {
         let rng = rng();
 
         let p = G1::random(rng.clone());
+
+        println!("@input: {p:?}");
+
         let n = Fr::from_u128(3);
         let bits = field_element_to_bits(n);
 
-        let result =
-            curve_arithmetic::scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
+        // let result =
+        //     curve_arithmetic::scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
 
-        assert!(verify(input(bits, p, result.into())).is_ok());
+        assert!(verify(input(
+            bits, p,
+            // result.into()
+        ))
+        .is_ok());
     }
 }

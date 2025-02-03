@@ -56,8 +56,13 @@ pub struct V(pub Value<Fr>);
 
 impl PartialEq for V {
     fn eq(&self, other: &Self) -> bool {
-        // let is_equal = false;
-        todo!()
+        let mut is_equal = false;
+        self.0.zip(other.0).map(|(this, other)| {
+            if this.eq(&other) {
+                is_equal = true;
+            }
+        });
+        is_equal
     }
 }
 
