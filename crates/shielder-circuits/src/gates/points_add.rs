@@ -1,7 +1,6 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::{Region, Value},
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
@@ -142,7 +141,6 @@ mod tests {
         halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
         plonk::ConstraintSystem,
     };
-    use rand::{rngs::StdRng, SeedableRng};
 
     use super::{PointsAddGate, PointsAddGateInput};
     use crate::{
