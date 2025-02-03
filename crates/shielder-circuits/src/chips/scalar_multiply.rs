@@ -35,7 +35,7 @@ pub struct ScalarMultiplyChipOutput<T> {
     pub result: GrumpkinPoint<T>,
 }
 
-/// Chip that computes the result of adding a point P on the grumpkin curve to itself n times.
+/// Chip that computes the result of adding a point P on the Grumpkin curve to itself n times.
 ///
 /// nP = S
 #[derive(Clone, Debug)]

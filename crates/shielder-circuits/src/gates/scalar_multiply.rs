@@ -162,7 +162,8 @@ impl Gate for ScalarMultiplyGate {
                 )?;
 
                 for (i, bit) in scalar_bits.iter().enumerate() {
-                    self.selector.enable(&mut region, i)?;
+                    self.selector
+                        .enable(&mut region, SELECTOR_OFFSET as usize + i)?;
 
                     bit.copy_advice(
                         || alloc::format!("bit[{i}]"),
@@ -176,7 +177,6 @@ impl Gate for ScalarMultiplyGate {
                         Value::known(*GRUMPKIN_3B),
                     );
 
-                    // TODO: conditional addition
                     let mut is_one = false;
                     bit.value().map(|f| {
                         is_one = Fr::ONE == *f;
@@ -194,7 +194,7 @@ impl Gate for ScalarMultiplyGate {
                             "result",
                             &mut region,
                             self.result,
-                            i + 1,
+                            SELECTOR_OFFSET as usize + i + 1,
                         )?
                     } else {
                         result = assign_grumpkin_advices(
@@ -206,12 +206,17 @@ impl Gate for ScalarMultiplyGate {
                             "result",
                             &mut region,
                             self.result,
-                            i + 1,
+                            SELECTOR_OFFSET as usize + i + 1,
                         )?
                     };
 
-                    input =
-                        assign_grumpkin_advices(&doubled, "input", &mut region, self.input, i + 1)?;
+                    input = assign_grumpkin_advices(
+                        &doubled,
+                        "input",
+                        &mut region,
+                        self.input,
+                        SELECTOR_OFFSET as usize + i + 1,
+                    )?;
                 }
 
                 Ok(())
@@ -246,14 +251,10 @@ mod tests {
     use super::*;
     use crate::{gates::test_utils::OneGateCircuit, rng};
 
-    fn input(
-        scalar_bits: [Fr; 254],
-        p: G1,
-        // result: G1
-    ) -> ScalarMultiplyGateInput<Fr> {
+    fn input(scalar_bits: [Fr; 254], p: G1) -> ScalarMultiplyGateInput<Fr> {
         ScalarMultiplyGateInput {
             scalar_bits,
-            // result: result.into(),
+
             input: p.into(),
         }
     }
@@ -274,13 +275,6 @@ mod tests {
         let n = Fr::from_u128(3);
         let bits = field_element_to_bits(n);
 
-        // let result =
-        //     curve_arithmetic::scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
-
-        assert!(verify(input(
-            bits, p,
-            // result.into()
-        ))
-        .is_ok());
+        assert!(verify(input(bits, p,)).is_ok());
     }
 }
