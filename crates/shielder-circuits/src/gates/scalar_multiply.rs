@@ -80,18 +80,14 @@ impl Gate for ScalarMultiplyGate {
             let bit = vc.query_advice(scalar_bits, Rotation(ADVICE_OFFSET));
 
             let input_x = vc.query_advice(input[0], Rotation(ADVICE_OFFSET));
-            println!("@input_x: {input_x:?}");
             let input_y = vc.query_advice(input[1], Rotation(ADVICE_OFFSET));
-            println!("@input_y: {input_y:?}");
             let input_z = vc.query_advice(input[2], Rotation(ADVICE_OFFSET));
-            println!("@input_z: {input_z:?}");
 
             let result_x = vc.query_advice(result[0], Rotation(ADVICE_OFFSET));
             let result_y = vc.query_advice(result[1], Rotation(ADVICE_OFFSET));
             let result_z = vc.query_advice(result[2], Rotation(ADVICE_OFFSET));
 
             let next_input_x = vc.query_advice(input[0], Rotation(ADVICE_OFFSET + 1));
-            // println!("@next_input_x: {next_input_x:?}");
             let next_input_y = vc.query_advice(input[1], Rotation(ADVICE_OFFSET + 1));
             let next_input_z = vc.query_advice(input[2], Rotation(ADVICE_OFFSET + 1));
 
@@ -118,7 +114,6 @@ impl Gate for ScalarMultiplyGate {
                 z: doubled_z,
             } = curve_arithmetic::point_double(input, Expression::Constant(*GRUMPKIN_3B));
 
-            // TODO: alter contraints
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
@@ -162,8 +157,6 @@ impl Gate for ScalarMultiplyGate {
                     ADVICE_OFFSET as usize,
                 )?;
 
-                println!("@ assigned initial input cell : {input:?}");
-
                 let mut result = assign_grumpkin_advices(
                     &GrumpkinPoint::new(
                         Value::known(Fr::ZERO),
@@ -175,8 +168,6 @@ impl Gate for ScalarMultiplyGate {
                     self.result,
                     ADVICE_OFFSET as usize,
                 )?;
-
-                println!("@ assigned initial result cell : {result:?}");
 
                 for (i, bit) in scalar_bits.iter().enumerate() {
                     self.selector.enable(&mut region, i)?;
@@ -278,20 +269,9 @@ mod tests {
 
     fn verify(input: ScalarMultiplyGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<ScalarMultiplyGate, _>::new(input);
-
-        let res = MockProver::run(10, &circuit, vec![])
+        MockProver::run(10, &circuit, vec![])
             .expect("Mock prover should run")
-            .verify();
-        // .map_err(|errors| {
-        //     errors
-        //         .into_iter()
-        //         .map(|failure| failure.to_string())
-        //         .collect()
-        // });
-
-        // println!("{res:?}");
-
-        res
+            .verify()
     }
 
     #[test]
@@ -299,8 +279,6 @@ mod tests {
         let rng = rng();
 
         let p = G1::random(rng.clone());
-
-        println!("@input: {p:?}");
 
         let n = Fr::from_u128(3);
         let bits = field_element_to_bits(n);

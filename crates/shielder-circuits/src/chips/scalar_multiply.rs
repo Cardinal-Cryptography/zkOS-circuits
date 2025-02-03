@@ -1,15 +1,13 @@
-use core::ops::{Add, Mul, Sub};
+use alloc::vec::Vec;
 
 use halo2_proofs::{arithmetic::Field, circuit::Value, halo2curves::bn256::Fr, plonk::Error};
 
-use super::{point_double::PointDoubleChip, points_add::PointsAddChip};
 use crate::{
-    chips::{point_double::PointDoubleChipInput, points_add::PointsAddChipInput},
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint, V},
     embed::Embed,
     gates::{
-        scalar_multiply::{self, ScalarMultiplyGate, ScalarMultiplyGateInput},
+        scalar_multiply::{ScalarMultiplyGate, ScalarMultiplyGateInput},
         Gate,
     },
     synthesizer::Synthesizer,
@@ -111,12 +109,10 @@ mod tests {
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         consts::GRUMPKIN_3B,
-        curve_arithmetic::{self, field_element_to_bits, GrumpkinPoint},
+        curve_arithmetic::{self, field_element_to_bits},
         embed::Embed,
-        gates::scalar_multiply::ScalarMultiplyGateInput,
         rng,
         synthesizer::create_synthesizer,
-        Value,
     };
 
     #[derive(Clone, Debug, Default)]
