@@ -1,12 +1,9 @@
 use alloc::vec::Vec;
 use core::ops::{Add, Mul, Sub};
 
-use halo2_proofs::{
-    circuit::Value,
-    halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
-};
+use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1};
 
-use crate::AssignedCell;
+use crate::{AssignedCell, Value};
 
 #[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub struct GrumpkinPoint<T> {
@@ -41,7 +38,7 @@ impl From<GrumpkinPoint<Fr>> for G1 {
     }
 }
 
-impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value<Fr>> {
+impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value> {
     fn from(p: GrumpkinPoint<AssignedCell>) -> Self {
         GrumpkinPoint {
             x: p.x.value().copied(),
@@ -52,7 +49,7 @@ impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value<Fr>> {
 }
 
 #[derive(Clone, Debug)]
-pub struct V(pub Value<Fr>);
+pub struct V(pub Value);
 
 impl PartialEq for V {
     fn eq(&self, other: &Self) -> bool {

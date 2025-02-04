@@ -117,7 +117,6 @@ impl Gate for ScalarMultiplyGate {
                     ("x: next_input = 2 * input", next_input_x - doubled_x),
                     ("y: next_input = 2 * input", next_input_y - doubled_y),
                     ("z: next_input = 2 * input", next_input_z - doubled_z),
-
                 ],
             )
         });
@@ -254,7 +253,6 @@ mod tests {
     fn input(scalar_bits: [Fr; 254], p: G1) -> ScalarMultiplyGateInput<Fr> {
         ScalarMultiplyGateInput {
             scalar_bits,
-
             input: p.into(),
         }
     }
@@ -269,12 +267,9 @@ mod tests {
     #[test]
     fn multiply_random_points() {
         let rng = rng();
-
         let p = G1::random(rng.clone());
-
         let n = Fr::from_u128(3);
         let bits = field_element_to_bits(n);
-
         assert!(verify(input(bits, p,)).is_ok());
     }
 }
