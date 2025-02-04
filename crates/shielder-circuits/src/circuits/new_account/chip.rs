@@ -1,7 +1,11 @@
 use halo2_proofs::plonk::Error;
 
 use crate::{
-    chips::note::{Note, NoteChip},
+    chips::{
+        asymmetric_encryption::ElGamalEncryptionChip,
+        note::{Note, NoteChip},
+        sym_key::SymKeyChip,
+    },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
@@ -19,20 +23,11 @@ pub struct NewAccountChip {
 }
 
 impl NewAccountChip {
-    pub fn synthesize(
+    pub fn check_note(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let public_inputs = &self.public_inputs;
-
-        public_inputs.constrain_cells(
-            synthesizer,
-            [(knowledge.initial_deposit.clone(), InitialDeposit)],
-        )?;
-
-        let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
-
         let note = self.note.note(
             synthesizer,
             &Note {
@@ -44,6 +39,43 @@ impl NewAccountChip {
             },
         )?;
 
-        public_inputs.constrain_cells(synthesizer, [(note, HashedNote), (h_id, HashedId)])
+        self.public_inputs.constrain_cells(
+            synthesizer,
+            [
+                (note, HashedNote),
+                (knowledge.initial_deposit.clone(), InitialDeposit),
+            ],
+        )
+    }
+
+    pub fn constrain_hashed_id(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &NewAccountProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
+        self.public_inputs
+            .constrain_cells(synthesizer, [(h_id, HashedId)])
+    }
+
+    pub fn constrain_sym_key_encryption(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &NewAccountProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        let sym_key =
+            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+
+        let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
+        let sym_key_encryption =
+            ElGamalEncryptionChip {}.encrypt(synthesizer, revoker_pkey.clone(), sym_key)?;
+
+        self.public_inputs.constrain_cells(
+            synthesizer,
+            [
+                (revoker_pkey, AnonymityRevokerPublicKey),
+                (sym_key_encryption, SymKeyEncryption),
+            ],
+        )
     }
 }
