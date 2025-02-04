@@ -15,6 +15,8 @@ pub enum NewAccountInstance {
     HashedId,
     InitialDeposit,
     TokenAddress,
+    AnonymityRevokerPublicKey,
+    SymKeyEncryption,
 }
 
 impl TryFrom<NewAccountInstance> for NoteInstance {
@@ -39,7 +41,14 @@ mod tests {
     #[test]
     fn instance_order() {
         // This is the order used in other parts of the codebase (e.g., in contracts).
-        let expected_order = vec![HashedNote, HashedId, InitialDeposit, TokenAddress];
+        let expected_order = vec![
+            HashedNote,
+            HashedId,
+            InitialDeposit,
+            TokenAddress,
+            AnonymityRevokerPublicKey,
+            SymKeyEncryption,
+        ];
         assert_eq!(
             expected_order,
             NewAccountInstance::iter().collect::<Vec<_>>()

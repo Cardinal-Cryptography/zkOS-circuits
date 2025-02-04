@@ -1,3 +1,4 @@
+pub mod asymmetric_encryption;
 pub mod id_hiding;
 #[allow(unused)]
 pub mod mac;
@@ -6,3 +7,4 @@ pub mod point_double;
 pub mod points_add;
 pub mod range_check;
 pub mod sum;
+pub mod sym_key;
