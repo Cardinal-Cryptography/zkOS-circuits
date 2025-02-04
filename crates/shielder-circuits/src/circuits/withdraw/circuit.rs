@@ -31,7 +31,7 @@ impl Circuit<Fr> for WithdrawCircuit {
         let configs_builder = ConfigsBuilder::new(meta)
             .with_merkle(public_inputs.narrow())
             .with_range_check()
-            .with_note();
+            .with_note(public_inputs.narrow());
 
         (
             WithdrawChip {
@@ -54,14 +54,10 @@ impl Circuit<Fr> for WithdrawCircuit {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self.0.embed(&mut synthesizer, "WithdrawProverKnowledge")?;
-        let intermediate = self
-            .0
-            .compute_intermediate_values()
-            .embed(&mut synthesizer, "WithdrawIntermediateValues")?;
 
         main_chip.check_old_note(&mut synthesizer, &knowledge)?;
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
-        main_chip.check_new_note(&mut synthesizer, &knowledge, &intermediate)?;
+        main_chip.check_new_note(&mut synthesizer, &knowledge)?;
         main_chip.check_commitment(&mut synthesizer, &knowledge)?;
         main_chip.check_id_hiding(&mut synthesizer, &knowledge)
     }
@@ -148,6 +144,7 @@ mod tests {
                 nullifier: pk.nullifier_old,
                 trapdoor: pk.trapdoor_old,
                 account_balance: pk.account_old_balance,
+                token_address: pk.token_address,
             }) + modification /* Modification here! */;
             let h_nullifier_old = hash(&[pk.nullifier_old]);
 
@@ -165,6 +162,7 @@ mod tests {
                 nullifier: pk.nullifier_new,
                 trapdoor: pk.trapdoor_new,
                 account_balance: account_balance_new,
+                token_address: pk.token_address,
             });
 
             let pub_input = |instance: WithdrawInstance| match instance {
@@ -174,6 +172,7 @@ mod tests {
                 HashedNewNote => h_note_new,
                 WithdrawalValue => pk.withdrawal_value,
                 Commitment => pk.commitment,
+                TokenAddress => pk.token_address,
             };
 
             assert_eq!(

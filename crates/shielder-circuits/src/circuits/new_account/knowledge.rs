@@ -21,6 +21,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub nullifier: T,
     pub trapdoor: T,
     pub initial_deposit: T,
+    pub token_address: T,
 }
 
 impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
@@ -33,6 +34,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             nullifier: Fr::random(&mut *rng),
             trapdoor: Fr::random(rng),
             initial_deposit: Fr::ONE,
+            token_address: Fr::ZERO,
         }
     }
 
@@ -42,6 +44,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Value::known(self.trapdoor),
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
+            token_address: Value::known(self.token_address),
         })
     }
 }
@@ -55,9 +58,11 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
                 nullifier: self.nullifier,
                 trapdoor: self.trapdoor,
                 account_balance: self.initial_deposit,
+                token_address: self.token_address,
             }),
             NewAccountInstance::HashedId => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,
+            NewAccountInstance::TokenAddress => self.token_address,
         }
     }
 }

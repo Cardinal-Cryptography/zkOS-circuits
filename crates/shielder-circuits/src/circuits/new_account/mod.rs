@@ -7,11 +7,25 @@ mod knowledge;
 pub use circuit::NewAccountCircuit;
 pub use knowledge::NewAccountProverKnowledge;
 
+use crate::chips::note::NoteInstance;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum NewAccountInstance {
     HashedNote,
     HashedId,
     InitialDeposit,
+    TokenAddress,
+}
+
+impl TryFrom<NewAccountInstance> for NoteInstance {
+    type Error = ();
+
+    fn try_from(value: NewAccountInstance) -> Result<Self, Self::Error> {
+        match value {
+            NewAccountInstance::TokenAddress => Ok(NoteInstance::TokenAddress),
+            _ => Err(()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -25,7 +39,7 @@ mod tests {
     #[test]
     fn instance_order() {
         // This is the order used in other parts of the codebase (e.g., in contracts).
-        let expected_order = vec![HashedNote, HashedId, InitialDeposit];
+        let expected_order = vec![HashedNote, HashedId, InitialDeposit, TokenAddress];
         assert_eq!(
             expected_order,
             NewAccountInstance::iter().collect::<Vec<_>>()

@@ -27,7 +27,9 @@ impl Circuit<Fr> for NewAccountCircuit {
 
     fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         let public_inputs = InstanceWrapper::<NewAccountInstance>::new(meta);
-        let configs_builder = ConfigsBuilder::new(meta).with_poseidon().with_note();
+        let configs_builder = ConfigsBuilder::new(meta)
+            .with_poseidon()
+            .with_note(public_inputs.narrow());
 
         (
             NewAccountChip {

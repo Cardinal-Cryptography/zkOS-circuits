@@ -1,3 +1,6 @@
+#[cfg(test)]
+use std::println;
+
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
     plonk::{Advice, Circuit, ConstraintSystem, Error},
@@ -29,9 +32,10 @@ impl Circuit<Fr> for DepositCircuit {
         let public_inputs = InstanceWrapper::<DepositInstance>::new(meta);
 
         let configs_builder = ConfigsBuilder::new(meta)
+            .with_poseidon()
             .with_merkle(public_inputs.narrow())
             .with_range_check()
-            .with_note();
+            .with_note(public_inputs.narrow());
 
         (
             DepositChip {
@@ -39,7 +43,6 @@ impl Circuit<Fr> for DepositCircuit {
                 poseidon: configs_builder.poseidon_chip(),
                 merkle: configs_builder.merkle_chip(),
                 range_check: configs_builder.range_check_chip(),
-                sum_chip: configs_builder.sum_chip(),
                 note: configs_builder.note_chip(),
             },
             configs_builder.finish(),
@@ -51,6 +54,8 @@ impl Circuit<Fr> for DepositCircuit {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
+        #[cfg(test)]
+        println!("CCC Synthesize!");
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;
@@ -65,6 +70,7 @@ impl Circuit<Fr> for DepositCircuit {
 #[cfg(test)]
 mod tests {
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
+    use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;
 
     use crate::{
@@ -76,11 +82,13 @@ mod tests {
                 PublicInputProviderExt,
             },
         },
+        consts::merkle_constants::NOTE_TREE_HEIGHT,
         deposit::DepositInstance::{self, *},
         note_hash,
         poseidon::off_circuit::hash,
+        test_utils::expect_instance_permutation_failures,
         version::NOTE_VERSION,
-        Note, ProverKnowledge, PublicInputProvider,
+        Note, NoteVersion, ProverKnowledge, PublicInputProvider,
     };
 
     #[test]
@@ -139,6 +147,7 @@ mod tests {
                 nullifier: pk.nullifier_old,
                 trapdoor: pk.trapdoor_old,
                 account_balance: pk.account_old_balance,
+                token_address: pk.token_address,
             }) + modification /* Modification here! */;
             let h_nullifier_old = hash(&[pk.nullifier_old]);
 
@@ -156,6 +165,7 @@ mod tests {
                 nullifier: pk.nullifier_new,
                 trapdoor: pk.trapdoor_new,
                 account_balance: account_balance_new,
+                token_address: pk.token_address,
             });
 
             let pub_input = |instance: DepositInstance| match instance {
@@ -164,6 +174,7 @@ mod tests {
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
                 DepositValue => pk.deposit_value,
+                TokenAddress => pk.token_address,
             };
 
             assert_eq!(
@@ -175,6 +186,70 @@ mod tests {
                 verify_is_expected_to_pass
             );
         }
+    }
+
+    #[test]
+    fn passes_if_deposited_nonnative_token() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
+
+        pk.token_address = Fr::from(123);
+
+        // Substitute all that changes in `pk` when `token_address` changes.
+        let h_note_old = note_hash(&Note {
+            version: NoteVersion::new(0),
+            id: pk.id,
+            nullifier: pk.nullifier_old,
+            trapdoor: pk.trapdoor_old,
+            account_balance: pk.account_old_balance,
+            token_address: pk.token_address,
+        });
+        let (_, path) =
+            generate_example_path_with_given_leaf::<NOTE_TREE_HEIGHT>(h_note_old, &mut rng);
+        pk.path = path;
+
+        let pub_input = pk.serialize_public_input();
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_ok()
+        );
+
+        // Manually verify that the new note is as expected.
+        let mut hash_input = [Fr::ZERO; 7];
+        hash_input[0] = pk.account_old_balance + pk.deposit_value;
+        hash_input[1] = pk.token_address;
+        let new_balance_hash = hash(&hash_input);
+        let new_note_hash = hash(&[
+            Fr::ZERO, // Note version.
+            pk.id,
+            pk.nullifier_new,
+            pk.trapdoor_new,
+            new_balance_hash,
+        ]);
+        assert_eq!(new_note_hash, pub_input[3]);
+
+        // Verify the token address.
+        assert_eq!(Fr::from(123), pub_input[5]);
+    }
+
+    #[test]
+    fn fails_if_token_address_pub_input_incorrect() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let pk = DepositProverKnowledge::random_correct_example(&mut rng);
+
+        let mut pub_input = pk.serialize_public_input();
+        pub_input[5] += Fr::ONE;
+
+        let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
+            .expect_err("Verification must fail");
+
+        // For some reason Halo2 returns equality failure not with our embedded token address
+        // `AssignedCell`, but with a cell the address was copied to, allocated by Poseidon.
+        expect_instance_permutation_failures(
+            &failures,
+            "add input for domain ConstantLength<7>", // Annotation from `poseidon-gadget`.
+            5,
+        );
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.

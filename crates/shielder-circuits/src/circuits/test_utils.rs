@@ -1,7 +1,7 @@
 //! Helpers to be used in unit tests. These helpers are adjusted
 //! not for efficiency but for ease of use.
 
-use std::{format, string::ToString, vec, vec::Vec};
+use std::{format, println, string::ToString, vec, vec::Vec};
 
 use halo2_proofs::{
     dev::{FailureLocation, MockProver, VerifyFailure},
@@ -148,6 +148,7 @@ pub fn expect_instance_permutation_failures(
     expected_advice_region_name: &str,
     expected_instance_row: usize,
 ) {
+    println!("AAAA {:?}", actual);
     assert!(actual.len() == 2);
 
     let mut matched_advice = false;

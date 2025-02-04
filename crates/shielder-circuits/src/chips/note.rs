@@ -1,22 +1,55 @@
 use core::array;
 
 use halo2_proofs::{arithmetic::Field, plonk::Error};
+use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
+    chips::sum::SumChip,
     consts::POSEIDON_RATE,
+    embed::Embed,
+    instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NoteVersion,
-    AssignedCell, Fr,
+    AssignedCell, Fr, Value,
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
+pub enum NoteInstance {
+    TokenAddress,
+}
+
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Note<T> {
     pub version: NoteVersion,
     pub id: T,
     pub nullifier: T,
     pub trapdoor: T,
     pub account_balance: T,
+    pub token_address: T,
+}
+
+impl Embed for Note<Value> {
+    type Embedded = Note<AssignedCell>;
+
+    fn embed(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        annotation: impl Into<alloc::string::String>,
+    ) -> Result<Self::Embedded, Error> {
+        let annotation = annotation.into();
+
+        Ok(Note {
+            version: self.version,
+            id: self.id.embed(synthesizer, annotation.clone())?,
+            nullifier: self.nullifier.embed(synthesizer, annotation.clone())?,
+            trapdoor: self.trapdoor.embed(synthesizer, annotation.clone())?,
+            account_balance: self
+                .account_balance
+                .embed(synthesizer, annotation.clone())?,
+            token_address: self.token_address.embed(synthesizer, annotation)?,
+        })
+    }
 }
 
 pub mod off_circuit {
@@ -25,10 +58,9 @@ pub mod off_circuit {
     use crate::{chips::note::Note, consts::POSEIDON_RATE, poseidon::off_circuit::hash, Fr};
 
     pub fn note_hash(note: &Note<Fr>) -> Fr {
-        // TODO: move to a separate chip, which will also handle the token address.
         let balance_hash = hash::<POSEIDON_RATE>(&[
             note.account_balance,
-            Fr::ZERO,
+            note.token_address,
             Fr::ZERO,
             Fr::ZERO,
             Fr::ZERO,
@@ -51,14 +83,13 @@ pub mod off_circuit {
 /// Chip that is able to calculate note hash
 #[derive(Clone, Debug)]
 pub struct NoteChip {
-    poseidon: PoseidonChip,
+    pub public_inputs: InstanceWrapper<NoteInstance>,
+
+    pub sum: SumChip,
+    pub poseidon: PoseidonChip,
 }
 
 impl NoteChip {
-    pub fn new(poseidon: PoseidonChip) -> Self {
-        Self { poseidon }
-    }
-
     fn assign_note_version(
         &self,
         note: &Note<AssignedCell>,
@@ -68,9 +99,16 @@ impl NoteChip {
         synthesizer.assign_constant("note_version", note_version)
     }
 
-    /// Calculate the note_hash as follows:
-    /// note_hash = Hash(NOTE_VERSION, note.id, note.nullifier, note.trapdoor, hash(note.balance))
-    pub fn note(
+    // Calculates the note_hash as follows:
+    //
+    //   `note_hash = poseidon2(NOTE_VERSION, note.id, note.nullifier, note.trapdoor,
+    //                          poseidon2(note.balance, note.token_address, 0, 0, 0, 0, 0))`
+    //
+    // The reason for the double nesting and for the padding is historical: we keep this hash shape
+    // for backward compatibility with notes created by the 1st version of Shielder.
+    //
+    // Constrains `note.token_address` to match the respective public input.
+    pub fn note_hash(
         &self,
         synthesizer: &mut impl Synthesizer,
         note: &Note<AssignedCell>,
@@ -78,6 +116,11 @@ impl NoteChip {
         let note_version = self.assign_note_version(note, synthesizer)?;
 
         let h_balance = self.balance_hash(synthesizer, note)?;
+
+        self.public_inputs.constrain_cells(
+            synthesizer,
+            [(note.token_address.clone(), NoteInstance::TokenAddress)],
+        )?;
 
         let input = [
             note_version,
@@ -90,7 +133,6 @@ impl NoteChip {
         hash(synthesizer, self.poseidon.clone(), input)
     }
 
-    // TODO: move to a separate chip, which will also handle the token address.
     fn balance_hash(
         &self,
         synthesizer: &mut impl Synthesizer,
@@ -100,7 +142,180 @@ impl NoteChip {
 
         let mut input: [_; POSEIDON_RATE] = array::from_fn(|_| zero_cell.clone());
         input[0] = note.account_balance.clone();
+        input[1] = note.token_address.clone();
 
         hash(synthesizer, self.poseidon.clone(), input)
+    }
+
+    pub fn increase_balance(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        balance_old: AssignedCell,
+        increase_value: AssignedCell,
+    ) -> Result<AssignedCell, Error> {
+        let balance_new = synthesizer
+            .assign_value("balance_new", balance_old.value() + increase_value.value())?;
+
+        self.sum.constrain_sum(
+            synthesizer,
+            balance_old,
+            increase_value,
+            balance_new.clone(),
+        )?;
+
+        Ok(balance_new)
+    }
+
+    pub fn decrease_balance(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        balance_old: AssignedCell,
+        decrease_value: AssignedCell,
+    ) -> Result<AssignedCell, Error> {
+        let balance_new = synthesizer
+            .assign_value("balance_new", balance_old.value() - decrease_value.value())?;
+
+        self.sum.constrain_sum(
+            synthesizer,
+            balance_new.clone(),
+            decrease_value,
+            balance_old,
+        )?;
+
+        Ok(balance_new)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use halo2_proofs::{
+        arithmetic::Field,
+        circuit::{floor_planner, Layouter},
+        plonk::{Advice, Circuit, ConstraintSystem, Error},
+    };
+    use parameterized::parameterized;
+    use strum_macros::{EnumCount, EnumIter};
+
+    use super::{Note, NoteChip, NoteInstance};
+    use crate::{
+        circuits::test_utils::expect_prover_success_and_run_verification,
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        embed::Embed,
+        instance_wrapper::InstanceWrapper,
+        poseidon::off_circuit::hash,
+        synthesizer::create_synthesizer,
+        Fr, NoteVersion, Value,
+    };
+
+    // TODO replace with enum or sth
+    #[derive(Clone, Debug, Default)]
+    struct TestCircuit {
+        pub note: Note<Value>,
+    }
+
+    impl TestCircuit {
+        pub fn new(note: Note<impl Into<Fr>>) -> Self {
+            Self {
+                note: Note {
+                    version: note.version,
+                    id: Value::known(note.id.into()),
+                    nullifier: Value::known(note.nullifier.into()),
+                    trapdoor: Value::known(note.trapdoor.into()),
+                    account_balance: Value::known(note.account_balance.into()),
+                    token_address: Value::known(note.token_address.into()),
+                },
+            }
+        }
+    }
+
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
+    pub enum TestInstance {
+        TokenAddress,
+        ChipOutput,
+    }
+
+    impl TryFrom<TestInstance> for NoteInstance {
+        type Error = ();
+
+        fn try_from(value: TestInstance) -> Result<Self, Self::Error> {
+            match value {
+                TestInstance::TokenAddress => Ok(NoteInstance::TokenAddress),
+                _ => Err(()),
+            }
+        }
+    }
+
+    impl Circuit<Fr> for TestCircuit {
+        type Config = (
+            NoteChip,
+            ColumnPool<Advice, PreSynthesisPhase>,
+            InstanceWrapper<TestInstance>,
+        );
+        type FloorPlanner = floor_planner::V1;
+
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
+
+        fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
+            let public_inputs = InstanceWrapper::<TestInstance>::new(meta);
+
+            let configs_builder = ConfigsBuilder::new(meta).with_note(public_inputs.narrow());
+            let note = configs_builder.note_chip();
+
+            (note, configs_builder.finish(), public_inputs)
+        }
+
+        fn synthesize(
+            &self,
+            (chip, advice_pool, public_inputs): Self::Config,
+            mut layouter: impl Layouter<Fr>,
+        ) -> Result<(), Error> {
+            let advice_pool = advice_pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &advice_pool);
+
+            let note = self.note.embed(&mut synthesizer, "note")?;
+
+            let chip_output = chip.note_hash(&mut synthesizer, &note)?;
+
+            public_inputs
+                .constrain_cells(&mut synthesizer, [(chip_output, TestInstance::ChipOutput)])
+        }
+    }
+
+    // TODO large address
+    #[parameterized(token_address = {
+        Fr::ZERO,
+        Fr::ONE,
+        Fr::from(2).pow([160]).sub(&Fr::ONE) // Max token address.
+    })]
+    fn hash_is_correct(token_address: Fr) {
+        let circuit = TestCircuit::new(Note {
+            version: NoteVersion::new(0),
+            id: Fr::from(1),
+            nullifier: Fr::from(2),
+            trapdoor: Fr::from(3),
+            account_balance: Fr::from(4),
+            token_address,
+        });
+        let expected_output = hash(&[
+            Fr::from(0),
+            Fr::from(1),
+            Fr::from(2),
+            Fr::from(3),
+            hash(&[
+                Fr::from(4),
+                token_address,
+                Fr::ZERO,
+                Fr::ZERO,
+                Fr::ZERO,
+                Fr::ZERO,
+                Fr::ZERO,
+            ]),
+        ]);
+        let pub_input = [token_address, expected_output];
+
+        assert!(expect_prover_success_and_run_verification(circuit, &pub_input).is_ok());
     }
 }
