@@ -1,7 +1,10 @@
 use alloc::vec::Vec;
 use core::ops::{Add, Mul, Sub};
 
-use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1};
+use halo2_proofs::{
+    arithmetic::Field,
+    halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
+};
 
 use crate::{AssignedCell, Value};
 
@@ -167,12 +170,14 @@ where
     GrumpkinPoint::new(x3, y3, z3)
 }
 
-pub fn normalize_point<T>(p: GrumpkinPoint<T>, one: T, z_inverse: T) -> GrumpkinPoint<T>
+pub fn normalize_point<T>(p: GrumpkinPoint<T>, one: T) -> GrumpkinPoint<T>
 where
-    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone,
+
+    T: Field,
 {
-    let GrumpkinPoint { x, y, .. } = p;
-    GrumpkinPoint::new(x * z_inverse.clone(), y * z_inverse, one)
+    let GrumpkinPoint { x, y, z } = p;
+    let z_inv = z.invert().unwrap();
+    GrumpkinPoint::new(x * z_inv, y * z_inv, one)
 }
 
 pub fn scalar_multiply<T>(
@@ -185,7 +190,7 @@ pub fn scalar_multiply<T>(
 where
     T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone + PartialEq,
 {
-    let mut r = GrumpkinPoint {
+    let mut result = GrumpkinPoint {
         x: zero.clone(),
         y: one.clone(),
         z: zero,
@@ -195,12 +200,11 @@ where
 
     for bit in scalar_bits {
         if bit == one {
-            r = points_add(r, doubled.clone(), b3.clone());
+            result = points_add(result, doubled.clone(), b3.clone());
         }
         doubled = point_double(doubled, b3.clone());
     }
-
-    r
+    result
 }
 
 /// Converts given field element to the individual bit representation.
@@ -251,12 +255,10 @@ mod tests {
         let bits = field_element_to_bits(n);
 
         let expected: GrumpkinPoint<Fr> = (p + p + p).into();
-        let z_inverse = expected.z.invert().unwrap();
-        let expected: GrumpkinPoint<Fr> = normalize_point(expected, Fr::ONE, z_inverse);
+        let expected: GrumpkinPoint<Fr> = normalize_point(expected, Fr::ONE);
 
         let result = scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
-        let z_inverse = result.z.invert().unwrap();
-        let result = normalize_point(result, Fr::ONE, z_inverse);
+        let result = normalize_point(result, Fr::ONE);
 
         assert_eq!(expected, result);
     }
