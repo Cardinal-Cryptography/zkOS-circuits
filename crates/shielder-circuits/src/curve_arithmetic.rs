@@ -170,14 +170,13 @@ where
     GrumpkinPoint::new(x3, y3, z3)
 }
 
-pub fn normalize_point<T>(p: GrumpkinPoint<T>, one: T) -> GrumpkinPoint<T>
+pub fn normalize_point<T>(p: GrumpkinPoint<T>) -> GrumpkinPoint<T>
 where
-
     T: Field,
 {
     let GrumpkinPoint { x, y, z } = p;
     let z_inv = z.invert().unwrap();
-    GrumpkinPoint::new(x * z_inv, y * z_inv, one)
+    GrumpkinPoint::new(x * z_inv, y * z_inv, T::ONE)
 }
 
 pub fn scalar_multiply<T>(
@@ -255,10 +254,10 @@ mod tests {
         let bits = field_element_to_bits(n);
 
         let expected: GrumpkinPoint<Fr> = (p + p + p).into();
-        let expected: GrumpkinPoint<Fr> = normalize_point(expected, Fr::ONE);
+        let expected: GrumpkinPoint<Fr> = normalize_point(expected);
 
         let result = scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
-        let result = normalize_point(result, Fr::ONE);
+        let result = normalize_point(result);
 
         assert_eq!(expected, result);
     }
