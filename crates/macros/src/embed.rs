@@ -8,7 +8,7 @@ type SynResult<T> = Result<T, syn::Error>;
 #[derive(Debug, FromMeta)]
 struct Attributes {
     receiver: syn::Type,
-    impl_generics: String,
+    impl_generics: Option<String>,
     embedded: syn::Type,
 }
 
@@ -22,7 +22,7 @@ pub fn embeddable(attr: TokenStream2, item: TokenStream2) -> SynResult<TokenStre
         impl_generics,
         embedded,
     } = Attributes::from_list(&NestedMeta::parse_meta_list(attr)?)?;
-    let impl_generics = syn::parse_str::<syn::Generics>(&impl_generics)?;
+    let impl_generics = syn::parse_str::<syn::Generics>(&impl_generics.unwrap_or_default())?;
 
     let struct_name = item_struct.ident;
 

@@ -29,7 +29,6 @@ pub struct RangeCheckGate {
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "RangeCheckGateInput<Fr>",
-    impl_generics = "",
     embedded = "RangeCheckGateInput<AssignedCell>"
 )]
 pub struct RangeCheckGateInput<T> {
