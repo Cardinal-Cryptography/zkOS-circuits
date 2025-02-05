@@ -137,9 +137,6 @@ impl Gate for ScalarMultiplyGate {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
-                self.selector
-                    .enable(&mut region, SELECTOR_OFFSET as usize)?;
-
                 let mut input = copy_grumpkin_advices(
                     &input,
                     "initial input",
