@@ -210,13 +210,13 @@ where
 ///
 /// panics if value is not 254 bits
 pub fn field_element_to_bits(value: Fr) -> [Fr; 254] {
-    let bits = to_bits(value.to_repr().as_ref());
-    let sliced_bits = bits[..Fr::NUM_BITS as usize].to_vec();
-    let vec: Vec<Fr> = sliced_bits
+    let bits_vec = to_bits(value.to_repr().as_ref())
+        .to_vec()
         .iter()
+        .take(Fr::NUM_BITS as usize)
         .map(|&x| Fr::from(u64::from(x)))
         .collect();
-    vec.try_into().expect("value is not 254 bits")
+    bits_vec.try_into().expect("value is not 254 bits")
 }
 
 fn to_bits(num: &[u8]) -> Vec<bool> {
