@@ -79,12 +79,13 @@ mod tests {
             },
             withdraw::knowledge::WithdrawProverKnowledge,
         },
+        consts::merkle_constants::NOTE_TREE_HEIGHT,
         generate_keys_with_min_k, generate_proof, generate_setup_params, note_hash,
         poseidon::off_circuit::hash,
         test_utils::expect_instance_permutation_failures,
         version::NOTE_VERSION,
         withdraw::WithdrawInstance::{self, *},
-        Field, Note, ProverKnowledge, PublicInputProvider, MAX_K,
+        Field, Note, NoteVersion, ProverKnowledge, PublicInputProvider, MAX_K,
     };
 
     #[test]
@@ -92,7 +93,49 @@ mod tests {
         run_full_pipeline::<WithdrawProverKnowledge<Fr>>();
     }
 
-    // TODO passes nonnative token
+    #[test]
+    fn passes_if_withdrawn_nonnative_token() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let mut pk = WithdrawProverKnowledge::random_correct_example(&mut rng);
+
+        pk.token_address = Fr::from(123);
+
+        // Substitute all that changes in `pk` when `token_address` changes.
+        let h_note_old = note_hash(&Note {
+            version: NoteVersion::new(0),
+            id: pk.id,
+            nullifier: pk.nullifier_old,
+            trapdoor: pk.trapdoor_old,
+            account_balance: pk.account_old_balance,
+            token_address: pk.token_address,
+        });
+        let (_, path) =
+            generate_example_path_with_given_leaf::<NOTE_TREE_HEIGHT>(h_note_old, &mut rng);
+        pk.path = path;
+
+        let pub_input = pk.serialize_public_input();
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_ok()
+        );
+
+        // Manually verify that the new note is as expected.
+        let mut hash_input = [Fr::ZERO; 7];
+        hash_input[0] = pk.account_old_balance - pk.withdrawal_value;
+        hash_input[1] = pk.token_address;
+        let new_balance_hash = hash(&hash_input);
+        let new_note_hash = hash(&[
+            Fr::ZERO, // Note version.
+            pk.id,
+            pk.nullifier_new,
+            pk.trapdoor_new,
+            new_balance_hash,
+        ]);
+        assert_eq!(new_note_hash, pub_input[3]);
+
+        // Verify the token address.
+        assert_eq!(Fr::from(123), pub_input[5]);
+    }
 
     #[test]
     fn fails_if_merkle_proof_uses_wrong_note() {
