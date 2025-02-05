@@ -71,6 +71,16 @@ impl From<GrumpkinPoint<Fr>> for GrumpkinPoint<Value> {
     }
 }
 
+impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<V> {
+    fn from(p: GrumpkinPoint<AssignedCell>) -> Self {
+        GrumpkinPoint {
+            x: V(p.x.value().cloned()),
+            y: V(p.y.value().cloned()),
+            z: V(p.z.value().cloned()),
+        }
+    }
+}
+
 impl<T> GrumpkinPoint<T>
 where
     T: Field,
@@ -209,7 +219,7 @@ where
 }
 
 pub fn scalar_multiply<T>(
-    p: GrumpkinPoint<T>,
+    input: GrumpkinPoint<T>,
     scalar_bits: [T; 254],
     b3: T,
     zero: T,
@@ -224,7 +234,7 @@ where
         z: zero,
     };
 
-    let mut doubled = p.clone();
+    let mut doubled = input.clone();
 
     for bit in scalar_bits {
         if bit == one {

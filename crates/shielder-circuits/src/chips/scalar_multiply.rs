@@ -105,13 +105,13 @@ impl ScalarMultiplyChip {
         let result = result_value.embed(synthesizer, "final result")?;
 
         self.sum_chip
-            .constrain_equal(synthesizer, expected.x, result.clone().x)?;
+            .constrain_equal(synthesizer, expected.clone().x, result.clone().x)?;
         self.sum_chip
-            .constrain_equal(synthesizer, expected.y, result.clone().y)?;
+            .constrain_equal(synthesizer, expected.clone().y, result.clone().y)?;
         self.sum_chip
-            .constrain_equal(synthesizer, expected.z, result.clone().z)?;
+            .constrain_equal(synthesizer, expected.clone().z, result.clone().z)?;
 
-        Ok(ScalarMultiplyChipOutput { result })
+        Ok(ScalarMultiplyChipOutput { result: expected })
     }
 }
 
@@ -135,14 +135,10 @@ pub mod off_circuit {
             .map(|cell| V(cell.value().cloned()))
             .collect();
         let bits: [V; 254] = bits.try_into().expect("not 254 bit array");
-        let input: GrumpkinPoint<V> = GrumpkinPoint {
-            x: V(input.x.value().cloned()),
-            y: V(input.y.value().cloned()),
-            z: V(input.z.value().cloned()),
-        };
+        let input = input.into();
 
         curve_arithmetic::scalar_multiply(
-            input.into(),
+            input,
             bits,
             V(Value::known(*GRUMPKIN_3B)),
             V(Value::known(Fr::ZERO)),
