@@ -20,7 +20,6 @@ use crate::{
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "WithdrawProverKnowledge<Value>",
-    impl_generics = "",
     embedded = "WithdrawProverKnowledge<crate::AssignedCell>"
 )]
 pub struct WithdrawProverKnowledge<T> {
