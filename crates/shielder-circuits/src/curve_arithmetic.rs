@@ -215,7 +215,7 @@ pub fn field_element_to_bits(value: Fr) -> [Fr; 254] {
         .iter()
         .take(Fr::NUM_BITS as usize)
         .map(|&x| Fr::from(u64::from(x)))
-        .collect();
+        .collect::<Vec<Fr>>();
     bits_vec.try_into().expect("value is not 254 bits")
 }
 
