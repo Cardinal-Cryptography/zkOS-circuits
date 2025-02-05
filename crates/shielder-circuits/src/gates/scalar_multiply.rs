@@ -1,15 +1,13 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    arithmetic::Field,
-    circuit::Value,
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
 
-use super::{assign_grumpkin_advices, copy_grumpkin_advices};
+use super::copy_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::GRUMPKIN_3B,
@@ -28,24 +26,18 @@ pub struct ScalarMultiplyGate {
     pub input: [Column<Advice>; 3],
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "ScalarMultiplyGateInput<Fr>",
     impl_generics = "",
     embedded = "ScalarMultiplyGateInput<crate::AssignedCell>"
 )]
 pub struct ScalarMultiplyGateInput<T> {
-    pub scalar_bits: [T; 254],
+    pub bit: T,
     pub input: GrumpkinPoint<T>,
-}
-
-impl<T: Default + Copy> Default for ScalarMultiplyGateInput<T> {
-    fn default() -> Self {
-        Self {
-            input: GrumpkinPoint::default(),
-            scalar_bits: [T::default(); 254],
-        }
-    }
+    pub result: GrumpkinPoint<T>,
+    pub next_input: GrumpkinPoint<T>,
+    pub next_result: GrumpkinPoint<T>,
 }
 
 const SELECTOR_OFFSET: i32 = 0;
@@ -132,88 +124,59 @@ impl Gate for ScalarMultiplyGate {
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        ScalarMultiplyGateInput { scalar_bits, input }: Self::Input,
+        // ScalarMultiplyGateInput { scalar_bits, input }: Self::Input,
+        ScalarMultiplyGateInput {
+            bit,
+            input,
+            result,
+            next_input,
+            next_result,
+        }: Self::Input,
     ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
-                let mut input = copy_grumpkin_advices(
+                self.selector
+                    .enable(&mut region, SELECTOR_OFFSET as usize)?;
+
+                bit.copy_advice(
+                    || alloc::format!("bit"),
+                    &mut region,
+                    self.scalar_bits,
+                    ADVICE_OFFSET as usize,
+                )?;
+
+                copy_grumpkin_advices(
                     &input,
-                    "initial input",
+                    "input",
                     &mut region,
                     self.input,
                     ADVICE_OFFSET as usize,
                 )?;
 
-                let mut result = assign_grumpkin_advices(
-                    &GrumpkinPoint::new(
-                        Value::known(Fr::ZERO),
-                        Value::known(Fr::ONE),
-                        Value::known(Fr::ZERO),
-                    ),
-                    "initial result",
+                copy_grumpkin_advices(
+                    &result,
+                    "result",
                     &mut region,
                     self.result,
                     ADVICE_OFFSET as usize,
                 )?;
 
-                for (i, bit) in scalar_bits.iter().enumerate() {
-                    self.selector
-                        .enable(&mut region, SELECTOR_OFFSET as usize + i)?;
+                copy_grumpkin_advices(
+                    &next_input,
+                    "next_input",
+                    &mut region,
+                    self.input,
+                    ADVICE_OFFSET as usize + 1,
+                )?;
 
-                    bit.copy_advice(
-                        || alloc::format!("bit[{i}]"),
-                        &mut region,
-                        self.scalar_bits,
-                        i,
-                    )?;
-
-                    let doubled = curve_arithmetic::point_double(
-                        input.clone().into(),
-                        Value::known(*GRUMPKIN_3B),
-                    );
-
-                    let mut is_one = false;
-                    bit.value().map(|f| {
-                        is_one = Fr::ONE == *f;
-                    });
-
-                    if is_one {
-                        let added = curve_arithmetic::points_add(
-                            result.clone().into(),
-                            input.clone().into(),
-                            Value::known(*GRUMPKIN_3B),
-                        );
-
-                        result = assign_grumpkin_advices(
-                            &added,
-                            "result",
-                            &mut region,
-                            self.result,
-                            SELECTOR_OFFSET as usize + i + 1,
-                        )?
-                    } else {
-                        result = assign_grumpkin_advices(
-                            &GrumpkinPoint::new(
-                                result.x.value().cloned(),
-                                result.y.value().cloned(),
-                                result.z.value().cloned(),
-                            ),
-                            "result",
-                            &mut region,
-                            self.result,
-                            SELECTOR_OFFSET as usize + i + 1,
-                        )?
-                    };
-
-                    input = assign_grumpkin_advices(
-                        &doubled,
-                        "input",
-                        &mut region,
-                        self.input,
-                        SELECTOR_OFFSET as usize + i + 1,
-                    )?;
-                }
+                copy_grumpkin_advices(
+                    &next_result,
+                    "next_result",
+                    &mut region,
+                    self.result,
+                    ADVICE_OFFSET as usize + 1,
+                )?;
 
                 Ok(())
             },
@@ -247,13 +210,6 @@ mod tests {
     use super::*;
     use crate::{gates::test_utils::OneGateCircuit, rng};
 
-    fn input(scalar_bits: [Fr; 254], p: G1) -> ScalarMultiplyGateInput<Fr> {
-        ScalarMultiplyGateInput {
-            scalar_bits,
-            input: p.into(),
-        }
-    }
-
     fn verify(input: ScalarMultiplyGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<ScalarMultiplyGate, _>::new(input);
         MockProver::run(10, &circuit, vec![])
@@ -266,7 +222,21 @@ mod tests {
         let rng = rng();
         let p = G1::random(rng.clone());
         let n = Fr::from_u128(3);
-        let bits = field_element_to_bits(n);
-        assert!(verify(input(bits, p,)).is_ok());
+        let bits = field_element_to_bits(n); // [1,1,0,...]
+
+        let input = p.into();
+        let result = GrumpkinPoint::zero();
+
+        let next_input = curve_arithmetic::point_double(input, *GRUMPKIN_3B);
+        let next_result = curve_arithmetic::points_add(input, result, *GRUMPKIN_3B);
+
+        assert!(verify(ScalarMultiplyGateInput {
+            bit: bits[0],
+            input,
+            result,
+            next_input,
+            next_result
+        })
+        .is_ok());
     }
 }

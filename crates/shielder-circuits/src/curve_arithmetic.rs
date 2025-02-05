@@ -51,6 +51,35 @@ impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value> {
     }
 }
 
+impl From<GrumpkinPoint<V>> for GrumpkinPoint<Value> {
+    fn from(p: GrumpkinPoint<V>) -> Self {
+        GrumpkinPoint {
+            x: p.x.0,
+            y: p.y.0,
+            z: p.z.0,
+        }
+    }
+}
+
+impl From<GrumpkinPoint<Fr>> for GrumpkinPoint<Value> {
+    fn from(p: GrumpkinPoint<Fr>) -> Self {
+        GrumpkinPoint {
+            x: Value::known(p.x),
+            y: Value::known(p.y),
+            z: Value::known(p.z),
+        }
+    }
+}
+
+impl<T> GrumpkinPoint<T>
+where
+    T: Field,
+{
+    pub fn zero() -> Self {
+        Self::new(T::ZERO, T::ONE, T::ZERO)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct V(pub Value);
 

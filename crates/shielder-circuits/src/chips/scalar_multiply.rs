@@ -1,17 +1,16 @@
-use alloc::vec::Vec;
+use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
-use halo2_proofs::{arithmetic::Field, circuit::Value, halo2curves::bn256::Fr, plonk::Error};
-
+use super::sum::SumChip;
 use crate::{
     consts::GRUMPKIN_3B,
-    curve_arithmetic::{self, GrumpkinPoint, V},
+    curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
         scalar_multiply::{ScalarMultiplyGate, ScalarMultiplyGateInput},
         Gate,
     },
     synthesizer::Synthesizer,
-    AssignedCell,
+    AssignedCell, Value,
 };
 
 #[derive(Clone, Debug)]
@@ -37,15 +36,19 @@ pub struct ScalarMultiplyChipOutput<T> {
 
 /// Chip that computes the result of adding a point P on the Grumpkin curve to itself n times.
 ///
-/// nP = S
+/// n * P = S
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChip {
-    pub gate: ScalarMultiplyGate,
+    pub multiply_gate: ScalarMultiplyGate,
+    pub sum_chip: SumChip,
 }
 
 impl ScalarMultiplyChip {
-    pub fn new(gate: ScalarMultiplyGate) -> Self {
-        Self { gate }
+    pub fn new(multiply_gate: ScalarMultiplyGate, sum_chip: SumChip) -> Self {
+        Self {
+            multiply_gate,
+            sum_chip,
+        }
     }
 
     pub fn scalar_multiply(
@@ -53,41 +56,99 @@ impl ScalarMultiplyChip {
         synthesizer: &mut impl Synthesizer,
         input: &ScalarMultiplyChipInput<AssignedCell>,
     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
-        let ScalarMultiplyChipInput {
-            scalar_bits,
-            input: p,
-        } = input;
+        let ScalarMultiplyChipInput { scalar_bits, .. } = input;
 
+        let mut input_value: GrumpkinPoint<Value> = input.input.clone().into();
+        let mut result_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
+
+        for bit in scalar_bits.iter() {
+            let input = input_value.embed(synthesizer, "input")?;
+            let result = result_value.embed(synthesizer, "result")?;
+
+            let mut is_one = false;
+            bit.value().map(|f| {
+                is_one = Fr::ONE == *f;
+            });
+
+            let mut next_result_value = result_value.clone();
+            if is_one {
+                next_result_value = curve_arithmetic::points_add(
+                    result_value,
+                    input_value,
+                    Value::known(*GRUMPKIN_3B),
+                );
+            }
+
+            let next_result = next_result_value.embed(synthesizer, "next_result")?;
+
+            let next_input_value =
+                curve_arithmetic::point_double(input_value, Value::known(*GRUMPKIN_3B));
+            let next_input = next_result_value.embed(synthesizer, "next_input")?;
+
+            self.multiply_gate.apply_in_new_region(
+                synthesizer,
+                ScalarMultiplyGateInput {
+                    bit: bit.clone(),
+                    input,
+                    result,
+                    next_input,
+                    next_result,
+                },
+            )?;
+
+            input_value = next_input_value;
+            result_value = next_result_value;
+        }
+
+        let expected_value = off_circuit::scalar_multiply(scalar_bits, input.input.clone());
+        let expected = expected_value.embed(synthesizer, "expected")?;
+        let result = result_value.embed(synthesizer, "final result")?;
+
+        self.sum_chip
+            .constrain_equal(synthesizer, expected.x, result.clone().x)?;
+        self.sum_chip
+            .constrain_equal(synthesizer, expected.y, result.clone().y)?;
+        self.sum_chip
+            .constrain_equal(synthesizer, expected.z, result.clone().z)?;
+
+        Ok(ScalarMultiplyChipOutput { result })
+    }
+}
+
+pub mod off_circuit {
+    use alloc::vec::Vec;
+
+    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
+
+    use crate::{
+        consts::GRUMPKIN_3B,
+        curve_arithmetic::{self, GrumpkinPoint, V},
+        AssignedCell, Value,
+    };
+
+    pub fn scalar_multiply(
+        scalar_bits: &[AssignedCell; 254],
+        input: GrumpkinPoint<AssignedCell>,
+    ) -> GrumpkinPoint<Value> {
         let bits: Vec<V> = scalar_bits
             .iter()
             .map(|cell| V(cell.value().cloned()))
             .collect();
         let bits: [V; 254] = bits.try_into().expect("not 254 bit array");
         let input: GrumpkinPoint<V> = GrumpkinPoint {
-            x: V(p.x.value().cloned()),
-            y: V(p.y.value().cloned()),
-            z: V(p.z.value().cloned()),
+            x: V(input.x.value().cloned()),
+            y: V(input.y.value().cloned()),
+            z: V(input.z.value().cloned()),
         };
 
-        let r_value: GrumpkinPoint<V> = curve_arithmetic::scalar_multiply(
-            input,
+        curve_arithmetic::scalar_multiply(
+            input.into(),
             bits,
             V(Value::known(*GRUMPKIN_3B)),
             V(Value::known(Fr::ZERO)),
             V(Value::known(Fr::ONE)),
-        );
-
-        let result = r_value.embed(synthesizer, "S")?;
-
-        self.gate.apply_in_new_region(
-            synthesizer,
-            ScalarMultiplyGateInput {
-                scalar_bits: scalar_bits.clone(),
-                input: p.clone(),
-            },
-        )?;
-
-        Ok(ScalarMultiplyChipOutput { result })
+        )
+        .into()
     }
 }
 
@@ -196,9 +257,7 @@ mod tests {
     #[test]
     fn multiply_random_point() {
         let rng = rng();
-
         let p = G1::random(rng.clone());
-
         let n = Fr::from_u128(3);
         let bits = field_element_to_bits(n);
 
