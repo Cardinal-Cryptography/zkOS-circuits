@@ -236,18 +236,14 @@ mod tests {
     fn fails_if_token_address_pub_input_incorrect() {
         let mut rng = SmallRng::from_seed([42; 32]);
         let pk = DepositProverKnowledge::random_correct_example(&mut rng);
-
-        let mut pub_input = pk.serialize_public_input();
-        pub_input[5] += Fr::ONE;
+        let pub_input = pk.with_substitution(TokenAddress, |v| v + Fr::ONE);
 
         let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
             .expect_err("Verification must fail");
 
-        // For some reason Halo2 returns equality failure not with our embedded token address
-        // `AssignedCell`, but with a cell the address was copied to, allocated by Poseidon.
         expect_instance_permutation_failures(
             &failures,
-            "add input for domain ConstantLength<7>", // Annotation from `poseidon-gadget`.
+            "add input for domain ConstantLength<7>", // Region defined in `poseidon-gadget`.
             5,
         );
     }

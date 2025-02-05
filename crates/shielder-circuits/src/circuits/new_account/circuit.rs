@@ -61,7 +61,8 @@ impl Circuit<Fr> for NewAccountCircuit {
 #[cfg(test)]
 mod tests {
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
-    use rand_core::OsRng;
+    use rand::rngs::SmallRng;
+    use rand_core::{OsRng, SeedableRng};
 
     use crate::{
         circuits::{
@@ -72,12 +73,40 @@ mod tests {
             },
         },
         new_account::NewAccountInstance::*,
-        ProverKnowledge,
+        poseidon::off_circuit::hash,
+        test_utils::expect_instance_permutation_failures,
+        ProverKnowledge, PublicInputProvider,
     };
 
     #[test]
     fn passes_if_inputs_correct() {
         run_full_pipeline::<NewAccountProverKnowledge<Fr>>();
+    }
+
+    #[test]
+    fn nonnative_token_passes() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let mut pk = NewAccountProverKnowledge::random_correct_example(&mut rng);
+        pk.token_address = Fr::from(123);
+        let pub_input = pk.serialize_public_input();
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_ok()
+        );
+
+        // Manually verify that the note is as expected.
+        let mut hash_input = [Fr::ZERO; 7];
+        hash_input[0] = pk.initial_deposit;
+        hash_input[1] = Fr::from(123);
+        let balance_hash = hash(&hash_input);
+        let note_hash = hash(&[
+            Fr::ZERO, // Note version.
+            pk.id,
+            pk.nullifier,
+            pk.trapdoor,
+            balance_hash,
+        ]);
+        assert_eq!(note_hash, pub_input[0]);
     }
 
     #[test]
@@ -98,6 +127,18 @@ mod tests {
         assert!(
             expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
         );
+    }
+
+    #[test]
+    fn fails_if_token_address_pub_input_incorrect() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let pk = NewAccountProverKnowledge::random_correct_example(&mut rng);
+        let pub_input = pk.with_substitution(TokenAddress, |v| v + Fr::ONE);
+
+        let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
+            .expect_err("Verification must fail");
+
+        expect_instance_permutation_failures(&failures, "token_address", 3);
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.

@@ -66,6 +66,7 @@ impl Circuit<Fr> for WithdrawCircuit {
 #[cfg(test)]
 mod tests {
     use halo2_proofs::halo2curves::bn256::Fr;
+    use rand::{rngs::SmallRng, SeedableRng};
     use rand_core::OsRng;
 
     use crate::{
@@ -80,11 +81,9 @@ mod tests {
         },
         generate_keys_with_min_k, generate_proof, generate_setup_params, note_hash,
         poseidon::off_circuit::hash,
+        test_utils::expect_instance_permutation_failures,
         version::NOTE_VERSION,
-        withdraw::{
-            circuit::WithdrawCircuit,
-            WithdrawInstance::{self, *},
-        },
+        withdraw::WithdrawInstance::{self, *},
         Field, Note, ProverKnowledge, PublicInputProvider, MAX_K,
     };
 
@@ -92,6 +91,8 @@ mod tests {
     fn passes_if_inputs_correct() {
         run_full_pipeline::<WithdrawProverKnowledge<Fr>>();
     }
+
+    // TODO passes nonnative token
 
     #[test]
     fn fails_if_merkle_proof_uses_wrong_note() {
@@ -217,13 +218,30 @@ mod tests {
         pk.withdrawal_value = -Fr::ONE;
 
         let params = generate_setup_params(MAX_K, &mut OsRng);
-        let (params, _, key, _) = generate_keys_with_min_k::<WithdrawCircuit>(params).unwrap();
+        let circuit = pk.create_circuit();
+        let (params, _, key, _) = generate_keys_with_min_k(circuit.clone(), params).unwrap();
         generate_proof(
             &params,
             &key,
-            pk.create_circuit(),
+            circuit,
             &pk.serialize_public_input(),
             &mut OsRng,
+        );
+    }
+
+    #[test]
+    fn fails_if_token_address_pub_input_incorrect() {
+        let mut rng = SmallRng::from_seed([42; 32]);
+        let pk = WithdrawProverKnowledge::random_correct_example(&mut rng);
+        let pub_input = pk.with_substitution(TokenAddress, |v| v + Fr::ONE);
+
+        let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
+            .expect_err("Verification must fail");
+
+        expect_instance_permutation_failures(
+            &failures,
+            "add input for domain ConstantLength<7>", // Region defined in `poseidon-gadget`.
+            5,
         );
     }
 

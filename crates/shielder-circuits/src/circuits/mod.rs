@@ -46,10 +46,11 @@ pub fn generate_setup_params<R: RngCore>(k: u32, rng: &mut R) -> Params {
 // for which key generation succeeds. The passed `circuit` is allowed to be empty.
 //
 // Returns modified `params`, minimal `k`, and both the keys, or an error if no valid `k` is found.
-pub fn generate_keys_with_min_k<C: Circuit<Fr> + Default>(
+pub fn generate_keys_with_min_k(
+    circuit: impl Circuit<Fr>,
     params: Params,
 ) -> Result<(Params, u32, ProvingKey, VerifyingKey), Error> {
-    let circuit = C::default();
+    let circuit = circuit.without_witnesses();
     let mut last_err = None;
 
     for k in 6..MAX_K {

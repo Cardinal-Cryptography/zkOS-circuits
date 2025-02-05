@@ -205,27 +205,48 @@ mod tests {
         instance_wrapper::InstanceWrapper,
         poseidon::off_circuit::hash,
         synthesizer::create_synthesizer,
+        test_utils::expect_instance_permutation_failures,
         Fr, NoteVersion, Value,
     };
 
-    // TODO replace with enum or sth
-    #[derive(Clone, Debug, Default)]
-    struct TestCircuit {
-        pub note: Note<Value>,
+    // Tests `NoteChip`. Constrains the last public input to the output of the function under test.
+    #[derive(Clone, Debug)]
+    enum TestCircuit {
+        TestNoteHash(Note<Value>),
+        TestBalanceIncrease((Value, Value)),
+        TestBalanceDecrease((Value, Value)),
     }
 
     impl TestCircuit {
-        pub fn new(note: Note<impl Into<Fr>>) -> Self {
-            Self {
-                note: Note {
-                    version: note.version,
-                    id: Value::known(note.id.into()),
-                    nullifier: Value::known(note.nullifier.into()),
-                    trapdoor: Value::known(note.trapdoor.into()),
-                    account_balance: Value::known(note.account_balance.into()),
-                    token_address: Value::known(note.token_address.into()),
-                },
-            }
+        pub fn new_note_hash_test(note: Note<impl Into<Fr>>) -> Self {
+            TestCircuit::TestNoteHash(Note {
+                version: note.version,
+                id: Value::known(note.id.into()),
+                nullifier: Value::known(note.nullifier.into()),
+                trapdoor: Value::known(note.trapdoor.into()),
+                account_balance: Value::known(note.account_balance.into()),
+                token_address: Value::known(note.token_address.into()),
+            })
+        }
+
+        pub fn new_balance_increase_test(
+            balance_old: impl Into<Fr>,
+            increase_value: impl Into<Fr>,
+        ) -> Self {
+            TestCircuit::TestBalanceIncrease((
+                Value::known(balance_old.into()),
+                Value::known(increase_value.into()),
+            ))
+        }
+
+        pub fn new_balance_decrease_test(
+            balance_old: impl Into<Fr>,
+            decrease_value: impl Into<Fr>,
+        ) -> Self {
+            TestCircuit::TestBalanceDecrease((
+                Value::known(balance_old.into()),
+                Value::known(decrease_value.into()),
+            ))
         }
     }
 
@@ -255,7 +276,15 @@ mod tests {
         type FloorPlanner = floor_planner::V1;
 
         fn without_witnesses(&self) -> Self {
-            Self::default()
+            match self {
+                TestCircuit::TestNoteHash(_) => TestCircuit::TestNoteHash(Note::default()),
+                TestCircuit::TestBalanceIncrease(_) => {
+                    TestCircuit::TestBalanceIncrease((Value::unknown(), Value::unknown()))
+                }
+                TestCircuit::TestBalanceDecrease(_) => {
+                    TestCircuit::TestBalanceDecrease((Value::unknown(), Value::unknown()))
+                }
+            }
         }
 
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
@@ -275,23 +304,42 @@ mod tests {
             let advice_pool = advice_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &advice_pool);
 
-            let note = self.note.embed(&mut synthesizer, "note")?;
+            let chip_output = match self {
+                TestCircuit::TestNoteHash(note) => {
+                    let note = note.embed(&mut synthesizer, "note")?;
 
-            let chip_output = chip.note_hash(&mut synthesizer, &note)?;
+                    chip.note_hash(&mut synthesizer, &note)?
+                }
+
+                TestCircuit::TestBalanceIncrease((balance_old, increase_value)) => {
+                    let balance_old = balance_old.embed(&mut synthesizer, "balance_old")?;
+                    let increase_value =
+                        increase_value.embed(&mut synthesizer, "increase_value")?;
+
+                    chip.increase_balance(&mut synthesizer, balance_old, increase_value)?
+                }
+
+                TestCircuit::TestBalanceDecrease((balance_old, decrease_value)) => {
+                    let balance_old = balance_old.embed(&mut synthesizer, "balance_old")?;
+                    let decrease_value =
+                        decrease_value.embed(&mut synthesizer, "decrease_value")?;
+
+                    chip.decrease_balance(&mut synthesizer, balance_old, decrease_value)?
+                }
+            };
 
             public_inputs
                 .constrain_cells(&mut synthesizer, [(chip_output, TestInstance::ChipOutput)])
         }
     }
 
-    // TODO large address
     #[parameterized(token_address = {
         Fr::ZERO,
         Fr::ONE,
         Fr::from(2).pow([160]).sub(&Fr::ONE) // Max token address.
     })]
-    fn hash_is_correct(token_address: Fr) {
-        let circuit = TestCircuit::new(Note {
+    fn note_hash_is_calculated_correctly(token_address: Fr) {
+        let circuit = TestCircuit::new_note_hash_test(Note {
             version: NoteVersion::new(0),
             id: Fr::from(1),
             nullifier: Fr::from(2),
@@ -317,5 +365,61 @@ mod tests {
         let pub_input = [token_address, expected_output];
 
         assert!(expect_prover_success_and_run_verification(circuit, &pub_input).is_ok());
+    }
+
+    #[test]
+    fn note_hash_is_constrained() {
+        let circuit = TestCircuit::new_note_hash_test(Note {
+            version: NoteVersion::new(0),
+            id: Fr::from(1),
+            nullifier: Fr::from(2),
+            trapdoor: Fr::from(3),
+            account_balance: Fr::from(4),
+            token_address: Fr::from(5),
+        });
+        let pub_input = [Fr::from(5), Fr::from(6)];
+
+        let failures = expect_prover_success_and_run_verification(circuit, &pub_input)
+            .expect_err("Verification must fail");
+
+        expect_instance_permutation_failures(
+            &failures,
+            "permute state", // Region defined in `poseidon-gadget`.
+            1,
+        );
+    }
+
+    #[parameterized(
+        circuit = {
+            TestCircuit::new_balance_increase_test(20, 5),
+            TestCircuit::new_balance_decrease_test(20, 5)
+        },
+        expected_output = { 25, 15 }
+    )]
+    fn balance_update_passes(circuit: TestCircuit, expected_output: u64) {
+        let token_address = 999; // Irrelevant.
+        let pub_input = [token_address, expected_output];
+
+        assert!(
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from)).is_ok()
+        );
+    }
+
+    #[parameterized(
+        circuit = {
+            TestCircuit::new_balance_increase_test(20, 5),
+            TestCircuit::new_balance_decrease_test(20, 5)
+        },
+        expected_output = { 26, 16 }
+    )]
+    fn balance_update_is_constrained(circuit: TestCircuit, expected_output: u64) {
+        let token_address = 999; // Irrelevant.
+        let pub_input = [token_address, expected_output];
+
+        let failures =
+            expect_prover_success_and_run_verification(circuit, &pub_input.map(Fr::from))
+                .expect_err("Verification must fail");
+
+        expect_instance_permutation_failures(&failures, "balance_new", 1);
     }
 }
