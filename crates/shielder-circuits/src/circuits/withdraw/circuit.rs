@@ -94,7 +94,7 @@ mod tests {
     }
 
     #[test]
-    fn passes_if_withdrawn_nonnative_token() {
+    fn passes_with_nonnative_token() {
         let mut rng = SmallRng::from_seed([42; 32]);
         let mut pk = WithdrawProverKnowledge::random_correct_example(&mut rng);
 
@@ -283,7 +283,9 @@ mod tests {
 
         expect_instance_permutation_failures(
             &failures,
-            "add input for domain ConstantLength<7>", // Region defined in `poseidon-gadget`.
+            // The returned failure location happens to be in
+            // a `poseidon-gadget` region the token address was copied to.
+            "add input for domain ConstantLength<7>",
             5,
         );
     }

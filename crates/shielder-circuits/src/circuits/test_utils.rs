@@ -1,7 +1,7 @@
 //! Helpers to be used in unit tests. These helpers are adjusted
 //! not for efficiency but for ease of use.
 
-use std::{format, println, string::ToString, vec, vec::Vec};
+use std::{format, string::ToString, vec, vec::Vec};
 
 use halo2_proofs::{
     dev::{FailureLocation, MockProver, VerifyFailure},
@@ -167,12 +167,6 @@ pub fn expect_instance_permutation_failures(
             VerifyFailure::Permutation { column, location } => match column.column_type() {
                 Any::Advice(_) => match location {
                     FailureLocation::InRegion { region, offset: _ } => {
-                        println!(
-                            "ZZ Region: {} expecting {} regex {:?}",
-                            region.to_string(),
-                            expected_advice_region_name,
-                            in_region_regex
-                        );
                         matched_advice = in_region_regex.is_match(&region.to_string())
                     }
                     _ => panic!("Unexpected failure location"),

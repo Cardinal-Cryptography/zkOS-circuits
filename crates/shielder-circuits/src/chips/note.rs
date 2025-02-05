@@ -368,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    fn note_hash_is_constrained() {
+    fn note_hash_output_is_constrained() {
         let circuit = TestCircuit::new_note_hash_test(Note {
             version: NoteVersion::new(0),
             id: Fr::from(1),
@@ -377,7 +377,7 @@ mod tests {
             account_balance: Fr::from(4),
             token_address: Fr::from(5),
         });
-        let pub_input = [Fr::from(5), Fr::from(6)];
+        let pub_input = [Fr::from(5), Fr::from(999999)];
 
         let failures = expect_prover_success_and_run_verification(circuit, &pub_input)
             .expect_err("Verification must fail");
@@ -387,6 +387,25 @@ mod tests {
             "permute state", // Region defined in `poseidon-gadget`.
             1,
         );
+    }
+
+    #[test]
+    fn note_hash_input_is_constrained() {
+        let note = Note {
+            version: NoteVersion::new(0),
+            id: Fr::from(1),
+            nullifier: Fr::from(2),
+            trapdoor: Fr::from(3),
+            account_balance: Fr::from(4),
+            token_address: Fr::from(5),
+        };
+        let circuit = TestCircuit::new_note_hash_test(note);
+        let pub_input = [Fr::from(999999), super::off_circuit::note_hash(&note)];
+
+        let failures = expect_prover_success_and_run_verification(circuit, &pub_input)
+            .expect_err("Verification must fail");
+
+        expect_instance_permutation_failures(&failures, "note", 0);
     }
 
     #[parameterized(

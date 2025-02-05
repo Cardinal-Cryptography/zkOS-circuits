@@ -1,6 +1,3 @@
-#[cfg(test)]
-use std::println;
-
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
     plonk::{Advice, Circuit, ConstraintSystem, Error},
@@ -54,8 +51,6 @@ impl Circuit<Fr> for DepositCircuit {
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        #[cfg(test)]
-        println!("CCC Synthesize!");
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;
@@ -189,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn passes_if_deposited_nonnative_token() {
+    fn passes_with_nonnative_token() {
         let mut rng = SmallRng::from_seed([42; 32]);
         let mut pk = DepositProverKnowledge::random_correct_example(&mut rng);
 
@@ -243,7 +238,9 @@ mod tests {
 
         expect_instance_permutation_failures(
             &failures,
-            "add input for domain ConstantLength<7>", // Region defined in `poseidon-gadget`.
+            // The returned failure location happens to be in
+            // a `poseidon-gadget` region the token address was copied to.
+            "add input for domain ConstantLength<7>",
             5,
         );
     }

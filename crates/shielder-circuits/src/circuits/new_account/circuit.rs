@@ -84,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn nonnative_token_passes() {
+    fn passes_with_nonnative_token() {
         let mut rng = SmallRng::from_seed([42; 32]);
         let mut pk = NewAccountProverKnowledge::random_correct_example(&mut rng);
         pk.token_address = Fr::from(123);
