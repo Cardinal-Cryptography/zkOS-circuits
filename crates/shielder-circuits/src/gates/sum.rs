@@ -22,11 +22,7 @@ pub struct SumGate {
 }
 
 #[derive(Clone, Debug, Default)]
-#[embeddable(
-    receiver = "SumGateInput<Fr>",
-    impl_generics = "",
-    embedded = "SumGateInput<AssignedCell>"
-)]
+#[embeddable(receiver = "SumGateInput<Fr>", embedded = "SumGateInput<AssignedCell>")]
 pub struct SumGateInput<T> {
     pub summand_1: T,
     pub summand_2: T,
