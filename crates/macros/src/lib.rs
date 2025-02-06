@@ -14,7 +14,7 @@ mod embed;
 /// # Attributes
 ///
 /// - `receiver`: The type of the struct that will implement the `Embed` trait.
-/// - `impl_generics`: Generics that will be used in the `Embed` trait implementation.
+/// - `impl_generics`: Generics that will be used in the `Embed` trait implementation. By default, "".
 /// - `embedded`: The type that the struct will be embedded into.
 ///
 /// # Example
@@ -24,7 +24,6 @@ mod embed;
 ///
 /// #[embeddable(
 ///     receiver = "IntermediateValues<Value>",
-///     impl_generics = "",
 ///     embedded = "IntermediateValues<crate::AssignedCell>"
 /// )]
 /// pub struct IntermediateValues<Fr> {

@@ -31,7 +31,6 @@ pub struct PointDoubleGate {
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "PointDoubleGateInput<Fr>",
-    impl_generics = "",
     embedded = "PointDoubleGateInput<crate::AssignedCell>"
 )]
 pub struct PointDoubleGateInput<T> {

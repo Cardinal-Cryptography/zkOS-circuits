@@ -14,7 +14,6 @@ use crate::{
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "NewAccountProverKnowledge<Value>",
-    impl_generics = "",
     embedded = "NewAccountProverKnowledge<crate::AssignedCell>"
 )]
 pub struct NewAccountProverKnowledge<T> {
