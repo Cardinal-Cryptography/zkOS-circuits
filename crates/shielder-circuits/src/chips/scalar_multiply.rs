@@ -104,7 +104,11 @@ impl ScalarMultiplyChip {
 #[cfg(test)]
 mod tests {
 
-    use alloc::{vec, vec::Vec};
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
     use std::println;
 
     use halo2_proofs::{
@@ -186,33 +190,11 @@ mod tests {
         }
     }
 
-    // fn verify(
-    //     input: ScalarMultiplyChipInput<Fr>,
-    //     expected: ScalarMultiplyChipOutput<Fr>,
-    // ) -> Result<(), Vec<VerifyFailure>> {
-    //     let circuit = ScalarMultiplyCircuit(input);
-    //     let res = MockProver::run(
-    //         10,
-    //         &circuit,
-    //         vec![vec![
-    //             expected.result.x,
-    //             expected.result.y,
-    //             expected.result.z,
-    //         ]],
-    //     )
-    //     .expect("Mock prover should run")
-    //     .verify();
-
-    //     // println!("{res:?}");
-
-    //     res
-    // }
-
     fn verify(
         input: ScalarMultiplyChipInput<Fr>,
         expected: ScalarMultiplyChipOutput<Fr>,
     ) -> Result<(), Vec<String>> {
-        let res = MockProver::run(
+        MockProver::run(
             10,
             &ScalarMultiplyCircuit(input),
             vec![vec![
@@ -228,11 +210,7 @@ mod tests {
                 .into_iter()
                 .map(|failure| failure.to_string())
                 .collect()
-        });
-
-        println!("{res:?}");
-
-        res
+        })
     }
 
     #[test]
