@@ -1,3 +1,5 @@
+use std::println;
+
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use super::sum::SumChip;
@@ -54,12 +56,12 @@ impl ScalarMultiplyChip {
     pub fn scalar_multiply(
         &self,
         synthesizer: &mut impl Synthesizer,
-        input: &ScalarMultiplyChipInput<AssignedCell>,
+        inputs: &ScalarMultiplyChipInput<AssignedCell>,
     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
-        let ScalarMultiplyChipInput { scalar_bits, .. } = input;
+        let ScalarMultiplyChipInput { scalar_bits, input } = inputs;
 
-        let mut input_value: GrumpkinPoint<Value> = input.input.clone().into();
         let mut result_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
+        let mut input_value: GrumpkinPoint<Value> = input.clone().into();
 
         for bit in scalar_bits.iter() {
             let input = input_value.embed(synthesizer, "input")?;
@@ -83,7 +85,7 @@ impl ScalarMultiplyChip {
 
             let next_input_value =
                 curve_arithmetic::point_double(input_value, Value::known(*GRUMPKIN_3B));
-            let next_input = next_result_value.embed(synthesizer, "next_input")?;
+            let next_input = next_input_value.embed(synthesizer, "next_input")?;
 
             self.multiply_gate.apply_in_new_region(
                 synthesizer,
@@ -100,18 +102,18 @@ impl ScalarMultiplyChip {
             result_value = next_result_value;
         }
 
-        let expected_value = off_circuit::scalar_multiply(scalar_bits, input.input.clone());
-        let expected = expected_value.embed(synthesizer, "expected")?;
+        // let expected_value = off_circuit::scalar_multiply(scalar_bits, inputs.input.clone());
+        // let expected = expected_value.embed(synthesizer, "expected")?;
         let result = result_value.embed(synthesizer, "final result")?;
 
-        self.sum_chip
-            .constrain_equal(synthesizer, expected.clone().x, result.clone().x)?;
-        self.sum_chip
-            .constrain_equal(synthesizer, expected.clone().y, result.clone().y)?;
-        self.sum_chip
-            .constrain_equal(synthesizer, expected.clone().z, result.clone().z)?;
+        // self.sum_chip
+        //     .constrain_equal(synthesizer, expected.clone().x, result.clone().x)?;
+        // self.sum_chip
+        //     .constrain_equal(synthesizer, expected.clone().y, result.clone().y)?;
+        // self.sum_chip
+        //     .constrain_equal(synthesizer, expected.clone().z, result.clone().z)?;
 
-        Ok(ScalarMultiplyChipOutput { result: expected })
+        Ok(ScalarMultiplyChipOutput { result })
     }
 }
 
@@ -152,6 +154,7 @@ pub mod off_circuit {
 mod tests {
 
     use alloc::{vec, vec::Vec};
+    use std::println;
 
     use halo2_proofs::{
         arithmetic::Field,
@@ -210,7 +213,7 @@ mod tests {
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
             let input = input.embed(&mut synthesizer, "input")?;
-            let scalar_bits = scalar_bits.embed(&mut synthesizer, "input")?;
+            let scalar_bits = scalar_bits.embed(&mut synthesizer, "scalar_bits")?;
 
             let ScalarMultiplyChipOutput { result } = chip.scalar_multiply(
                 &mut synthesizer,
@@ -232,22 +235,53 @@ mod tests {
         }
     }
 
+    // fn verify(
+    //     input: ScalarMultiplyChipInput<Fr>,
+    //     expected: ScalarMultiplyChipOutput<Fr>,
+    // ) -> Result<(), Vec<VerifyFailure>> {
+    //     let circuit = ScalarMultiplyCircuit(input);
+    //     let res = MockProver::run(
+    //         10,
+    //         &circuit,
+    //         vec![vec![
+    //             expected.result.x,
+    //             expected.result.y,
+    //             expected.result.z,
+    //         ]],
+    //     )
+    //     .expect("Mock prover should run")
+    //     .verify();
+
+    //     // println!("{res:?}");
+
+    //     res
+    // }
+
     fn verify(
         input: ScalarMultiplyChipInput<Fr>,
         expected: ScalarMultiplyChipOutput<Fr>,
-    ) -> Result<(), Vec<VerifyFailure>> {
-        let circuit = ScalarMultiplyCircuit(input);
-        MockProver::run(
+    ) -> Result<(), Vec<String>> {
+        let res = MockProver::run(
             10,
-            &circuit,
+            &ScalarMultiplyCircuit(input),
             vec![vec![
                 expected.result.x,
                 expected.result.y,
                 expected.result.z,
             ]],
         )
-        .expect("Mock prover should run")
+        .expect("Mock prover should run successfully")
         .verify()
+        .map_err(|errors| {
+            errors
+                .into_iter()
+                .map(|failure| failure.to_string())
+                .collect()
+        });
+
+        println!("{res:?}");
+
+        res
     }
 
     #[test]
@@ -264,6 +298,8 @@ mod tests {
             Fr::ZERO,
             Fr::ONE,
         );
+
+        println!("EXPECTED : {expected:?}");
 
         let input = input(p, bits);
         let output = ScalarMultiplyChipOutput { result: expected };

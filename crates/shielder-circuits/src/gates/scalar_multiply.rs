@@ -218,20 +218,39 @@ mod tests {
     }
 
     #[test]
-    fn multiply_random_points() {
+    fn bit_is_zero() {
         let rng = rng();
-        let p = G1::random(rng.clone());
-        let n = Fr::from_u128(3);
-        let bits = field_element_to_bits(n); // [1,1,0,...]
+        let bit = Fr::from_u128(0);
 
-        let input = p.into();
-        let result = GrumpkinPoint::zero();
+        let input = G1::random(rng.clone()).into();
+        let result = G1::random(rng.clone()).into();
+
+        let next_input = curve_arithmetic::point_double(input, *GRUMPKIN_3B);
+        let next_result = result;
+
+        assert!(verify(ScalarMultiplyGateInput {
+            bit,
+            input,
+            result,
+            next_input,
+            next_result
+        })
+        .is_ok());
+    }
+
+    #[test]
+    fn bit_is_one() {
+        let rng = rng();
+        let bit = Fr::from_u128(1);
+
+        let input = G1::random(rng.clone()).into();
+        let result = G1::random(rng.clone()).into();
 
         let next_input = curve_arithmetic::point_double(input, *GRUMPKIN_3B);
         let next_result = curve_arithmetic::points_add(input, result, *GRUMPKIN_3B);
 
         assert!(verify(ScalarMultiplyGateInput {
-            bit: bits[0],
+            bit,
             input,
             result,
             next_input,
