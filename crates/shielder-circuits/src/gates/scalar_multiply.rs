@@ -48,11 +48,20 @@ impl Gate for ScalarMultiplyGate {
     type Input = ScalarMultiplyGateInput<AssignedCell>;
 
     type Advice = (
-        Column<Advice>,      // scalar_bits
+        Column<Advice>,      // scalar_bit
         [Column<Advice>; 3], // input
         [Column<Advice>; 3], // result
     );
 
+    /// The gate operates on an advice column `scalar_bit`, a triplet (representing projective coordinates of a point on an EC) of `input` advice columns
+    /// and a triplet of `result` columns.
+    ///
+    /// It is the kernel of the double-and-add algorithm for point by scalar multiplcation on an EC.
+    /// Constraints:
+    ///
+    /// result[i + 1] = input[i] + result[i] if bit == 1
+    ///               = result[i]            if bit == 0
+    /// input[i + 1] = 2 * input[i]
     fn create_gate_custom(
         cs: &mut ConstraintSystem<Fr>,
         (scalar_bits, input, result): Self::Advice,
@@ -101,11 +110,11 @@ impl Gate for ScalarMultiplyGate {
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
-                    // next_result = P + result (if bit == 1) else next_result = result
+                    // next_result = input + result (if bit == 1) else next_result = result
                     ("x: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_x - bit.clone () * (added_x - result_x.clone ()) - result_x),
                     ("y: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_y - bit.clone () * (added_y - result_y.clone ()) - result_y),
                     ("z: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_z - bit.clone () * (added_z - result_z.clone ()) - result_z),
-                    // next_P = 2 * P
+                    // next_input = 2 * input
                     ("x: next_input = 2 * input", next_input_x - doubled_x),
                     ("y: next_input = 2 * input", next_input_y - doubled_y),
                     ("z: next_input = 2 * input", next_input_z - doubled_z),
@@ -140,7 +149,7 @@ impl Gate for ScalarMultiplyGate {
                     .enable(&mut region, SELECTOR_OFFSET as usize)?;
 
                 bit.copy_advice(
-                    || alloc::format!("bit"),
+                    || "bit",
                     &mut region,
                     self.scalar_bits,
                     ADVICE_OFFSET as usize,
@@ -201,7 +210,6 @@ mod tests {
 
     use std::{vec, vec::Vec};
 
-    use curve_arithmetic::field_element_to_bits;
     use halo2_proofs::{
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},

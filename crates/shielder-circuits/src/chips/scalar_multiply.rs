@@ -1,8 +1,5 @@
-use std::println;
-
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
-use super::sum::SumChip;
 use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
@@ -42,15 +39,11 @@ pub struct ScalarMultiplyChipOutput<T> {
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChip {
     pub multiply_gate: ScalarMultiplyGate,
-    pub sum_chip: SumChip,
 }
 
 impl ScalarMultiplyChip {
-    pub fn new(multiply_gate: ScalarMultiplyGate, sum_chip: SumChip) -> Self {
-        Self {
-            multiply_gate,
-            sum_chip,
-        }
+    pub fn new(multiply_gate: ScalarMultiplyGate) -> Self {
+        Self { multiply_gate }
     }
 
     pub fn scalar_multiply(
@@ -72,7 +65,7 @@ impl ScalarMultiplyChip {
                 is_one = Fr::ONE == *f;
             });
 
-            let mut next_result_value = result_value.clone();
+            let mut next_result_value = result_value;
             if is_one {
                 next_result_value = curve_arithmetic::points_add(
                     result_value,
@@ -102,51 +95,9 @@ impl ScalarMultiplyChip {
             result_value = next_result_value;
         }
 
-        // let expected_value = off_circuit::scalar_multiply(scalar_bits, inputs.input.clone());
-        // let expected = expected_value.embed(synthesizer, "expected")?;
-        let result = result_value.embed(synthesizer, "final result")?;
-
-        // self.sum_chip
-        //     .constrain_equal(synthesizer, expected.clone().x, result.clone().x)?;
-        // self.sum_chip
-        //     .constrain_equal(synthesizer, expected.clone().y, result.clone().y)?;
-        // self.sum_chip
-        //     .constrain_equal(synthesizer, expected.clone().z, result.clone().z)?;
-
-        Ok(ScalarMultiplyChipOutput { result })
-    }
-}
-
-pub mod off_circuit {
-    use alloc::vec::Vec;
-
-    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
-
-    use crate::{
-        consts::GRUMPKIN_3B,
-        curve_arithmetic::{self, GrumpkinPoint, V},
-        AssignedCell, Value,
-    };
-
-    pub fn scalar_multiply(
-        scalar_bits: &[AssignedCell; 254],
-        input: GrumpkinPoint<AssignedCell>,
-    ) -> GrumpkinPoint<Value> {
-        let bits: Vec<V> = scalar_bits
-            .iter()
-            .map(|cell| V(cell.value().cloned()))
-            .collect();
-        let bits: [V; 254] = bits.try_into().expect("not 254 bit array");
-        let input = input.into();
-
-        curve_arithmetic::scalar_multiply(
-            input,
-            bits,
-            V(Value::known(*GRUMPKIN_3B)),
-            V(Value::known(Fr::ZERO)),
-            V(Value::known(Fr::ONE)),
-        )
-        .into()
+        Ok(ScalarMultiplyChipOutput {
+            result: result_value.embed(synthesizer, "final result")?,
+        })
     }
 }
 
@@ -159,7 +110,7 @@ mod tests {
     use halo2_proofs::{
         arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
-        dev::{MockProver, VerifyFailure},
+        dev::MockProver,
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
