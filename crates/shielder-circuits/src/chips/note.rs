@@ -19,7 +19,7 @@ pub enum NoteInstance {
     TokenAddress,
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug)]
 pub struct Note<T> {
     pub version: NoteVersion,
     pub id: T,
@@ -99,15 +99,15 @@ impl NoteChip {
         synthesizer.assign_constant("note_version", note_version)
     }
 
-    // Calculates the note_hash as follows:
-    //
-    //   `note_hash = poseidon2(NOTE_VERSION, note.id, note.nullifier, note.trapdoor,
-    //                          poseidon2(note.balance, note.token_address, 0, 0, 0, 0, 0))`
-    //
-    // The reason for the double nesting and for the padding is historical: we keep this hash shape
-    // for backward compatibility with notes created by the 1st version of Shielder.
-    //
-    // Constrains `note.token_address` to match the respective public input.
+    /// Calculates the note_hash as follows:
+    ///
+    ///   `note_hash = poseidon2(NOTE_VERSION, note.id, note.nullifier, note.trapdoor,
+    ///                          poseidon2(note.balance, note.token_address, 0, 0, 0, 0, 0))`
+    ///
+    /// The reason for the double nesting and for the padding is historical: we keep this hash shape
+    /// for backward compatibility with notes created by the 1st version of Shielder.
+    ///
+    /// Constrains `note.token_address` to match the respective public input.
     pub fn note_hash(
         &self,
         synthesizer: &mut impl Synthesizer,
@@ -218,7 +218,7 @@ mod tests {
     }
 
     impl TestCircuit {
-        pub fn new_note_hash_test(note: Note<impl Into<Fr>>) -> Self {
+        pub fn note_hash_test(note: Note<impl Into<Fr>>) -> Self {
             TestCircuit::TestNoteHash(Note {
                 version: note.version,
                 id: Value::known(note.id.into()),
@@ -229,7 +229,7 @@ mod tests {
             })
         }
 
-        pub fn new_balance_increase_test(
+        pub fn balance_increase_test(
             balance_old: impl Into<Fr>,
             increase_value: impl Into<Fr>,
         ) -> Self {
@@ -239,7 +239,7 @@ mod tests {
             ))
         }
 
-        pub fn new_balance_decrease_test(
+        pub fn balance_decrease_test(
             balance_old: impl Into<Fr>,
             decrease_value: impl Into<Fr>,
         ) -> Self {
@@ -277,7 +277,14 @@ mod tests {
 
         fn without_witnesses(&self) -> Self {
             match self {
-                TestCircuit::TestNoteHash(_) => TestCircuit::TestNoteHash(Note::default()),
+                TestCircuit::TestNoteHash(_) => TestCircuit::TestNoteHash(Note {
+                    version: NoteVersion::new(0),
+                    id: Value::unknown(),
+                    nullifier: Value::unknown(),
+                    trapdoor: Value::unknown(),
+                    account_balance: Value::unknown(),
+                    token_address: Value::unknown(),
+                }),
                 TestCircuit::TestBalanceIncrease(_) => {
                     TestCircuit::TestBalanceIncrease((Value::unknown(), Value::unknown()))
                 }
@@ -339,7 +346,7 @@ mod tests {
         Fr::from(2).pow([160]).sub(&Fr::ONE) // Max token address.
     })]
     fn note_hash_is_calculated_correctly(token_address: Fr) {
-        let circuit = TestCircuit::new_note_hash_test(Note {
+        let circuit = TestCircuit::note_hash_test(Note {
             version: NoteVersion::new(0),
             id: Fr::from(1),
             nullifier: Fr::from(2),
@@ -369,7 +376,7 @@ mod tests {
 
     #[test]
     fn note_hash_output_is_constrained() {
-        let circuit = TestCircuit::new_note_hash_test(Note {
+        let circuit = TestCircuit::note_hash_test(Note {
             version: NoteVersion::new(0),
             id: Fr::from(1),
             nullifier: Fr::from(2),
@@ -399,7 +406,7 @@ mod tests {
             account_balance: Fr::from(4),
             token_address: Fr::from(5),
         };
-        let circuit = TestCircuit::new_note_hash_test(note);
+        let circuit = TestCircuit::note_hash_test(note);
         let pub_input = [Fr::from(999999), super::off_circuit::note_hash(&note)];
 
         let failures = expect_prover_success_and_run_verification(circuit, &pub_input)
@@ -410,8 +417,8 @@ mod tests {
 
     #[parameterized(
         circuit = {
-            TestCircuit::new_balance_increase_test(20, 5),
-            TestCircuit::new_balance_decrease_test(20, 5)
+            TestCircuit::balance_increase_test(20, 5),
+            TestCircuit::balance_decrease_test(20, 5)
         },
         expected_output = { 25, 15 }
     )]
@@ -426,8 +433,8 @@ mod tests {
 
     #[parameterized(
         circuit = {
-            TestCircuit::new_balance_increase_test(20, 5),
-            TestCircuit::new_balance_decrease_test(20, 5)
+            TestCircuit::balance_increase_test(20, 5),
+            TestCircuit::balance_decrease_test(20, 5)
         },
         expected_output = { 26, 16 }
     )]

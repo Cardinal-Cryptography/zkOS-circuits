@@ -62,14 +62,11 @@ pub fn run_full_pipeline<PK: ProverKnowledge>() {
 // Runs key generation, proof production on `prove_pub_input`, and proof verification
 // on `verify_pub_input`. In case of failure before verification, panics.
 // In case of verification failure, returns `VerifyFailure`s from `MockProver`.
-pub fn expect_prover_success_and_run_verification_on_separate_pub_input<C>(
-    test_circuit: C,
+pub fn expect_prover_success_and_run_verification_on_separate_pub_input(
+    test_circuit: impl Circuit<Fr> + Clone,
     prove_pub_input: &[Fr],
     verify_pub_input: &[Fr],
-) -> Result<(), Vec<VerifyFailure>>
-where
-    C: Circuit<Fr> + Clone,
-{
+) -> Result<(), Vec<VerifyFailure>> {
     let mut rng = OsRng;
 
     let params = generate_setup_params(MAX_K, &mut rng);
