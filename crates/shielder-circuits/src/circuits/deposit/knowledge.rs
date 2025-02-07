@@ -117,7 +117,7 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
             }),
             DepositInstance::DepositValue => self.deposit_value,
             DepositInstance::MacSalt => self.mac_salt,
-            DepositInstance::MacHash => hash(&[self.mac_salt, sym_key]),
+            DepositInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
         }
     }
 }

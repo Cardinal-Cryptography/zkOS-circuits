@@ -9,6 +9,8 @@ mod knowledge;
 pub use circuit::WithdrawCircuit;
 pub use knowledge::WithdrawProverKnowledge;
 
+use crate::chips::mac::MacInstance;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum WithdrawInstance {
     IdHiding,
@@ -18,7 +20,7 @@ pub enum WithdrawInstance {
     WithdrawalValue,
     Commitment,
     MacSalt,
-    MacHash,
+    MacCommitment,
 }
 
 impl TryFrom<WithdrawInstance> for MerkleInstance {
@@ -27,6 +29,18 @@ impl TryFrom<WithdrawInstance> for MerkleInstance {
     fn try_from(value: WithdrawInstance) -> Result<Self, Self::Error> {
         match value {
             WithdrawInstance::MerkleRoot => Ok(Self::MerkleRoot),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<WithdrawInstance> for MacInstance {
+    type Error = ();
+
+    fn try_from(value: WithdrawInstance) -> Result<Self, Self::Error> {
+        match value {
+            WithdrawInstance::MacSalt => Ok(Self::MacSalt),
+            WithdrawInstance::MacCommitment => Ok(Self::MacCommitment),
             _ => Err(()),
         }
     }
@@ -51,7 +65,7 @@ mod tests {
             WithdrawalValue,
             Commitment,
             MacSalt,
-            MacHash,
+            MacCommitment,
         ];
         assert_eq!(expected_order, WithdrawInstance::iter().collect::<Vec<_>>());
     }

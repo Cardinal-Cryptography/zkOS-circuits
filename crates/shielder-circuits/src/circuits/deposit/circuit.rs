@@ -167,7 +167,7 @@ mod tests {
                 HashedNewNote => h_note_new,
                 DepositValue => pk.deposit_value,
                 MacSalt => pk.mac_salt,
-                MacHash => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
+                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
             };
 
             assert_eq!(

@@ -177,7 +177,7 @@ mod tests {
                 WithdrawalValue => pk.withdrawal_value,
                 Commitment => pk.commitment,
                 MacSalt => pk.mac_salt,
-                MacHash => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
+                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
             };
 
             assert_eq!(

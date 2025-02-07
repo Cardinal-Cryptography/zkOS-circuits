@@ -1,4 +1,5 @@
 use halo2_proofs::plonk::Error;
+use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
     poseidon::circuit::{hash, PoseidonChip},
@@ -33,6 +34,12 @@ pub mod off_circuit {
             commitment: hash(&[input.salt, input.key]),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
+pub enum MacInstance {
+    MacSalt,
+    MacCommitment,
 }
 
 /// Chip that is able to calculate MAC.

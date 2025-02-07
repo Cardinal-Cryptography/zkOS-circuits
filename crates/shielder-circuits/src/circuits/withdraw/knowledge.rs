@@ -141,7 +141,7 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
             WithdrawInstance::WithdrawalValue => self.withdrawal_value,
             WithdrawInstance::Commitment => self.commitment,
             WithdrawInstance::MacSalt => self.mac_salt,
-            WithdrawInstance::MacHash => hash(&[self.mac_salt, sym_key]),
+            WithdrawInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
         }
     }
 }
