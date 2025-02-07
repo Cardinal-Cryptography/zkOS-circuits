@@ -97,36 +97,3 @@ pub fn copy_grumpkin_advices(
     )?;
     Ok(GrumpkinPoint::new(x, y, z))
 }
-
-// pub fn assign_grumpkin_advices(
-//     point_value: &GrumpkinPoint<Value<Fr>>,
-//     annotation: &str,
-//     region: &mut Region<'_, Fr>,
-//     columns: [Column<Advice>; 3],
-//     offset: usize,
-// ) -> Result<GrumpkinPoint<AssignedCell>, Error> {
-//     ensure_unique_columns(&columns);
-
-//     let x = region.assign_advice(
-//         || alloc::format!("{}[x]", annotation),
-//         columns[0],
-//         offset,
-//         || point_value.x,
-//     )?;
-
-//     let y = region.assign_advice(
-//         || alloc::format!("{}[y]", annotation),
-//         columns[1],
-//         offset,
-//         || point_value.y,
-//     )?;
-
-//     let z = region.assign_advice(
-//         || alloc::format!("{}[z]", annotation),
-//         columns[2],
-//         offset,
-//         || point_value.z,
-//     )?;
-
-//     Ok(GrumpkinPoint::new(x, y, z))
-// }

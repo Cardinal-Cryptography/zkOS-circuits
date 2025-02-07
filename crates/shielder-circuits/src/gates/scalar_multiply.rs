@@ -29,7 +29,6 @@ pub struct ScalarMultiplyGate {
 #[derive(Clone, Debug, Default)]
 #[embeddable(
     receiver = "ScalarMultiplyGateInput<Fr>",
-    impl_generics = "",
     embedded = "ScalarMultiplyGateInput<crate::AssignedCell>"
 )]
 pub struct ScalarMultiplyGateInput<T> {
@@ -56,7 +55,7 @@ impl Gate for ScalarMultiplyGate {
     /// The gate operates on an advice column `scalar_bit`, a triplet (representing projective coordinates of a point on an EC) of `input` advice columns
     /// and a triplet of `result` columns.
     ///
-    /// It is the kernel of the double-and-add algorithm for point by scalar multiplcation on an EC.
+    /// It is the kernel of the double-and-add algorithm for point by scalar multipilcation on an EC.
     /// Constraints:
     ///
     /// result[i + 1] = input[i] + result[i] if bit == 1
