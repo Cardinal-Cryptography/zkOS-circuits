@@ -159,8 +159,10 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_scalar_multiply_chip(mut self) -> Self {
         check_if_cached!(self, scalar_multiply);
+        self = self.with_sum();
         self.scalar_multiply = Some(ScalarMultiplyChip {
             multiply_gate: ScalarMultiplyGate::create_gate(self.system, &mut self.advice_pool),
+            sum_chip: self.sum_chip(),
         });
         self
     }

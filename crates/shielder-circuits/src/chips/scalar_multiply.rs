@@ -1,5 +1,6 @@
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
+use super::sum::SumChip;
 use crate::{
     consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
@@ -39,11 +40,31 @@ pub struct ScalarMultiplyChipOutput<T> {
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChip {
     pub multiply_gate: ScalarMultiplyGate,
+    pub sum_chip: SumChip,
 }
 
 impl ScalarMultiplyChip {
-    pub fn new(multiply_gate: ScalarMultiplyGate) -> Self {
-        Self { multiply_gate }
+    pub fn new(multiply_gate: ScalarMultiplyGate, sum_chip: SumChip) -> Self {
+        Self {
+            multiply_gate,
+            sum_chip,
+        }
+    }
+
+    fn constrain_point_at_infinity(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        point_at_infinity: GrumpkinPoint<AssignedCell>,
+    ) -> Result<(), Error> {
+        let one = synthesizer.assign_value("ONE", Value::known(Fr::ONE))?;
+        self.sum_chip
+            .constrain_zero(synthesizer, point_at_infinity.x)?;
+        self.sum_chip
+            .constrain_equal(synthesizer, point_at_infinity.y, one)?;
+        self.sum_chip
+            .constrain_zero(synthesizer, point_at_infinity.z)?;
+
+        Ok(())
     }
 
     pub fn scalar_multiply(
@@ -53,8 +74,13 @@ impl ScalarMultiplyChip {
     ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
         let ScalarMultiplyChipInput { scalar_bits, input } = inputs;
 
-        let mut result_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
+        let point_at_infinity_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
+        let point_at_infinity = point_at_infinity_value.embed(synthesizer, "result")?;
+
+        self.constrain_point_at_infinity(synthesizer, point_at_infinity)?;
+
         let mut input_value: GrumpkinPoint<Value> = input.clone().into();
+        let mut result_value = point_at_infinity_value;
 
         for bit in scalar_bits.iter() {
             let input = input_value.embed(synthesizer, "input")?;
@@ -150,6 +176,10 @@ mod tests {
             // public input column
             let instance = meta.instance_column();
             meta.enable_equality(instance);
+
+            let fixed = meta.fixed_column();
+            meta.enable_constant(fixed);
+
             // register chip
             let configs_builder = ConfigsBuilder::new(meta).with_scalar_multiply_chip();
             let chip = configs_builder.scalar_multiply_chip();
