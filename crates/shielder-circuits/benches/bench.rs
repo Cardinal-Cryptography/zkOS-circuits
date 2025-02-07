@@ -21,8 +21,8 @@ pub fn bench_circuit<PK: ProverKnowledge>(c: &mut Criterion, group_name: &str) {
 
     let params = generate_setup_params(MAX_K, &mut rng);
 
-    let (params, k, pk, vk) =
-        generate_keys_with_min_k::<PK::Circuit>(params).expect("keys should not fail to generate");
+    let (params, k, pk, vk) = generate_keys_with_min_k(test_circuit.clone(), params)
+        .expect("keys should not fail to generate");
 
     println!(
         "{:?}",

@@ -20,7 +20,7 @@ fn measure_circuit<PK: ProverKnowledge>(circuit_name: &str) {
     let values = PK::random_correct_example(&mut rand::thread_rng());
     let circuit = values.create_circuit();
     let (reduced_params, k, pk, vk) =
-        generate_keys_with_min_k::<PK::Circuit>(PARAMS.clone()).unwrap();
+        generate_keys_with_min_k(PK::Circuit::default(), PARAMS.clone()).unwrap();
     let cost = CircuitCost::<G1, _>::measure(k, &circuit);
 
     let proof = generate_proof(

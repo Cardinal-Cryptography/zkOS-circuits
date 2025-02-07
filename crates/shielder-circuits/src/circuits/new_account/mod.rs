@@ -7,13 +7,27 @@ mod knowledge;
 pub use circuit::NewAccountCircuit;
 pub use knowledge::NewAccountProverKnowledge;
 
+use crate::chips::note::NoteInstance;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum NewAccountInstance {
     HashedNote,
     HashedId,
     InitialDeposit,
+    TokenAddress,
     AnonymityRevokerPublicKey,
     SymKeyEncryption,
+}
+
+impl TryFrom<NewAccountInstance> for NoteInstance {
+    type Error = ();
+
+    fn try_from(value: NewAccountInstance) -> Result<Self, Self::Error> {
+        match value {
+            NewAccountInstance::TokenAddress => Ok(NoteInstance::TokenAddress),
+            _ => Err(()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -31,6 +45,7 @@ mod tests {
             HashedNote,
             HashedId,
             InitialDeposit,
+            TokenAddress,
             AnonymityRevokerPublicKey,
             SymKeyEncryption,
         ];

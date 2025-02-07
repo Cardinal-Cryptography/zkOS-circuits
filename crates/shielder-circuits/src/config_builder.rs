@@ -2,8 +2,11 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
-        note::NoteChip, point_double::PointDoubleChip, points_add::PointsAddChip,
-        range_check::RangeCheckChip, sum::SumChip,
+        note::{NoteChip, NoteInstance},
+        point_double::PointDoubleChip,
+        points_add::PointsAddChip,
+        range_check::RangeCheckChip,
+        sum::SumChip,
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::WIDTH,
@@ -155,11 +158,16 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("PointDoubleChip not configured")
     }
 
-    pub fn with_note(mut self) -> Self {
+    pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {
         check_if_cached!(self, note);
+        self = self.with_sum();
         self = self.with_poseidon();
 
-        self.note = Some(NoteChip::new(self.poseidon_chip()));
+        self.note = Some(NoteChip {
+            public_inputs,
+            sum: self.sum_chip(),
+            poseidon: self.poseidon_chip(),
+        });
         self
     }
 

@@ -32,6 +32,7 @@ pub struct DepositProverKnowledge<T> {
     pub nullifier_old: T,
     pub trapdoor_old: T,
     pub account_old_balance: T,
+    pub token_address: T,
 
     // Merkle proof
     pub path: [[T; ARITY]; NOTE_TREE_HEIGHT],
@@ -59,12 +60,14 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
         let nullifier_old = Fr::random(&mut *rng);
         let trapdoor_old = Fr::random(&mut *rng);
         let account_old_balance = Fr::from(10);
+        let token_address = Fr::ZERO;
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
             nullifier: nullifier_old,
             trapdoor: trapdoor_old,
             account_balance: account_old_balance,
+            token_address,
         });
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
         Self {
@@ -73,6 +76,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             nullifier_old,
             trapdoor_old,
             account_old_balance,
+            token_address,
             path,
             nullifier_new: Fr::random(&mut *rng),
             trapdoor_new: Fr::random(rng),
@@ -87,6 +91,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             nullifier_new: Value::known(self.nullifier_new),
             nullifier_old: Value::known(self.nullifier_old),
             account_old_balance: Value::known(self.account_old_balance),
+            token_address: Value::known(self.token_address),
             id: Value::known(self.id),
             nonce: Value::known(self.nonce),
             path: self.path.map(|level| level.map(Value::known)),
@@ -107,8 +112,10 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
                 nullifier: self.nullifier_new,
                 trapdoor: self.trapdoor_new,
                 account_balance: self.account_old_balance + self.deposit_value,
+                token_address: self.token_address,
             }),
             DepositInstance::DepositValue => self.deposit_value,
+            DepositInstance::TokenAddress => self.token_address,
         }
     }
 }

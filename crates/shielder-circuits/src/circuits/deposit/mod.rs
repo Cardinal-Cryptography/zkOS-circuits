@@ -1,6 +1,6 @@
 use strum_macros::{EnumCount, EnumIter};
 
-use crate::merkle::MerkleInstance;
+use crate::{chips::note::NoteInstance, merkle::MerkleInstance};
 
 mod chip;
 mod circuit;
@@ -16,6 +16,7 @@ pub enum DepositInstance {
     HashedOldNullifier,
     HashedNewNote,
     DepositValue,
+    TokenAddress,
 }
 
 impl TryFrom<DepositInstance> for MerkleInstance {
@@ -24,6 +25,17 @@ impl TryFrom<DepositInstance> for MerkleInstance {
     fn try_from(value: DepositInstance) -> Result<Self, Self::Error> {
         match value {
             DepositInstance::MerkleRoot => Ok(MerkleInstance::MerkleRoot),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<DepositInstance> for NoteInstance {
+    type Error = ();
+
+    fn try_from(value: DepositInstance) -> Result<Self, Self::Error> {
+        match value {
+            DepositInstance::TokenAddress => Ok(NoteInstance::TokenAddress),
             _ => Err(()),
         }
     }
@@ -46,6 +58,7 @@ mod tests {
             HashedOldNullifier,
             HashedNewNote,
             DepositValue,
+            TokenAddress,
         ];
         assert_eq!(expected_order, DepositInstance::iter().collect::<Vec<_>>());
     }
