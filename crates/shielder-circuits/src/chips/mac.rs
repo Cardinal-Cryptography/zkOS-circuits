@@ -10,13 +10,13 @@ use crate::{
 #[derive(Copy, Clone, Debug, Default)]
 pub struct MacInput<T> {
     pub key: T,
-    pub r: T,
+    pub salt: T,
 }
 
 /// MAC (commitment to a key accompanied by salt).
 #[derive(Copy, Clone, Debug)]
 pub struct Mac<T> {
-    pub r: T,
+    pub salt: T,
     pub commitment: T,
 }
 
@@ -29,8 +29,8 @@ pub mod off_circuit {
 
     pub fn mac(input: &MacInput<Fr>) -> Mac<Fr> {
         Mac {
-            r: input.r,
-            commitment: hash(&[input.r, input.key]),
+            salt: input.salt,
+            commitment: hash(&[input.salt, input.key]),
         }
     }
 }
@@ -58,11 +58,11 @@ impl MacChip {
         let commitment = hash(
             synthesizer,
             self.poseidon.clone(),
-            [input.r.clone(), input.key.clone()],
+            [input.salt.clone(), input.key.clone()],
         )?;
 
         Ok(Mac {
-            r: input.r.clone(),
+            salt: input.salt.clone(),
             commitment,
         })
     }
@@ -127,21 +127,21 @@ mod tests {
             let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed key and r.
             let key = self.0.key.embed(&mut synthesizer, "key")?;
-            let r = self.0.r.embed(&mut synthesizer, "r")?;
+            let salt = self.0.salt.embed(&mut synthesizer, "salt")?;
 
             // 2. Calculate MAC.
-            let mac = mac_chip.mac(&mut synthesizer, &MacInput { key, r })?;
+            let mac = mac_chip.mac(&mut synthesizer, &MacInput { key, salt })?;
 
             // 3. Compare MAC with public input.
-            synthesizer.constrain_instance(mac.r.cell(), instance, 0)?;
+            synthesizer.constrain_instance(mac.salt.cell(), instance, 0)?;
             synthesizer.constrain_instance(mac.commitment.cell(), instance, 1)
         }
     }
 
-    fn input(key: impl Into<Fr>, r: impl Into<Fr>) -> MacInput<Fr> {
+    fn input(key: impl Into<Fr>, salt: impl Into<Fr>) -> MacInput<Fr> {
         MacInput {
             key: key.into(),
-            r: r.into(),
+            salt: salt.into(),
         }
     }
 
@@ -149,7 +149,7 @@ mod tests {
         MockProver::run(
             6,
             &MacCircuit(input),
-            vec![vec![expected_mac.r, expected_mac.commitment]],
+            vec![vec![expected_mac.salt, expected_mac.commitment]],
         )
         .expect("Mock prover should run successfully")
         .verify()
@@ -187,9 +187,9 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_r_fails() {
+    fn incorrect_salt_fails() {
         let mut expected_mac = off_circuit::mac(&input(41, 42));
-        expected_mac.r += Fr::one();
+        expected_mac.salt += Fr::one();
         let input = input(41, 42);
 
         let mut errors = verify(input, expected_mac)
