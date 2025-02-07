@@ -3,6 +3,7 @@ use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
+    chips::sym_key,
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         NONCE_UPPER_LIMIT,
@@ -42,6 +43,8 @@ pub struct DepositProverKnowledge<T> {
 
     // Nonce for id_hiding
     pub nonce: T,
+    // Salt for MAC.
+    pub mac_salt: T,
 
     pub deposit_value: T,
 }
@@ -75,8 +78,9 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             account_old_balance,
             path,
             nullifier_new: Fr::random(&mut *rng),
-            trapdoor_new: Fr::random(rng),
+            trapdoor_new: Fr::random(&mut *rng),
             deposit_value: Fr::ONE,
+            mac_salt: Fr::random(rng),
         }
     }
 
@@ -91,12 +95,15 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             nonce: Value::known(self.nonce),
             path: self.path.map(|level| level.map(Value::known)),
             deposit_value: Value::known(self.deposit_value),
+            mac_salt: Value::known(self.mac_salt),
         })
     }
 }
 
 impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: DepositInstance) -> Fr {
+        let sym_key = sym_key::off_circuit::derive(self.id);
+
         match instance_id {
             DepositInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
             DepositInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
@@ -109,6 +116,8 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
                 account_balance: self.account_old_balance + self.deposit_value,
             }),
             DepositInstance::DepositValue => self.deposit_value,
+            DepositInstance::MacSalt => self.mac_salt,
+            DepositInstance::MacHash => hash(&[self.mac_salt, sym_key]),
         }
     }
 }

@@ -17,6 +17,8 @@ pub enum WithdrawInstance {
     HashedNewNote,
     WithdrawalValue,
     Commitment,
+    MacSalt,
+    MacHash,
 }
 
 impl TryFrom<WithdrawInstance> for MerkleInstance {
@@ -48,6 +50,8 @@ mod tests {
             HashedNewNote,
             WithdrawalValue,
             Commitment,
+            MacSalt,
+            MacHash,
         ];
         assert_eq!(expected_order, WithdrawInstance::iter().collect::<Vec<_>>());
     }

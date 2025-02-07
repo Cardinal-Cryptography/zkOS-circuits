@@ -16,6 +16,8 @@ pub enum DepositInstance {
     HashedOldNullifier,
     HashedNewNote,
     DepositValue,
+    MacSalt,
+    MacHash,
 }
 
 impl TryFrom<DepositInstance> for MerkleInstance {
@@ -46,6 +48,8 @@ mod tests {
             HashedOldNullifier,
             HashedNewNote,
             DepositValue,
+            MacSalt,
+            MacHash,
         ];
         assert_eq!(expected_order, DepositInstance::iter().collect::<Vec<_>>());
     }

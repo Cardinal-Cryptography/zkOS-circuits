@@ -4,6 +4,7 @@ use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
+    chips::sym_key,
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK, NONCE_UPPER_LIMIT,
@@ -43,6 +44,8 @@ pub struct WithdrawProverKnowledge<T> {
 
     // nonce for id_hiding
     pub nonce: T,
+    // Salt for MAC.
+    pub mac_salt: T,
 }
 
 impl WithdrawProverKnowledge<Value> {
@@ -93,7 +96,8 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             account_old_balance,
             path,
             nullifier_new: Fr::random(&mut *rng),
-            trapdoor_new: Fr::random(rng),
+            trapdoor_new: Fr::random(&mut *rng),
+            mac_salt: Fr::random(rng),
         }
     }
 
@@ -114,12 +118,15 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
 
             withdrawal_value: Value::known(self.withdrawal_value),
             commitment: Value::known(self.commitment),
+            mac_salt: Value::known(self.mac_salt),
         })
     }
 }
 
 impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: WithdrawInstance) -> Fr {
+        let sym_key = sym_key::off_circuit::derive(self.id);
+
         match instance_id {
             WithdrawInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
             WithdrawInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
@@ -133,6 +140,8 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
             }),
             WithdrawInstance::WithdrawalValue => self.withdrawal_value,
             WithdrawInstance::Commitment => self.commitment,
+            WithdrawInstance::MacSalt => self.mac_salt,
+            WithdrawInstance::MacHash => hash(&[self.mac_salt, sym_key]),
         }
     }
 }
