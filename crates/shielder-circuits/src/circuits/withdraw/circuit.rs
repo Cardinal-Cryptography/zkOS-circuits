@@ -72,6 +72,7 @@ mod tests {
     use halo2_proofs::halo2curves::bn256::Fr;
     use rand_core::OsRng;
 
+    use crate::chips::sym_key::off_circuit;
     use crate::{
         circuits::{
             merkle::generate_example_path_with_given_leaf,
@@ -174,6 +175,8 @@ mod tests {
                 HashedNewNote => h_note_new,
                 WithdrawalValue => pk.withdrawal_value,
                 Commitment => pk.commitment,
+                MacSalt => pk.mac_salt,
+                MacHash => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
             };
 
             assert_eq!(

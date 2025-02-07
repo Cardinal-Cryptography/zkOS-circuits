@@ -67,6 +67,7 @@ mod tests {
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand_core::OsRng;
 
+    use crate::chips::sym_key::off_circuit;
     use crate::{
         circuits::{
             deposit::knowledge::DepositProverKnowledge,
@@ -164,6 +165,8 @@ mod tests {
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
                 DepositValue => pk.deposit_value,
+                MacSalt => pk.mac_salt,
+                MacHash => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
             };
 
             assert_eq!(
