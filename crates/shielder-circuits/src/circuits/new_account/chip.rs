@@ -28,7 +28,7 @@ impl NewAccountChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let note = self.note.note(
+        let note = self.note.note_hash(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
@@ -36,6 +36,7 @@ impl NewAccountChip {
                 nullifier: knowledge.nullifier.clone(),
                 trapdoor: knowledge.trapdoor.clone(),
                 account_balance: knowledge.initial_deposit.clone(),
+                token_address: knowledge.token_address.clone(),
             },
         )?;
 

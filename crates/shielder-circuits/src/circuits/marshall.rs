@@ -97,7 +97,8 @@ mod tests {
 
     fn generate_data() -> (Params, u32, ProvingKey) {
         let mut rng = rand::thread_rng();
-        let (params, k, pk, _) = generate_keys_with_min_k::<MerkleCircuit<NOTE_TREE_HEIGHT>>(
+        let (params, k, pk, _) = generate_keys_with_min_k(
+            MerkleCircuit::<NOTE_TREE_HEIGHT>::default(),
             generate_setup_params(MAX_K, &mut rng),
         )
         .expect("keys should not fail to generate");
