@@ -126,7 +126,7 @@ impl DepositChip {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 
-        MacChip::new(self.poseidon.clone()).mac(
+        MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
             synthesizer,
             &MacInput {
                 key: sym_key,

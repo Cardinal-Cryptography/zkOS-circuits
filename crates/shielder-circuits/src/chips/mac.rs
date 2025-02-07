@@ -2,6 +2,7 @@ use halo2_proofs::plonk::Error;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
+    instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -48,12 +49,13 @@ pub enum MacInstance {
 #[derive(Clone, Debug)]
 pub struct MacChip {
     poseidon: PoseidonChip,
+    instance: InstanceWrapper<MacInstance>,
 }
 
 impl MacChip {
     /// Create a new `MacChip`.
-    pub fn new(poseidon: PoseidonChip) -> Self {
-        Self { poseidon }
+    pub fn new(poseidon: PoseidonChip, instance: InstanceWrapper<MacInstance>) -> Self {
+        Self { poseidon, instance }
     }
 
     /// Calculate the MAC as `(r, H(r, key))`.
@@ -61,17 +63,20 @@ impl MacChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &MacInput<AssignedCell>,
-    ) -> Result<Mac<AssignedCell>, Error> {
+    ) -> Result<(), Error> {
         let commitment = hash(
             synthesizer,
             self.poseidon.clone(),
             [input.salt.clone(), input.key.clone()],
         )?;
 
-        Ok(Mac {
-            salt: input.salt.clone(),
-            commitment,
-        })
+        self.instance.constrain_cells(
+            synthesizer,
+            [
+                (input.salt.clone(), MacInstance::MacSalt),
+                (commitment, MacInstance::MacCommitment),
+            ],
+        )
     }
 }
 
@@ -86,7 +91,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+        plonk::{Advice, Circuit, ConstraintSystem, Error},
     };
 
     use crate::{
@@ -94,6 +99,7 @@ mod tests {
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         embed::Embed,
+        instance_wrapper::InstanceWrapper,
         synthesizer::create_synthesizer,
         Fr,
     };
@@ -102,11 +108,7 @@ mod tests {
     struct MacCircuit(MacInput<Fr>);
 
     impl Circuit<Fr> for MacCircuit {
-        type Config = (
-            ColumnPool<Advice, PreSynthesisPhase>,
-            MacChip,
-            Column<Instance>,
-        );
+        type Config = (ColumnPool<Advice, PreSynthesisPhase>, MacChip);
         type FloorPlanner = V1;
 
         fn without_witnesses(&self) -> Self {
@@ -114,34 +116,26 @@ mod tests {
         }
 
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
-            // Enable public input.
-            let instance = meta.instance_column();
-            meta.enable_equality(instance);
-            // Register Poseidon.
+            let instance = InstanceWrapper::new(meta);
             let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
-            // Create MAC chip.
-            let mac = MacChip::new(configs_builder.poseidon_chip());
+            let mac = MacChip::new(configs_builder.poseidon_chip(), instance);
 
-            (configs_builder.finish(), mac, instance)
+            (configs_builder.finish(), mac)
         }
 
         fn synthesize(
             &self,
-            (pool, mac_chip, instance): Self::Config,
+            (pool, mac_chip): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
             let pool = pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &pool);
-            // 1. Embed key and r.
+            // 1. Embed key and salt.
             let key = self.0.key.embed(&mut synthesizer, "key")?;
             let salt = self.0.salt.embed(&mut synthesizer, "salt")?;
 
-            // 2. Calculate MAC.
-            let mac = mac_chip.mac(&mut synthesizer, &MacInput { key, salt })?;
-
-            // 3. Compare MAC with public input.
-            synthesizer.constrain_instance(mac.salt.cell(), instance, 0)?;
-            synthesizer.constrain_instance(mac.commitment.cell(), instance, 1)
+            // 2. Compute MAC and constrain the result to the instance.
+            mac_chip.mac(&mut synthesizer, &MacInput { key, salt })
         }
     }
 
