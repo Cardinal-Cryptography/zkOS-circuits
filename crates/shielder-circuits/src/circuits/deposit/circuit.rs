@@ -58,7 +58,8 @@ impl Circuit<Fr> for DepositCircuit {
         main_chip.check_old_note(&mut synthesizer, &knowledge)?;
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge)
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge)?;
+        main_chip.check_mac(&mut synthesizer, &knowledge)
     }
 }
 
@@ -67,8 +68,8 @@ mod tests {
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
     use rand_core::OsRng;
 
-    use crate::chips::sym_key::off_circuit;
     use crate::{
+        chips::sym_key::off_circuit,
         circuits::{
             deposit::knowledge::DepositProverKnowledge,
             merkle::generate_example_path_with_given_leaf,

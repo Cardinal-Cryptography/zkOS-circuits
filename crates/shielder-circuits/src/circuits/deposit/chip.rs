@@ -4,9 +4,11 @@ use DepositInstance::DepositValue;
 use crate::{
     chips::{
         id_hiding::IdHidingChip,
+        mac::{MacChip, MacInput},
         note::{Note, NoteChip},
         range_check::RangeCheckChip,
         sum::SumChip,
+        sym_key::SymKeyChip,
     },
     circuits::{
         deposit::knowledge::DepositProverKnowledge,
@@ -114,5 +116,23 @@ impl DepositChip {
 
         self.public_inputs
             .constrain_cells(synthesizer, [(new_note, HashedNewNote)])
+    }
+
+    pub fn check_mac(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &DepositProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        let sym_key =
+            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+
+        MacChip::new(self.poseidon.clone()).mac(
+            synthesizer,
+            &MacInput {
+                key: sym_key,
+                salt: knowledge.mac_salt.clone(),
+            },
+        )?;
+        Ok(())
     }
 }

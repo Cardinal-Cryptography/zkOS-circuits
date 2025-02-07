@@ -63,7 +63,8 @@ impl Circuit<Fr> for WithdrawCircuit {
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge, &intermediate)?;
         main_chip.check_commitment(&mut synthesizer, &knowledge)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge)
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge)?;
+        main_chip.check_mac(&mut synthesizer, &knowledge)
     }
 }
 
@@ -72,8 +73,8 @@ mod tests {
     use halo2_proofs::halo2curves::bn256::Fr;
     use rand_core::OsRng;
 
-    use crate::chips::sym_key::off_circuit;
     use crate::{
+        chips::sym_key::off_circuit,
         circuits::{
             merkle::generate_example_path_with_given_leaf,
             test_utils::{
