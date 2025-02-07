@@ -34,6 +34,7 @@ pub struct WithdrawProverKnowledge<T> {
     pub nullifier_old: T,
     pub trapdoor_old: T,
     pub account_old_balance: T,
+    pub token_address: T,
 
     // Merkle proof
     pub path: [[T; ARITY]; NOTE_TREE_HEIGHT],
@@ -46,14 +47,6 @@ pub struct WithdrawProverKnowledge<T> {
     pub nonce: T,
     // Salt for MAC.
     pub mac_salt: T,
-}
-
-impl WithdrawProverKnowledge<Value> {
-    pub fn compute_intermediate_values(&self) -> IntermediateValues<Value> {
-        IntermediateValues {
-            new_account_balance: self.account_old_balance - self.withdrawal_value,
-        }
-    }
 }
 
 impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
@@ -76,12 +69,14 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
         let trapdoor_old = Fr::random(&mut *rng);
 
         let account_old_balance = Fr::from_u128(MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK);
+        let token_address = Fr::ZERO;
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
             nullifier: nullifier_old,
             trapdoor: trapdoor_old,
             account_balance: account_old_balance,
+            token_address,
         });
 
         let (_, path) = generate_example_path_with_given_leaf(h_note_old, &mut *rng);
@@ -94,6 +89,7 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             nullifier_old,
             trapdoor_old,
             account_old_balance,
+            token_address,
             path,
             nullifier_new: Fr::random(&mut *rng),
             trapdoor_new: Fr::random(&mut *rng),
@@ -110,6 +106,7 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             nullifier_old: Value::known(self.nullifier_old),
 
             account_old_balance: Value::known(self.account_old_balance),
+            token_address: Value::known(self.token_address),
 
             id: Value::known(self.id),
             nonce: Value::known(self.nonce),
@@ -137,22 +134,13 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
                 nullifier: self.nullifier_new,
                 trapdoor: self.trapdoor_new,
                 account_balance: self.account_old_balance - self.withdrawal_value,
+                token_address: self.token_address,
             }),
             WithdrawInstance::WithdrawalValue => self.withdrawal_value,
             WithdrawInstance::Commitment => self.commitment,
+            WithdrawInstance::TokenAddress => self.token_address,
             WithdrawInstance::MacSalt => self.mac_salt,
             WithdrawInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
         }
     }
-}
-
-/// Stores values that are a result of intermediate computations.
-#[derive(Clone, Debug, Default)]
-#[embeddable(
-    receiver = "IntermediateValues<Value>",
-    embedded = "IntermediateValues<crate::AssignedCell>"
-)]
-pub struct IntermediateValues<T> {
-    /// Account balance after the withdrawal is made.
-    pub new_account_balance: T,
 }

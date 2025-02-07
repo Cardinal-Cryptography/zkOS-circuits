@@ -62,10 +62,8 @@ pub fn run_full_pipeline<PK: ProverKnowledge>() {
 // Runs key generation, proof production on `prove_pub_input`, and proof verification
 // on `verify_pub_input`. In case of failure before verification, panics.
 // In case of verification failure, returns `VerifyFailure`s from `MockProver`.
-pub fn expect_prover_success_and_run_verification_on_separate_pub_input<
-    C: Circuit<Fr> + Default + Clone,
->(
-    test_circuit: C,
+pub fn expect_prover_success_and_run_verification_on_separate_pub_input(
+    test_circuit: impl Circuit<Fr> + Clone,
     prove_pub_input: &[Fr],
     verify_pub_input: &[Fr],
 ) -> Result<(), Vec<VerifyFailure>> {
@@ -73,8 +71,8 @@ pub fn expect_prover_success_and_run_verification_on_separate_pub_input<
 
     let params = generate_setup_params(MAX_K, &mut rng);
 
-    let (params, k, pk, vk) =
-        generate_keys_with_min_k::<C>(params).expect("key generation should succeed");
+    let (params, k, pk, vk) = generate_keys_with_min_k(test_circuit.clone(), params)
+        .expect("key generation should succeed");
 
     let proof = generate_proof(
         &params,
@@ -102,7 +100,7 @@ pub fn expect_prover_success_and_run_verification<C>(
     pub_input: &[Fr],
 ) -> Result<(), Vec<VerifyFailure>>
 where
-    C: Circuit<Fr> + Default + Clone,
+    C: Circuit<Fr> + Clone,
 {
     expect_prover_success_and_run_verification_on_separate_pub_input(
         test_circuit,
@@ -112,10 +110,11 @@ where
 }
 
 // A prover that outputs useful debug info in case of failing constraints.
-pub fn run_mock_prover<C: Circuit<Fr> + Default>(test_circuit: &C, pub_input: &[Fr]) {
+pub fn run_mock_prover<C: Circuit<Fr> + Clone>(test_circuit: &C, pub_input: &[Fr]) {
     let params = generate_setup_params(MAX_K, &mut OsRng);
 
-    let (_, k, _, _) = generate_keys_with_min_k::<C>(params).expect("key generation must succeed");
+    let (_, k, _, _) = generate_keys_with_min_k(test_circuit.clone(), params)
+        .expect("key generation must succeed");
 
     circuits::run_mock_prover(k, test_circuit, pub_input.to_vec())
 }

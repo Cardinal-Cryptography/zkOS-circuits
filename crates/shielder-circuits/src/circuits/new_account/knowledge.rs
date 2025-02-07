@@ -21,6 +21,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub nullifier: T,
     pub trapdoor: T,
     pub initial_deposit: T,
+    pub token_address: T,
     pub anonymity_revoker_public_key: T,
 }
 
@@ -34,6 +35,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             nullifier: Fr::random(&mut *rng),
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
+            token_address: Fr::ZERO,
             anonymity_revoker_public_key: Fr::random(rng),
         }
     }
@@ -44,6 +46,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Value::known(self.trapdoor),
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
+            token_address: Value::known(self.token_address),
             anonymity_revoker_public_key: Value::known(self.anonymity_revoker_public_key),
         })
     }
@@ -58,9 +61,11 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
                 nullifier: self.nullifier,
                 trapdoor: self.trapdoor,
                 account_balance: self.initial_deposit,
+                token_address: self.token_address,
             }),
             NewAccountInstance::HashedId => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,
+            NewAccountInstance::TokenAddress => self.token_address,
             NewAccountInstance::AnonymityRevokerPublicKey => self.anonymity_revoker_public_key,
             NewAccountInstance::SymKeyEncryption => asymmetric_encryption::off_circuit::encrypt(
                 self.anonymity_revoker_public_key,

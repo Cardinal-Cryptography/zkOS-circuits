@@ -11,7 +11,7 @@ use crate::{
     },
     circuits::{
         merkle::{MerkleChip, MerkleProverKnowledge},
-        withdraw::knowledge::{IntermediateValues, WithdrawProverKnowledge},
+        withdraw::knowledge::WithdrawProverKnowledge,
     },
     consts::RANGE_PROOF_NUM_WORDS,
     instance_wrapper::InstanceWrapper,
@@ -38,7 +38,7 @@ impl WithdrawChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let old_note = self.note.note(
+        let old_note = self.note.note_hash(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
@@ -46,6 +46,7 @@ impl WithdrawChip {
                 nullifier: knowledge.nullifier_old.clone(),
                 trapdoor: knowledge.trapdoor_old.clone(),
                 account_balance: knowledge.account_old_balance.clone(),
+                token_address: knowledge.token_address.clone(),
             },
         )?;
 
@@ -87,26 +88,22 @@ impl WithdrawChip {
         synthesizer: &mut impl Synthesizer,
 
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-        intermediate_values: &IntermediateValues<AssignedCell>,
     ) -> Result<(), Error> {
-        let new_balance = intermediate_values.new_account_balance.clone();
+        let new_balance = self.note.decrease_balance(
+            synthesizer,
+            knowledge.account_old_balance.clone(),
+            knowledge.withdrawal_value.clone(),
+        )?;
 
         self.range_check
             .constrain_value::<RANGE_PROOF_NUM_WORDS>(synthesizer, new_balance.clone())?;
-
-        self.sum_chip.constrain_sum(
-            synthesizer,
-            new_balance.clone(),
-            knowledge.withdrawal_value.clone(),
-            knowledge.account_old_balance.clone(),
-        )?;
 
         self.public_inputs.constrain_cells(
             synthesizer,
             [(knowledge.withdrawal_value.clone(), WithdrawalValue)],
         )?;
 
-        let new_note = self.note.note(
+        let new_note = self.note.note_hash(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
@@ -114,6 +111,7 @@ impl WithdrawChip {
                 nullifier: knowledge.nullifier_new.clone(),
                 trapdoor: knowledge.trapdoor_new.clone(),
                 account_balance: new_balance,
+                token_address: knowledge.token_address.clone(),
             },
         )?;
 

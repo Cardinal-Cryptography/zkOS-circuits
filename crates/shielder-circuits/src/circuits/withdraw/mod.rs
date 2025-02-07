@@ -1,6 +1,6 @@
 use strum_macros::{EnumCount, EnumIter};
 
-use crate::merkle::MerkleInstance;
+use crate::{chips::note::NoteInstance, merkle::MerkleInstance};
 
 mod chip;
 mod circuit;
@@ -18,6 +18,7 @@ pub enum WithdrawInstance {
     HashedOldNullifier,
     HashedNewNote,
     WithdrawalValue,
+    TokenAddress,
     Commitment,
     MacSalt,
     MacCommitment,
@@ -29,6 +30,17 @@ impl TryFrom<WithdrawInstance> for MerkleInstance {
     fn try_from(value: WithdrawInstance) -> Result<Self, Self::Error> {
         match value {
             WithdrawInstance::MerkleRoot => Ok(Self::MerkleRoot),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<WithdrawInstance> for NoteInstance {
+    type Error = ();
+
+    fn try_from(value: WithdrawInstance) -> Result<Self, Self::Error> {
+        match value {
+            WithdrawInstance::TokenAddress => Ok(NoteInstance::TokenAddress),
             _ => Err(()),
         }
     }
@@ -63,6 +75,7 @@ mod tests {
             HashedOldNullifier,
             HashedNewNote,
             WithdrawalValue,
+            TokenAddress,
             Commitment,
             MacSalt,
             MacCommitment,

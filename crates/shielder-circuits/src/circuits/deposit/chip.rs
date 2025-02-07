@@ -7,7 +7,6 @@ use crate::{
         mac::{MacChip, MacInput},
         note::{Note, NoteChip},
         range_check::RangeCheckChip,
-        sum::SumChip,
         sym_key::SymKeyChip,
     },
     circuits::{
@@ -27,7 +26,6 @@ pub struct DepositChip {
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip,
     pub range_check: RangeCheckChip,
-    pub sum_chip: SumChip,
     pub merkle: MerkleChip,
     pub note: NoteChip,
 }
@@ -38,7 +36,7 @@ impl DepositChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let old_note = self.note.note(
+        let old_note = self.note.note_hash(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
@@ -46,6 +44,7 @@ impl DepositChip {
                 nullifier: knowledge.nullifier_old.clone(),
                 trapdoor: knowledge.trapdoor_old.clone(),
                 account_balance: knowledge.account_old_balance.clone(),
+                token_address: knowledge.token_address.clone(),
             },
         )?;
 
@@ -91,19 +90,13 @@ impl DepositChip {
             [(knowledge.deposit_value.clone(), DepositValue)],
         )?;
 
-        // TODO: move to another chip or `IntermediateValues`.
-        let account_balance_new = synthesizer.assign_value(
-            "balance new",
-            knowledge.account_old_balance.value() + knowledge.deposit_value.value(),
-        )?;
-        self.sum_chip.constrain_sum(
+        let account_balance_new = self.note.increase_balance(
             synthesizer,
             knowledge.account_old_balance.clone(),
             knowledge.deposit_value.clone(),
-            account_balance_new.clone(),
         )?;
 
-        let new_note = self.note.note(
+        let new_note = self.note.note_hash(
             synthesizer,
             &Note {
                 version: NOTE_VERSION,
@@ -111,6 +104,7 @@ impl DepositChip {
                 nullifier: knowledge.nullifier_new.clone(),
                 trapdoor: knowledge.trapdoor_new.clone(),
                 account_balance: account_balance_new,
+                token_address: knowledge.token_address.clone(),
             },
         )?;
 
