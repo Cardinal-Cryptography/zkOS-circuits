@@ -160,12 +160,17 @@ impl ScalarMultiplyChip {
                     input,
                     result,
                     next_input,
-                    next_result,
+                    next_result: next_result.clone(),
                 },
             )?;
 
             input_value = next_input_value;
             result_value = next_result_value;
+
+            if i.eq(&scalar_bits.len()) {
+                let last_result = result_value.embed(synthesizer, "last result")?;
+                self.constrain_points_equality(synthesizer, next_result.clone(), last_result)?;
+            }
         }
 
         let off_circuit_result_value = off_circuit::scalar_multiply(scalar_bits, input.clone());
@@ -188,7 +193,6 @@ mod tests {
         vec,
         vec::Vec,
     };
-    use std::println;
 
     use halo2_proofs::{
         arithmetic::Field,
@@ -310,8 +314,6 @@ mod tests {
             Fr::ZERO,
             Fr::ONE,
         );
-
-        println!("EXPECTED : {expected:?}");
 
         let input = input(p, bits);
         let output = ScalarMultiplyChipOutput { result: expected };
