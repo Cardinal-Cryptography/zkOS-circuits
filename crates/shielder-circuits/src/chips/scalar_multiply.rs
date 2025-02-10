@@ -34,39 +34,6 @@ pub struct ScalarMultiplyChipOutput<T> {
     pub result: GrumpkinPoint<T>,
 }
 
-pub mod off_circuit {
-    use alloc::vec::Vec;
-
-    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
-
-    use crate::{
-        consts::GRUMPKIN_3B,
-        curve_arithmetic::{self, GrumpkinPoint, V},
-        AssignedCell, Value,
-    };
-
-    pub fn scalar_multiply(
-        scalar_bits: &[AssignedCell; 254],
-        input: GrumpkinPoint<AssignedCell>,
-    ) -> GrumpkinPoint<Value> {
-        let bits: Vec<V> = scalar_bits
-            .iter()
-            .map(|cell| V(cell.value().cloned()))
-            .collect();
-        let bits: [V; 254] = bits.try_into().expect("not 254 bit array");
-        let input = input.into();
-
-        curve_arithmetic::scalar_multiply(
-            input,
-            bits,
-            V(Value::known(*GRUMPKIN_3B)),
-            V(Value::known(Fr::ZERO)),
-            V(Value::known(Fr::ONE)),
-        )
-        .into()
-    }
-}
-
 /// Chip that computes the result of adding a point P on the Grumpkin curve to itself n times.
 ///
 /// n * P = S
@@ -89,7 +56,7 @@ impl ScalarMultiplyChip {
         synthesizer: &mut impl Synthesizer,
         point_at_infinity: GrumpkinPoint<AssignedCell>,
     ) -> Result<(), Error> {
-        let one = synthesizer.assign_value("ONE", Value::known(Fr::ONE))?;
+        let one = synthesizer.assign_constant("ONE", Fr::ONE)?;
         self.sum_chip
             .constrain_zero(synthesizer, point_at_infinity.x)?;
         self.sum_chip
@@ -124,6 +91,7 @@ impl ScalarMultiplyChip {
 
         let mut input_value: GrumpkinPoint<Value> = input.clone().into();
         let mut result_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
+        let mut last_result = None;
 
         for (i, bit) in scalar_bits.iter().enumerate() {
             let input = input_value.embed(synthesizer, "input")?;
@@ -167,20 +135,13 @@ impl ScalarMultiplyChip {
             input_value = next_input_value;
             result_value = next_result_value;
 
-            if i.eq(&scalar_bits.len()) {
-                let last_result = result_value.embed(synthesizer, "last result")?;
-                self.constrain_points_equality(synthesizer, next_result.clone(), last_result)?;
+            if i.eq(&(scalar_bits.len() - 1)) {
+                last_result = Some(next_result);
             }
         }
 
-        let off_circuit_result_value = off_circuit::scalar_multiply(scalar_bits, input.clone());
-        let final_result = result_value.embed(synthesizer, "final result")?;
-        let off_circuit_result =
-            off_circuit_result_value.embed(synthesizer, "off circuit result")?;
-        self.constrain_points_equality(synthesizer, off_circuit_result, final_result.clone())?;
-
         Ok(ScalarMultiplyChipOutput {
-            result: final_result,
+            result: last_result.expect("last result is returned"),
         })
     }
 }
