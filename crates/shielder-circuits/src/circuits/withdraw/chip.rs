@@ -3,9 +3,11 @@ use halo2_proofs::plonk::Error;
 use crate::{
     chips::{
         id_hiding::IdHidingChip,
+        mac::{MacChip, MacInput},
         note::{Note, NoteChip},
         range_check::RangeCheckChip,
         sum::SumChip,
+        sym_key::SymKeyChip,
     },
     circuits::{
         merkle::{MerkleChip, MerkleProverKnowledge},
@@ -124,5 +126,24 @@ impl WithdrawChip {
     ) -> Result<(), Error> {
         self.public_inputs
             .constrain_cells(synthesizer, [(knowledge.commitment.clone(), Commitment)])
+    }
+
+    pub fn check_mac(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &WithdrawProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        let sym_key =
+            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+
+        MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
+            synthesizer,
+            &MacInput {
+                key: sym_key,
+                salt: knowledge.mac_salt.clone(),
+            },
+        )?;
+
+        Ok(())
     }
 }
