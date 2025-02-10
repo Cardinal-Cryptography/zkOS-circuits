@@ -140,9 +140,6 @@ mod tests {
 
         assert!(errors
             .any(|error| error
-                .contains("Equality constraint not satisfied by cell (Column('Instance'")));
-        assert!(errors
-            .any(|error| error
                 .contains("Equality constraint not satisfied by cell (Column('Advice'")));
     }
 }

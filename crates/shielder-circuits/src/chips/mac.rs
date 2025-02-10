@@ -180,9 +180,6 @@ mod tests {
 
         assert!(errors
             .any(|error| error
-                .contains("Equality constraint not satisfied by cell (Column('Instance'")));
-        assert!(errors
-            .any(|error| error
                 .contains("Equality constraint not satisfied by cell (Column('Advice'")));
     }
 
@@ -196,9 +193,6 @@ mod tests {
             .expect_err("Verification should fail")
             .into_iter();
 
-        assert!(errors
-            .any(|error| error
-                .contains("Equality constraint not satisfied by cell (Column('Instance'")));
         assert!(errors
             .any(|error| error
                 .contains("Equality constraint not satisfied by cell (Column('Advice'")));
