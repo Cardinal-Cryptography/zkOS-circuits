@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
     chips::{
@@ -35,7 +35,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let old_note = self.note.note_hash(
             synthesizer,
             &Note {
@@ -58,7 +58,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let hashed_old_nullifier = hash(
             synthesizer,
             self.poseidon.clone(),
@@ -74,7 +74,7 @@ impl WithdrawChip {
         synthesizer: &mut impl Synthesizer,
 
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
             .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
         self.public_inputs
@@ -86,7 +86,7 @@ impl WithdrawChip {
         synthesizer: &mut impl Synthesizer,
 
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let new_balance = self.note.decrease_balance(
             synthesizer,
             knowledge.account_old_balance.clone(),
@@ -121,7 +121,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         self.public_inputs
             .constrain_cells(synthesizer, [(knowledge.commitment.clone(), Commitment)])
     }

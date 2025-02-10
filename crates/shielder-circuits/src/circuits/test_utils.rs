@@ -161,8 +161,8 @@ pub fn expect_instance_permutation_failures(
 
     for failure in actual {
         match failure {
-            VerifyFailure::Permutation { column, location } => match column.column_type() {
-                Any::Advice(_) => match location {
+            VerifyFailure::Permutation { column, location } => match column.column_type {
+                Any::Advice => match location {
                     FailureLocation::InRegion { region, offset: _ } => {
                         matched_advice = in_region_regex.is_match(&region.to_string())
                     }

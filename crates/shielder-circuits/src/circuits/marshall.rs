@@ -1,7 +1,10 @@
 use alloc::{vec, vec::Vec};
 use core::fmt::{self, Display, Formatter};
 
-use halo2_proofs::{halo2curves::serde::SerdeObject, plonk::Circuit};
+use halo2_proofs::{
+    halo2curves::serde::SerdeObject,
+    plonk::{Circuit, ConstraintSystem},
+};
 
 use crate::{
     circuits::{Params, ProvingKey},
@@ -50,9 +53,13 @@ pub fn marshall_pk(k: u32, pk: &ProvingKey) -> MarshallResult<Vec<u8>> {
 }
 
 /// Deserialize `pk` from bytes together with `k`. `k` can be then used to downsize parameters.
-pub fn unmarshall_pk<C: Circuit<Fr>>(buf: &[u8]) -> MarshallResult<(u32, ProvingKey)> {
+pub fn unmarshall_pk<C: Circuit<Fr>>(
+    buf: &[u8],
+    cs: ConstraintSystem<Fr>,
+) -> MarshallResult<(u32, ProvingKey)> {
     let k = u32::from_be_bytes(buf[..4].try_into().map_err(|_| InvalidContent)?);
-    ProvingKey::read::<_, C>(&mut &buf[4..], SERDE_FORMAT)
+    let cs: halo2_proofs::plonk::ConstraintSystemMid<_> = cs.into();
+    ProvingKey::read(&mut &buf[4..], SERDE_FORMAT, cs.into())
         .map_err(|_| IoError)
         .map(|pk| (k, pk))
 }
@@ -120,7 +127,8 @@ mod tests {
         let (_, k, pk) = generate_data();
 
         let bytes = marshall_pk(k, &pk).unwrap();
-        let (k2, pk2) = unmarshall_pk::<MerkleCircuit<NOTE_TREE_HEIGHT>>(&bytes).unwrap();
+        let cs = ConstraintSystem::<Fr>::default();
+        let (k2, pk2) = unmarshall_pk::<MerkleCircuit<NOTE_TREE_HEIGHT>>(&bytes, cs).unwrap();
 
         assert_eq!(k, k2);
         assert_eq!(format!("{pk:?}"), format!("{pk2:?}"));

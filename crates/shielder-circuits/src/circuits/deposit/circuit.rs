@@ -1,6 +1,6 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
-    plonk::{Advice, Circuit, ConstraintSystem, Error},
+    plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
 };
 
 use crate::{
@@ -50,7 +50,7 @@ impl Circuit<Fr> for DepositCircuit {
         &self,
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self.0.embed(&mut synthesizer, "DepositProverKnowledge")?;

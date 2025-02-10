@@ -1,6 +1,6 @@
 use alloc::collections::BTreeSet;
 
-use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error};
+use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, ErrorFront};
 
 use crate::{
     column_pool::{ColumnPool, ConfigPhase},
@@ -46,7 +46,7 @@ pub trait Gate: Sized {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: Self::Input,
-    ) -> Result<(), Error>;
+    ) -> Result<(), ErrorFront>;
 
     /// Organize the advices in a way that the gate expects them to be passed during creation.
     ///

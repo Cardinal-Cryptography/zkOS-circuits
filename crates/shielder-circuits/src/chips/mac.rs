@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
     poseidon::circuit::{hash, PoseidonChip},
@@ -54,7 +54,7 @@ impl MacChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &MacInput<AssignedCell>,
-    ) -> Result<Mac<AssignedCell>, Error> {
+    ) -> Result<Mac<AssignedCell>, ErrorFront> {
         let commitment = hash(
             synthesizer,
             self.poseidon.clone(),
@@ -79,7 +79,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, ErrorFront, Instance},
     };
 
     use crate::{
@@ -122,7 +122,7 @@ mod tests {
             &self,
             (pool, mac_chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), Error> {
+        ) -> Result<(), ErrorFront> {
             let pool = pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed key and r.

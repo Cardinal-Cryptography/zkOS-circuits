@@ -1,4 +1,4 @@
-use halo2_proofs::dev::CircuitCost;
+use halo2_frontend::dev::CircuitCost;
 use human_bytes::human_bytes;
 use once_cell::sync::Lazy;
 use rand::rngs::StdRng;

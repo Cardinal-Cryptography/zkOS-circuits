@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
     consts::SYM_KEY_SALT,
@@ -29,7 +29,7 @@ impl SymKeyChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         id: AssignedCell,
-    ) -> Result<AssignedCell, Error> {
+    ) -> Result<AssignedCell, ErrorFront> {
         let salt = synthesizer.assign_constant("SymKey salt", *SYM_KEY_SALT)?;
         hash(synthesizer, self.poseidon.clone(), [id, salt])
     }
@@ -46,7 +46,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, ErrorFront, Instance},
     };
     use rand_core::OsRng;
 
@@ -92,7 +92,7 @@ mod tests {
             &self,
             (pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), Error> {
+        ) -> Result<(), ErrorFront> {
             let pool = pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed id.

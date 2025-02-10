@@ -23,9 +23,9 @@ use alloc::{fmt::Debug, vec::Vec};
 pub use chips::note::{off_circuit::note_hash, Note};
 pub use circuits::*;
 pub use consts::MAX_K;
+pub use halo2_frontend::dev::CircuitCost;
 pub use halo2_proofs::{
     arithmetic::Field,
-    dev::CircuitCost,
     halo2curves::bn256::{Bn256, Fr, G1Affine, G1},
     plonk::{Circuit, ProvingKey, VerifyingKey},
     poly::{commitment::Params, kzg::commitment::ParamsKZG},

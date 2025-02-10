@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
     chips::{
@@ -27,7 +27,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let note = self.note.note_hash(
             synthesizer,
             &Note {
@@ -53,7 +53,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
         self.public_inputs
             .constrain_cells(synthesizer, [(h_id, HashedId)])
@@ -63,7 +63,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 

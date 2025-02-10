@@ -3,7 +3,7 @@ use alloc::vec;
 use halo2_proofs::{
     circuit::Region,
     halo2curves::bn256::Fr,
-    plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -92,7 +92,7 @@ impl Gate for PointsAddGate {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: Self::Input,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
@@ -127,7 +127,7 @@ fn copy_grumpkin_advices(
     region: &mut Region<'_, Fr>,
     column: [Column<Advice>; 3],
     advice_offset: usize,
-) -> Result<(), Error> {
+) -> Result<(), ErrorFront> {
     cell.x.copy_advice(
         || alloc::format!("{}[x]", annotation),
         region,

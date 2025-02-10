@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::ErrorFront;
 use DepositInstance::DepositValue;
 
 use crate::{
@@ -33,7 +33,7 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let old_note = self.note.note_hash(
             synthesizer,
             &Note {
@@ -56,7 +56,7 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let hashed_old_nullifier = hash(
             synthesizer,
             self.poseidon.clone(),
@@ -71,7 +71,7 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
             .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
         self.public_inputs
@@ -82,7 +82,7 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         self.public_inputs.constrain_cells(
             synthesizer,
             [(knowledge.deposit_value.clone(), DepositValue)],

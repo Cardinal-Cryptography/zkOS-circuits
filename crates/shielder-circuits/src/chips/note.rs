@@ -1,6 +1,6 @@
 use core::array;
 
-use halo2_proofs::{arithmetic::Field, plonk::Error};
+use halo2_proofs::{arithmetic::Field, plonk::ErrorFront};
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
@@ -36,7 +36,7 @@ impl Embed for Note<Value> {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<alloc::string::String>,
-    ) -> Result<Self::Embedded, Error> {
+    ) -> Result<Self::Embedded, ErrorFront> {
         let annotation = annotation.into();
 
         Ok(Note {
@@ -94,7 +94,7 @@ impl NoteChip {
         &self,
         note: &Note<AssignedCell>,
         synthesizer: &mut impl Synthesizer,
-    ) -> Result<AssignedCell, Error> {
+    ) -> Result<AssignedCell, ErrorFront> {
         let note_version: Fr = note.version.as_field();
         synthesizer.assign_constant("note_version", note_version)
     }
@@ -112,7 +112,7 @@ impl NoteChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         note: &Note<AssignedCell>,
-    ) -> Result<AssignedCell, Error> {
+    ) -> Result<AssignedCell, ErrorFront> {
         let note_version = self.assign_note_version(note, synthesizer)?;
 
         let h_balance = self.balance_hash(synthesizer, note)?;
@@ -137,7 +137,7 @@ impl NoteChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         note: &Note<AssignedCell>,
-    ) -> Result<AssignedCell, Error> {
+    ) -> Result<AssignedCell, ErrorFront> {
         let zero_cell = synthesizer.assign_constant("Zero", Fr::ZERO)?;
 
         let mut input: [_; POSEIDON_RATE] = array::from_fn(|_| zero_cell.clone());
@@ -152,7 +152,7 @@ impl NoteChip {
         synthesizer: &mut impl Synthesizer,
         balance_old: AssignedCell,
         increase_value: AssignedCell,
-    ) -> Result<AssignedCell, Error> {
+    ) -> Result<AssignedCell, ErrorFront> {
         let balance_new = synthesizer
             .assign_value("balance_new", balance_old.value() + increase_value.value())?;
 
@@ -171,7 +171,7 @@ impl NoteChip {
         synthesizer: &mut impl Synthesizer,
         balance_old: AssignedCell,
         decrease_value: AssignedCell,
-    ) -> Result<AssignedCell, Error> {
+    ) -> Result<AssignedCell, ErrorFront> {
         let balance_new = synthesizer
             .assign_value("balance_new", balance_old.value() - decrease_value.value())?;
 
@@ -191,7 +191,7 @@ mod tests {
     use halo2_proofs::{
         arithmetic::Field,
         circuit::{floor_planner, Layouter},
-        plonk::{Advice, Circuit, ConstraintSystem, Error},
+        plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
     };
     use parameterized::parameterized;
     use strum_macros::{EnumCount, EnumIter};
@@ -307,7 +307,7 @@ mod tests {
             &self,
             (chip, advice_pool, public_inputs): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), Error> {
+        ) -> Result<(), ErrorFront> {
             let advice_pool = advice_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &advice_pool);
 
