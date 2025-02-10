@@ -15,7 +15,9 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChipInput<T> {
+    /// point on the Grunmpkin curve
     pub input: GrumpkinPoint<T>,
+    /// scalar bits in LE representation
     pub scalar_bits: [T; 254],
 }
 
@@ -168,7 +170,7 @@ mod tests {
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         consts::GRUMPKIN_3B,
-        curve_arithmetic::{self, field_element_to_bits},
+        curve_arithmetic::{self, field_element_to_le_bits},
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
@@ -266,7 +268,7 @@ mod tests {
         let rng = rng();
         let p = G1::random(rng.clone());
         let n = Fr::from_u128(3);
-        let bits = field_element_to_bits(n);
+        let bits = field_element_to_le_bits(n);
 
         let expected = curve_arithmetic::scalar_multiply(
             p.into(),

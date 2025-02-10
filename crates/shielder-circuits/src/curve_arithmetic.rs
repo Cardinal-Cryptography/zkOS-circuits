@@ -245,20 +245,20 @@ where
     result
 }
 
-/// Converts given field element to the individual bit representation.
+/// Converts given field element to the individual LE bit representation
 ///
 /// panics if value is not 254 bits
-pub fn field_element_to_bits(value: Fr) -> [Fr; 254] {
-    let bits_vec = to_bits(value.to_repr().as_ref())
+pub fn field_element_to_le_bits(value: Fr) -> [Fr; 254] {
+    let bits_vec = to_bits_le(value.to_repr().as_ref())
         .to_vec()
         .iter()
         .take(Fr::NUM_BITS as usize)
         .map(|&x| Fr::from(u64::from(x)))
         .collect::<Vec<Fr>>();
-    bits_vec.try_into().expect("value is not 254 bits")
+    bits_vec.try_into().expect("value is not 254 bits long")
 }
 
-fn to_bits(num: &[u8]) -> Vec<bool> {
+fn to_bits_le(num: &[u8]) -> Vec<bool> {
     let len = num.len() * 8;
     let mut bits = Vec::new();
     for i in 0..len {
@@ -275,7 +275,7 @@ mod tests {
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
     };
 
-    use super::field_element_to_bits;
+    use super::field_element_to_le_bits;
     use crate::{
         consts::GRUMPKIN_3B,
         curve_arithmetic::{
@@ -290,7 +290,7 @@ mod tests {
 
         let p = G1::random(rng.clone());
         let n = Fr::from_u128(3);
-        let bits = field_element_to_bits(n);
+        let bits = field_element_to_le_bits(n);
 
         let expected: GrumpkinPoint<Fr> = (p + p + p).into();
         let expected: GrumpkinPoint<Fr> = normalize_point(expected);
