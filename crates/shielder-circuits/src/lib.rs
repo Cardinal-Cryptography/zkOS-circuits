@@ -76,3 +76,45 @@ impl<Id: IntoEnumIterator + EnumCount, Comp: Fn(Id) -> Fr> PublicInputProvider<I
         self(instance_id)
     }
 }
+
+#[cfg(test)]
+mod hehe {
+    use halo2_frontend::{
+        circuit::{floor_planner::V1, Layouter},
+        plonk::{Circuit, ConstraintSystem, Error},
+    };
+    use rand::rngs::OsRng;
+
+    use crate::config_builder::ConfigsBuilder;
+    use crate::{generate_keys_with_min_k, generate_proof, generate_setup_params, Fr};
+
+    struct T;
+    impl Circuit<Fr> for T {
+        type Config = ();
+        type FloorPlanner = V1;
+
+        fn without_witnesses(&self) -> Self {
+            Self
+        }
+
+        fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
+            meta.instance_column();
+            ConfigsBuilder::new(meta).with_poseidon();
+        }
+
+        fn synthesize(
+            &self,
+            _config: Self::Config,
+            _layouter: impl Layouter<Fr>,
+        ) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn hoho() {
+        let params = generate_setup_params(6, &mut OsRng);
+        let (params, _, pk, _) = generate_keys_with_min_k(T, params).unwrap();
+        generate_proof(&params, &pk, T, &[], &mut OsRng);
+    }
+}
