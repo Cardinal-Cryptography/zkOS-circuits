@@ -6,5 +6,6 @@ pub mod note;
 pub mod point_double;
 pub mod points_add;
 pub mod range_check;
+pub mod scalar_multiply;
 pub mod sum;
 pub mod sym_key;

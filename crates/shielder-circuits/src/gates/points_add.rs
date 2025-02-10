@@ -1,17 +1,17 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    circuit::Region,
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
 
+use super::copy_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::GRUMPKIN_3B,
-    curve_operations::{self, GrumpkinPoint},
+    curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
@@ -23,10 +23,10 @@ use crate::{
 /// where P,Q,S are points on the G1 of the Grumpkin curve
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PointsAddGate {
-    p: [Column<Advice>; 3],
-    q: [Column<Advice>; 3],
-    s: [Column<Advice>; 3],
-    selector: Selector,
+    pub p: [Column<Advice>; 3],
+    pub q: [Column<Advice>; 3],
+    pub s: [Column<Advice>; 3],
+    pub selector: Selector,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -76,7 +76,7 @@ impl Gate for PointsAddGate {
                 x: res_x3,
                 y: res_y3,
                 z: res_z3,
-            } = curve_operations::points_add(
+            } = curve_arithmetic::points_add(
                 GrumpkinPoint::new(x1, y1, z1),
                 GrumpkinPoint::new(x2, y2, z2),
                 Expression::Constant(*GRUMPKIN_3B),
@@ -121,34 +121,6 @@ impl Gate for PointsAddGate {
     }
 }
 
-fn copy_grumpkin_advices(
-    cell: &GrumpkinPoint<AssignedCell>,
-    annotation: &str,
-    region: &mut Region<'_, Fr>,
-    column: [Column<Advice>; 3],
-    advice_offset: usize,
-) -> Result<(), Error> {
-    cell.x.copy_advice(
-        || alloc::format!("{}[x]", annotation),
-        region,
-        column[0],
-        advice_offset,
-    )?;
-    cell.y.copy_advice(
-        || alloc::format!("{}[y]", annotation),
-        region,
-        column[1],
-        advice_offset,
-    )?;
-    cell.z.copy_advice(
-        || alloc::format!("{}[z]", annotation),
-        region,
-        column[2],
-        advice_offset,
-    )?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use std::{vec, vec::Vec};
@@ -159,14 +131,12 @@ mod tests {
         halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
         plonk::ConstraintSystem,
     };
-    use rand::{rngs::StdRng, SeedableRng};
 
     use super::{PointsAddGate, PointsAddGateInput};
-    use crate::gates::{test_utils::OneGateCircuit, Gate as _};
-
-    fn rng() -> StdRng {
-        StdRng::from_seed(*b"00000000000000000000100001011001")
-    }
+    use crate::{
+        gates::{test_utils::OneGateCircuit, Gate as _},
+        rng,
+    };
 
     fn input(p: G1, q: G1, s: G1) -> PointsAddGateInput<Fr> {
         PointsAddGateInput {

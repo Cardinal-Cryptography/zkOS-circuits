@@ -1,16 +1,21 @@
 use alloc::collections::BTreeSet;
 
-use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error};
+use halo2_proofs::{
+    circuit::Region,
+    plonk::{Advice, Column, ConstraintSystem, Error},
+};
 
 use crate::{
     column_pool::{ColumnPool, ConfigPhase},
+    curve_arithmetic::GrumpkinPoint,
     synthesizer::Synthesizer,
-    Fr,
+    AssignedCell, Fr,
 };
 
 pub mod membership;
 pub mod point_double;
 pub mod points_add;
+pub mod scalar_multiply;
 pub mod sum;
 
 #[cfg(test)]
@@ -61,4 +66,34 @@ pub trait Gate: Sized {
 pub fn ensure_unique_columns(advice: &[Column<Advice>]) {
     let set = BTreeSet::from_iter(advice.iter().map(|column| column.index()));
     assert_eq!(set.len(), advice.len(), "Advice columns must be unique");
+}
+
+pub fn copy_grumpkin_advices(
+    assigned_point: &GrumpkinPoint<AssignedCell>,
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    columns: [Column<Advice>; 3],
+    advice_offset: usize,
+) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+    ensure_unique_columns(&columns);
+
+    let x = assigned_point.x.copy_advice(
+        || alloc::format!("{}[x]", annotation),
+        region,
+        columns[0],
+        advice_offset,
+    )?;
+    let y = assigned_point.y.copy_advice(
+        || alloc::format!("{}[y]", annotation),
+        region,
+        columns[1],
+        advice_offset,
+    )?;
+    let z = assigned_point.z.copy_advice(
+        || alloc::format!("{}[z]", annotation),
+        region,
+        columns[2],
+        advice_offset,
+    )?;
+    Ok(GrumpkinPoint::new(x, y, z))
 }
