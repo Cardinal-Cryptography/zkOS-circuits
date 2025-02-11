@@ -6,13 +6,14 @@ use crate::{
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
         range_check::RangeCheckChip,
+        scalar_multiply::ScalarMultiplyChip,
         sum::SumChip,
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::WIDTH,
     gates::{
         membership::MembershipGate, point_double::PointDoubleGate, points_add::PointsAddGate,
-        sum::SumGate, Gate,
+        scalar_multiply::ScalarMultiplyGate, sum::SumGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -31,6 +32,7 @@ pub struct ConfigsBuilder<'cs> {
     sum: Option<SumChip>,
     points_add: Option<PointsAddChip>,
     point_double: Option<PointDoubleChip>,
+    scalar_multiply: Option<ScalarMultiplyChip>,
     note: Option<NoteChip>,
 }
 
@@ -55,6 +57,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             sum: None,
             points_add: None,
             point_double: None,
+            scalar_multiply: None,
             note: None,
         }
     }
@@ -156,6 +159,22 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.point_double
             .clone()
             .expect("PointDoubleChip not configured")
+    }
+
+    pub fn with_scalar_multiply_chip(mut self) -> Self {
+        check_if_cached!(self, scalar_multiply);
+        self = self.with_sum();
+        self.scalar_multiply = Some(ScalarMultiplyChip {
+            multiply_gate: ScalarMultiplyGate::create_gate(self.system, &mut self.advice_pool),
+            sum_chip: self.sum_chip(),
+        });
+        self
+    }
+
+    pub fn scalar_multiply_chip(&self) -> ScalarMultiplyChip {
+        self.scalar_multiply
+            .clone()
+            .expect("ScalarMultiplyChip is not configured")
     }
 
     pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {

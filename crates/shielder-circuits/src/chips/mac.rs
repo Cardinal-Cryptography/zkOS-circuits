@@ -1,6 +1,8 @@
 use halo2_proofs::plonk::ErrorFront;
+use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
+    instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -10,13 +12,13 @@ use crate::{
 #[derive(Copy, Clone, Debug, Default)]
 pub struct MacInput<T> {
     pub key: T,
-    pub r: T,
+    pub salt: T,
 }
 
 /// MAC (commitment to a key accompanied by salt).
 #[derive(Copy, Clone, Debug)]
 pub struct Mac<T> {
-    pub r: T,
+    pub salt: T,
     pub commitment: T,
 }
 
@@ -29,10 +31,16 @@ pub mod off_circuit {
 
     pub fn mac(input: &MacInput<Fr>) -> Mac<Fr> {
         Mac {
-            r: input.r,
-            commitment: hash(&[input.r, input.key]),
+            salt: input.salt,
+            commitment: hash(&[input.salt, input.key]),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
+pub enum MacInstance {
+    MacSalt,
+    MacCommitment,
 }
 
 /// Chip that is able to calculate MAC.
@@ -41,12 +49,13 @@ pub mod off_circuit {
 #[derive(Clone, Debug)]
 pub struct MacChip {
     poseidon: PoseidonChip,
+    instance: InstanceWrapper<MacInstance>,
 }
 
 impl MacChip {
     /// Create a new `MacChip`.
-    pub fn new(poseidon: PoseidonChip) -> Self {
-        Self { poseidon }
+    pub fn new(poseidon: PoseidonChip, instance: InstanceWrapper<MacInstance>) -> Self {
+        Self { poseidon, instance }
     }
 
     /// Calculate the MAC as `(r, H(r, key))`.
@@ -54,17 +63,20 @@ impl MacChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &MacInput<AssignedCell>,
-    ) -> Result<Mac<AssignedCell>, ErrorFront> {
+    ) -> Result<(), ErrorFront> {
         let commitment = hash(
             synthesizer,
             self.poseidon.clone(),
-            [input.r.clone(), input.key.clone()],
+            [input.salt.clone(), input.key.clone()],
         )?;
 
-        Ok(Mac {
-            r: input.r.clone(),
-            commitment,
-        })
+        self.instance.constrain_cells(
+            synthesizer,
+            [
+                (input.salt.clone(), MacInstance::MacSalt),
+                (commitment, MacInstance::MacCommitment),
+            ],
+        )
     }
 }
 
@@ -79,7 +91,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Advice, Circuit, Column, ConstraintSystem, ErrorFront, Instance},
+        plonk::{Advice, Circuit, ConstraintSystem, Error},
     };
 
     use crate::{
@@ -87,6 +99,7 @@ mod tests {
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         embed::Embed,
+        instance_wrapper::InstanceWrapper,
         synthesizer::create_synthesizer,
         Fr,
     };
@@ -95,11 +108,7 @@ mod tests {
     struct MacCircuit(MacInput<Fr>);
 
     impl Circuit<Fr> for MacCircuit {
-        type Config = (
-            ColumnPool<Advice, PreSynthesisPhase>,
-            MacChip,
-            Column<Instance>,
-        );
+        type Config = (ColumnPool<Advice, PreSynthesisPhase>, MacChip);
         type FloorPlanner = V1;
 
         fn without_witnesses(&self) -> Self {
@@ -107,41 +116,33 @@ mod tests {
         }
 
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
-            // Enable public input.
-            let instance = meta.instance_column();
-            meta.enable_equality(instance);
-            // Register Poseidon.
+            let instance = InstanceWrapper::new(meta);
             let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
-            // Create MAC chip.
-            let mac = MacChip::new(configs_builder.poseidon_chip());
+            let mac = MacChip::new(configs_builder.poseidon_chip(), instance);
 
-            (configs_builder.finish(), mac, instance)
+            (configs_builder.finish(), mac)
         }
 
         fn synthesize(
             &self,
-            (pool, mac_chip, instance): Self::Config,
+            (pool, mac_chip): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), ErrorFront> {
             let pool = pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &pool);
-            // 1. Embed key and r.
+            // 1. Embed key and salt.
             let key = self.0.key.embed(&mut synthesizer, "key")?;
-            let r = self.0.r.embed(&mut synthesizer, "r")?;
+            let salt = self.0.salt.embed(&mut synthesizer, "salt")?;
 
-            // 2. Calculate MAC.
-            let mac = mac_chip.mac(&mut synthesizer, &MacInput { key, r })?;
-
-            // 3. Compare MAC with public input.
-            synthesizer.constrain_instance(mac.r.cell(), instance, 0)?;
-            synthesizer.constrain_instance(mac.commitment.cell(), instance, 1)
+            // 2. Compute MAC and constrain the result to the instance.
+            mac_chip.mac(&mut synthesizer, &MacInput { key, salt })
         }
     }
 
-    fn input(key: impl Into<Fr>, r: impl Into<Fr>) -> MacInput<Fr> {
+    fn input(key: impl Into<Fr>, salt: impl Into<Fr>) -> MacInput<Fr> {
         MacInput {
             key: key.into(),
-            r: r.into(),
+            salt: salt.into(),
         }
     }
 
@@ -149,7 +150,7 @@ mod tests {
         MockProver::run(
             6,
             &MacCircuit(input),
-            vec![vec![expected_mac.r, expected_mac.commitment]],
+            vec![vec![expected_mac.salt, expected_mac.commitment]],
         )
         .expect("Mock prover should run successfully")
         .verify()
@@ -184,9 +185,9 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_r_fails() {
+    fn incorrect_salt_fails() {
         let mut expected_mac = off_circuit::mac(&input(41, 42));
-        expected_mac.r += Fr::one();
+        expected_mac.salt += Fr::one();
         let input = input(41, 42);
 
         let mut errors = verify(input, expected_mac)

@@ -58,7 +58,8 @@ impl Circuit<Fr> for DepositCircuit {
         main_chip.check_old_note(&mut synthesizer, &knowledge)?;
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge)
+        main_chip.check_id_hiding(&mut synthesizer, &knowledge)?;
+        main_chip.check_mac(&mut synthesizer, &knowledge)
     }
 }
 
@@ -69,6 +70,7 @@ mod tests {
     use rand_core::OsRng;
 
     use crate::{
+        chips::sym_key::off_circuit,
         circuits::{
             deposit::knowledge::DepositProverKnowledge,
             merkle::generate_example_path_with_given_leaf,
@@ -126,6 +128,26 @@ mod tests {
     }
 
     #[test]
+    fn fails_if_mac_commitment_is_incorrect() {
+        let pk = DepositProverKnowledge::random_correct_example(&mut OsRng);
+        let pub_input = pk.with_substitution(MacCommitment, |c| c + Fr::ONE);
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
+        );
+    }
+
+    #[test]
+    fn fails_if_mac_salt_is_incorrect() {
+        let pk = DepositProverKnowledge::random_correct_example(&mut OsRng);
+        let pub_input = pk.with_substitution(MacSalt, |s| s + Fr::ONE);
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
+        );
+    }
+
+    #[test]
     fn fails_if_h_note_old_is_not_the_hash_of_appropriate_witnesses() {
         let mut rng = OsRng;
 
@@ -170,6 +192,8 @@ mod tests {
                 HashedNewNote => h_note_new,
                 DepositValue => pk.deposit_value,
                 TokenAddress => pk.token_address,
+                MacSalt => pk.mac_salt,
+                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
             };
 
             assert_eq!(

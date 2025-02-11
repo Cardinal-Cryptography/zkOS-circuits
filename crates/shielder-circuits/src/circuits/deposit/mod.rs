@@ -9,6 +9,8 @@ mod knowledge;
 pub use circuit::DepositCircuit;
 pub use knowledge::DepositProverKnowledge;
 
+use crate::chips::mac::MacInstance;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum DepositInstance {
     IdHiding,
@@ -17,6 +19,8 @@ pub enum DepositInstance {
     HashedNewNote,
     DepositValue,
     TokenAddress,
+    MacSalt,
+    MacCommitment,
 }
 
 impl TryFrom<DepositInstance> for MerkleInstance {
@@ -41,6 +45,18 @@ impl TryFrom<DepositInstance> for NoteInstance {
     }
 }
 
+impl TryFrom<DepositInstance> for MacInstance {
+    type Error = ();
+
+    fn try_from(value: DepositInstance) -> Result<Self, Self::Error> {
+        match value {
+            DepositInstance::MacSalt => Ok(Self::MacSalt),
+            DepositInstance::MacCommitment => Ok(Self::MacCommitment),
+            _ => Err(()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{vec, vec::Vec};
@@ -59,6 +75,8 @@ mod tests {
             HashedNewNote,
             DepositValue,
             TokenAddress,
+            MacSalt,
+            MacCommitment,
         ];
         assert_eq!(expected_order, DepositInstance::iter().collect::<Vec<_>>());
     }

@@ -12,12 +12,7 @@ categories = ["cryptography"]
 repository = "https://github.com/Cardinal-Cryptography/zkOS-circuits"
 
 [workspace.dependencies]
-alloy-provider = { version = "0.8.3" }
-alloy-rpc-types = { version = "0.8.3" }
-alloy-sol-types = { version = "0.8.5" }
-anyhow = "1.0.94"
 assert2 = { version = "0.3.15" }
-clap = { version = "4.5.22", features = ["derive"] }
 criterion = { version = "0.5.1" }
 darling = { version = "0.20.10" }
 # https://github.com/Cardinal-Cryptography/poseidon2-gadget/tree/ce317a65e0f1148ce9220a7f3281ef0f27544fb4
@@ -29,8 +24,6 @@ itertools = { version = "0.13.0" }
 lazy_static = { version = "1.5.0" }
 once_cell = { version = "1.20.2" }
 parameterized = "2.0.0"
-postgres = "0.19.9"
-prettytable-rs = "0.10.0"
 proc-macro2 = { version = "1.0.86" }
 quote = { version = "1.0.37" }
 rand = { version = "0.8.5" }
@@ -38,20 +31,12 @@ rand_core = { version = "0.6.4" }
 rayon = { version = "1.8" }
 regex = { version = "1.11.1" }
 ruint = { version = "1" }
-secrecy = "0.10.3"
 sha3 = { version = "0.10" }
 static_assertions = { version = "1.1.0" }
 strum = { version = "0.26.3" }
 strum_macros = { version = "0.26.3" }
 syn = { version = "2.0.79" }
-tokio = { version = "1.42.0" }
-
-# CC dependencies
-
-# https://github.com/Cardinal-Cryptography/zkOS-monorepo/tree/1988b8bce2ac8631ce86e81ef9b426e17d50e39b
-shielder-rust-sdk = { git = "https://github.com/Cardinal-Cryptography/zkOS-monorepo", rev = "1988b8b" }
 
 # Local dependencies
 macros = { path = "crates/macros" }
 transcript = { path = "crates/transcript" }
-shielder-circuits = { path = "crates/shielder-circuits" }

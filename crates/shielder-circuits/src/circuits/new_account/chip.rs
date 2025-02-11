@@ -74,7 +74,8 @@ impl NewAccountChip {
         self.public_inputs.constrain_cells(
             synthesizer,
             [
-                (revoker_pkey, AnonymityRevokerPublicKey),
+                (revoker_pkey.x, AnonymityRevokerPublicKeyX),
+                (revoker_pkey.y, AnonymityRevokerPublicKeyY),
                 (sym_key_encryption, SymKeyEncryption),
             ],
         )

@@ -7,10 +7,11 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
+use super::copy_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::GRUMPKIN_3B,
-    curve_operations::{self, GrumpkinPoint},
+    curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
@@ -22,9 +23,9 @@ use crate::{
 /// where P,S  points on the G1 of the Grumpkin curve
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PointDoubleGate {
-    p: [Column<Advice>; 3],
-    s: [Column<Advice>; 3],
-    selector: Selector,
+    pub p: [Column<Advice>; 3],
+    pub s: [Column<Advice>; 3],
+    pub selector: Selector,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -33,8 +34,8 @@ pub struct PointDoubleGate {
     embedded = "PointDoubleGateInput<crate::AssignedCell>"
 )]
 pub struct PointDoubleGateInput<T> {
-    pub p: [T; 3], // x1,y1,z1
-    pub s: [T; 3], // x2,y2,z2
+    pub p: GrumpkinPoint<T>,
+    pub s: GrumpkinPoint<T>,
 }
 
 const SELECTOR_OFFSET: i32 = 0;
@@ -68,7 +69,7 @@ impl Gate for PointDoubleGate {
                 x: res_x3,
                 y: res_y3,
                 z: res_z3,
-            } = curve_operations::point_double(
+            } = curve_arithmetic::point_double(
                 GrumpkinPoint::new(x, y, z),
                 Expression::Constant(*GRUMPKIN_3B),
             );
@@ -90,23 +91,8 @@ impl Gate for PointDoubleGate {
                 self.selector
                     .enable(&mut region, SELECTOR_OFFSET as usize)?;
 
-                for (i, cell) in input.p.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("P[{i}]"),
-                        &mut region,
-                        self.p[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
-
-                for (i, cell) in input.s.iter().enumerate() {
-                    cell.copy_advice(
-                        || alloc::format!("S[{i}]"),
-                        &mut region,
-                        self.s[i],
-                        ADVICE_OFFSET as usize,
-                    )?;
-                }
+                copy_grumpkin_advices(&input.p, "P", &mut region, self.p, ADVICE_OFFSET as usize)?;
+                copy_grumpkin_advices(&input.s, "S", &mut region, self.s, ADVICE_OFFSET as usize)?;
 
                 Ok(())
             },
@@ -142,8 +128,8 @@ mod tests {
 
     fn input(p: G1, s: G1) -> PointDoubleGateInput<Fr> {
         PointDoubleGateInput {
-            p: [p.x, p.y, p.z],
-            s: [s.x, s.y, s.z],
+            p: p.into(),
+            s: s.into(),
         }
     }
 

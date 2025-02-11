@@ -2,7 +2,7 @@ use halo2_proofs::{circuit::Value, plonk::ErrorFront};
 
 use crate::{
     consts::GRUMPKIN_3B,
-    curve_operations::{self, GrumpkinPoint},
+    curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
         points_add::{PointsAddGate, PointsAddGateInput},
@@ -37,12 +37,12 @@ impl PointsAddChip {
         Self { gate }
     }
 
-    pub fn point_add(
+    pub fn points_add(
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &PointsAddChipInput<AssignedCell>,
-    ) -> Result<PointsAddChipOutput<AssignedCell>, ErrorFront> {
-        let s_value = curve_operations::points_add(
+    ) -> Result<PointsAddChipOutput<AssignedCell>, Error> {
+        let s_value = curve_arithmetic::points_add(
             input.p.clone().into(),
             input.q.clone().into(),
             Value::known(*GRUMPKIN_3B),
@@ -125,7 +125,7 @@ mod tests {
             let q = q.embed(&mut synthesizer, "Q")?;
 
             let PointsAddChipOutput { s } =
-                chip.point_add(&mut synthesizer, &PointsAddChipInput { p, q })?;
+                chip.points_add(&mut synthesizer, &PointsAddChipInput { p, q })?;
 
             synthesizer.constrain_instance(s.x.cell(), instance, 0)?;
             synthesizer.constrain_instance(s.y.cell(), instance, 1)?;
