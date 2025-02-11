@@ -1,11 +1,22 @@
 use halo2_proofs::plonk::Error;
+use macros::embeddable;
 
-use crate::{synthesizer::Synthesizer, AssignedCell};
+use crate::{embed::Embed, synthesizer::Synthesizer, AssignedCell};
+
+#[derive(Copy, Clone, Debug, Default)]
+#[embeddable(
+    receiver = "AsymPublicKey<crate::Value>",
+    embedded = "AsymPublicKey<crate::AssignedCell>"
+)]
+pub struct AsymPublicKey<T> {
+    pub x: T,
+    pub y: T,
+}
 
 pub mod off_circuit {
-    use crate::Fr;
+    use crate::{chips::asymmetric_encryption::AsymPublicKey, Fr};
 
-    pub fn encrypt(_key: Fr, message: Fr) -> Fr {
+    pub fn encrypt(_key: AsymPublicKey<Fr>, message: Fr) -> Fr {
         message
     }
 }
@@ -17,7 +28,7 @@ impl ElGamalEncryptionChip {
     pub fn encrypt(
         &self,
         _synthesizer: &mut impl Synthesizer,
-        _key: AssignedCell,
+        _key: AsymPublicKey<AssignedCell>,
         message: AssignedCell,
     ) -> Result<AssignedCell, Error> {
         Ok(message)

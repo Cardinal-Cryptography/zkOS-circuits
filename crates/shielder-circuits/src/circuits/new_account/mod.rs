@@ -15,7 +15,8 @@ pub enum NewAccountInstance {
     HashedId,
     InitialDeposit,
     TokenAddress,
-    AnonymityRevokerPublicKey,
+    AnonymityRevokerPublicKeyX,
+    AnonymityRevokerPublicKeyY,
     SymKeyEncryption,
 }
 
@@ -46,7 +47,8 @@ mod tests {
             HashedId,
             InitialDeposit,
             TokenAddress,
-            AnonymityRevokerPublicKey,
+            AnonymityRevokerPublicKeyX,
+            AnonymityRevokerPublicKeyY,
             SymKeyEncryption,
         ];
         assert_eq!(
