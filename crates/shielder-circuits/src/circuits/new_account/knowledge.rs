@@ -2,7 +2,7 @@ use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
-    chips::{asymmetric_encryption, sym_key},
+    chips::{asymmetric_encryption, asymmetric_encryption::AsymPublicKey, sym_key},
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
@@ -22,7 +22,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub trapdoor: T,
     pub initial_deposit: T,
     pub token_address: T,
-    pub anonymity_revoker_public_key: T,
+    pub anonymity_revoker_public_key: AsymPublicKey<T>,
 }
 
 impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
@@ -36,7 +36,10 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
             token_address: Fr::ZERO,
-            anonymity_revoker_public_key: Fr::random(rng),
+            anonymity_revoker_public_key: AsymPublicKey {
+                x: Fr::random(&mut *rng),
+                y: Fr::random(rng),
+            },
         }
     }
 
@@ -47,7 +50,10 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
             token_address: Value::known(self.token_address),
-            anonymity_revoker_public_key: Value::known(self.anonymity_revoker_public_key),
+            anonymity_revoker_public_key: AsymPublicKey {
+                x: Value::known(self.anonymity_revoker_public_key.x),
+                y: Value::known(self.anonymity_revoker_public_key.y),
+            },
         })
     }
 }
@@ -66,7 +72,8 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             NewAccountInstance::HashedId => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,
             NewAccountInstance::TokenAddress => self.token_address,
-            NewAccountInstance::AnonymityRevokerPublicKey => self.anonymity_revoker_public_key,
+            NewAccountInstance::AnonymityRevokerPublicKeyX => self.anonymity_revoker_public_key.x,
+            NewAccountInstance::AnonymityRevokerPublicKeyY => self.anonymity_revoker_public_key.y,
             NewAccountInstance::SymKeyEncryption => asymmetric_encryption::off_circuit::encrypt(
                 self.anonymity_revoker_public_key,
                 sym_key::off_circuit::derive(self.id),
