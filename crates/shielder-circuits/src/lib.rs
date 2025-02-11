@@ -20,7 +20,10 @@ mod version;
 
 use alloc::{fmt::Debug, vec::Vec};
 
-pub use chips::note::{off_circuit::note_hash, Note};
+pub use chips::{
+    asymmetric_encryption::{off_circuit::encrypt, AsymPublicKey},
+    note::{off_circuit::note_hash, Note},
+};
 pub use circuits::*;
 pub use consts::MAX_K;
 pub use halo2_proofs::{
