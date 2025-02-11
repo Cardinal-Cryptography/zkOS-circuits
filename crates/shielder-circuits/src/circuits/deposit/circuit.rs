@@ -260,13 +260,8 @@ mod tests {
         let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
             .expect_err("Verification must fail");
 
-        expect_instance_permutation_failures(
-            &failures,
-            // The returned failure location happens to be in
-            // a `poseidon-gadget` region the token address was copied to.
-            "add input for domain ConstantLength<7>",
-            5,
-        );
+        // We expect two failures: one for the old note and one for the new note.
+        expect_instance_permutation_failures(&failures, "token_address", 2);
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.

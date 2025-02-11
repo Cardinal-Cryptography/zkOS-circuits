@@ -412,7 +412,7 @@ mod tests {
         let failures = expect_prover_success_and_run_verification(circuit, &pub_input)
             .expect_err("Verification must fail");
 
-        expect_instance_permutation_failures(&failures, "note", 0);
+        expect_instance_permutation_failures(&failures, "note", 1);
     }
 
     #[parameterized(
