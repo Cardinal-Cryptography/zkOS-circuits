@@ -116,7 +116,7 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 

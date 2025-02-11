@@ -41,7 +41,7 @@ impl PointsAddChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &PointsAddChipInput<AssignedCell>,
-    ) -> Result<PointsAddChipOutput<AssignedCell>, Error> {
+    ) -> Result<PointsAddChipOutput<AssignedCell>, ErrorFront> {
         let s_value = curve_arithmetic::points_add(
             input.p.clone().into(),
             input.q.clone().into(),
@@ -64,7 +64,6 @@ impl PointsAddChip {
 
 #[cfg(test)]
 mod tests {
-
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{

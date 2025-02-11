@@ -41,7 +41,7 @@ impl Embed for V {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, Error> {
+    ) -> Result<Self::Embedded, ErrorFront> {
         let value = self.0;
         value.embed(synthesizer, annotation)
     }

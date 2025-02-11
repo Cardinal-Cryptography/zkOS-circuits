@@ -74,7 +74,7 @@ pub fn copy_grumpkin_advices(
     region: &mut Region<'_, Fr>,
     columns: [Column<Advice>; 3],
     advice_offset: usize,
-) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+) -> Result<GrumpkinPoint<AssignedCell>, ErrorFront> {
     ensure_unique_columns(&columns);
 
     let x = assigned_point.x.copy_advice(

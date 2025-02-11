@@ -132,7 +132,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 

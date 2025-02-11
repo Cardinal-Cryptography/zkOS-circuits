@@ -91,7 +91,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Advice, Circuit, ConstraintSystem, Error},
+        plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
     };
 
     use crate::{

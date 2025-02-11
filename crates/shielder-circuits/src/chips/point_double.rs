@@ -40,7 +40,7 @@ impl PointDoubleChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &PointDoubleChipInput<AssignedCell>,
-    ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
+    ) -> Result<PointDoubleChipOutput<AssignedCell>, ErrorFront> {
         let s_value =
             curve_arithmetic::point_double(input.p.clone().into(), Value::known(*GRUMPKIN_3B));
 
@@ -59,7 +59,6 @@ impl PointDoubleChip {
 
 #[cfg(test)]
 mod tests {
-
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{
