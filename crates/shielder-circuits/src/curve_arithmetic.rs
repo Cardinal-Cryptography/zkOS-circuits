@@ -3,8 +3,9 @@ use core::ops::{Add, Mul, Sub};
 
 use halo2_proofs::{
     arithmetic::Field,
-    halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
+    halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
 };
+use rand::RngCore;
 
 use crate::{AssignedCell, Value};
 
@@ -87,6 +88,27 @@ where
 {
     pub fn zero() -> Self {
         Self::new(T::ZERO, T::ONE, T::ZERO)
+    }
+}
+
+impl GrumpkinPoint<Fr> {
+    pub fn random(rng: &mut impl RngCore) -> Self {
+        G1::random(rng).into()
+    }
+}
+
+impl GrumpkinPoint<Fr> {
+    pub fn generator() -> Self {
+        G1::generator().into()
+    }
+}
+
+impl Sub for GrumpkinPoint<Fr> {
+    type Output = GrumpkinPoint<Fr>;
+    fn sub(self, other: Self) -> Self {
+        let p: G1 = self.into();
+        let q: G1 = other.into();
+        (p - q).into()
     }
 }
 

@@ -1,0 +1,385 @@
+use halo2_proofs::{halo2curves::grumpkin::G1, plonk::Error};
+
+use super::{points_add::PointsAddChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip};
+use crate::{
+    chips::{
+        points_add::{PointsAddChipInput, PointsAddChipOutput},
+        scalar_multiply::{ScalarMultiplyChipInput, ScalarMultiplyChipOutput},
+    },
+    curve_arithmetic::GrumpkinPoint,
+    embed::Embed,
+    synthesizer::Synthesizer,
+    AssignedCell,
+};
+
+#[derive(Clone, Debug)]
+pub struct ElGamalEncryptionChipInput<T> {
+    message: GrumpkinPoint<T>,
+    public_key: GrumpkinPoint<T>,
+    trapdoor_le_bits: [T; 254],
+}
+
+impl<T: Default + Copy> Default for ElGamalEncryptionChipInput<T> {
+    fn default() -> Self {
+        Self {
+            message: GrumpkinPoint::default(),
+            public_key: GrumpkinPoint::default(),
+            trapdoor_le_bits: [T::default(); 254],
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug)]
+pub struct ElGamalEncryptionChipOutput<T> {
+    ciphertext1: GrumpkinPoint<T>,
+    ciphertext2: GrumpkinPoint<T>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ElGamalEncryptionChip {
+    pub multiply_chip: ScalarMultiplyChip,
+    pub add_chip: PointsAddChip,
+    pub sum_chip: SumChip,
+}
+
+impl ElGamalEncryptionChip {
+    pub fn new(
+        multiply_chip: ScalarMultiplyChip,
+        add_chip: PointsAddChip,
+        sum_chip: SumChip,
+    ) -> Self {
+        Self {
+            multiply_chip,
+            add_chip,
+            sum_chip,
+        }
+    }
+
+    fn constrain_generator(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        generator: GrumpkinPoint<AssignedCell>,
+    ) -> Result<(), Error> {
+        let g = G1::generator();
+
+        let gx = synthesizer.assign_constant("g.x", g.x)?;
+        let gy = synthesizer.assign_constant("g.y", g.y)?;
+        let gz = synthesizer.assign_constant("g.z", g.z)?;
+
+        self.sum_chip
+            .constrain_equal(synthesizer, generator.x, gx)?;
+        self.sum_chip
+            .constrain_equal(synthesizer, generator.y, gy)?;
+        self.sum_chip
+            .constrain_equal(synthesizer, generator.z, gz)?;
+
+        Ok(())
+    }
+
+    pub fn encrypt(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        ElGamalEncryptionChipInput {
+            message,
+            public_key,
+            trapdoor_le_bits: trapdoor,
+        }: &ElGamalEncryptionChipInput<AssignedCell>,
+    ) -> Result<ElGamalEncryptionChipOutput<AssignedCell>, Error> {
+        let generator_value = GrumpkinPoint::generator();
+        let generator = generator_value.embed(synthesizer, "G1 generator")?;
+
+        self.constrain_generator(synthesizer, generator.clone())?;
+
+        let ScalarMultiplyChipOutput {
+            result: shared_secret,
+        } = self.multiply_chip.scalar_multiply(
+            synthesizer,
+            &ScalarMultiplyChipInput {
+                input: public_key.clone(),
+                scalar_bits: trapdoor.clone(),
+            },
+        )?;
+
+        let ScalarMultiplyChipOutput {
+            result: ciphertext1,
+        } = self.multiply_chip.scalar_multiply(
+            synthesizer,
+            &ScalarMultiplyChipInput {
+                input: generator,
+                scalar_bits: trapdoor.clone(),
+            },
+        )?;
+
+        let PointsAddChipOutput { s: ciphertext2 } = self.add_chip.points_add(
+            synthesizer,
+            &PointsAddChipInput {
+                p: message.clone(),
+                q: shared_secret,
+            },
+        )?;
+
+        Ok(ElGamalEncryptionChipOutput {
+            ciphertext1,
+            ciphertext2,
+        })
+    }
+}
+
+#[allow(dead_code)]
+pub mod off_circuit {
+    use halo2_proofs::{
+        arithmetic::Field,
+        halo2curves::{bn256::Fr, grumpkin::G1},
+    };
+
+    use crate::{
+        consts::GRUMPKIN_3B,
+        curve_arithmetic::{self, GrumpkinPoint},
+    };
+
+    pub fn encrypt(
+        message: GrumpkinPoint<Fr>,
+        public_key: GrumpkinPoint<Fr>,
+        trapdoor_le_bits: [Fr; 254],
+    ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
+        let generator = G1::generator();
+
+        let shared_secret = curve_arithmetic::scalar_multiply(
+            public_key,
+            trapdoor_le_bits,
+            *GRUMPKIN_3B,
+            Fr::ZERO,
+            Fr::ONE,
+        );
+
+        let ciphertext1 = curve_arithmetic::scalar_multiply(
+            generator.into(),
+            trapdoor_le_bits,
+            *GRUMPKIN_3B,
+            Fr::ZERO,
+            Fr::ONE,
+        );
+
+        let ciphertext2 = curve_arithmetic::points_add(message, shared_secret, *GRUMPKIN_3B);
+
+        (ciphertext1, ciphertext2)
+    }
+
+    pub fn decrypt(
+        ciphertext1: GrumpkinPoint<Fr>,
+        ciphertext2: GrumpkinPoint<Fr>,
+        private_key_le_bits: [Fr; 254],
+    ) -> GrumpkinPoint<Fr> {
+        let shared_secret = curve_arithmetic::scalar_multiply(
+            ciphertext1,
+            private_key_le_bits,
+            *GRUMPKIN_3B,
+            Fr::ZERO,
+            Fr::ONE,
+        );
+        ciphertext2 - shared_secret
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
+
+    use halo2_proofs::{
+        arithmetic::Field,
+        circuit::{floor_planner::V1, Layouter},
+        dev::MockProver,
+        halo2curves::{bn256::Fr, grumpkin::G1},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+    };
+
+    use super::{
+        off_circuit, ElGamalEncryptionChip, ElGamalEncryptionChipInput, ElGamalEncryptionChipOutput,
+    };
+    use crate::{
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        consts::GRUMPKIN_3B,
+        curve_arithmetic::{self, field_element_to_le_bits, normalize_point, GrumpkinPoint},
+        embed::Embed,
+        rng,
+        synthesizer::create_synthesizer,
+    };
+
+    #[derive(Clone, Debug, Default)]
+    struct ElGamalEncryptionCircuit(ElGamalEncryptionChipInput<Fr>);
+
+    impl Circuit<Fr> for ElGamalEncryptionCircuit {
+        type Config = (
+            ColumnPool<Advice, PreSynthesisPhase>,
+            ElGamalEncryptionChip,
+            Column<Instance>,
+        );
+
+        type FloorPlanner = V1;
+
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
+
+        fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
+            let instance = meta.instance_column();
+            meta.enable_equality(instance);
+
+            let fixed = meta.fixed_column();
+            meta.enable_constant(fixed);
+
+            let configs_builder = ConfigsBuilder::new(meta)
+                .with_scalar_multiply_chip()
+                .with_points_add_chip()
+                .with_sum();
+
+            let chip = ElGamalEncryptionChip {
+                multiply_chip: configs_builder.scalar_multiply_chip(),
+                add_chip: configs_builder.points_add_chip(),
+                sum_chip: configs_builder.sum_chip(),
+            };
+
+            (configs_builder.finish(), chip, instance)
+        }
+
+        fn synthesize(
+            &self,
+            (column_pool, chip, instance): Self::Config,
+            mut layouter: impl Layouter<Fr>,
+        ) -> Result<(), Error> {
+            let ElGamalEncryptionChipInput {
+                message,
+                public_key,
+                trapdoor_le_bits,
+            } = self.0;
+
+            let column_pool = column_pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
+
+            let message = message.embed(&mut synthesizer, "message")?;
+            let public_key = public_key.embed(&mut synthesizer, "public_key")?;
+            let trapdoor_le_bits = trapdoor_le_bits.embed(&mut synthesizer, "trapdoor_bits")?;
+
+            let ElGamalEncryptionChipOutput {
+                ciphertext1,
+                ciphertext2,
+            } = chip.encrypt(
+                &mut synthesizer,
+                &ElGamalEncryptionChipInput {
+                    message,
+                    public_key,
+                    trapdoor_le_bits,
+                },
+            )?;
+
+            synthesizer.constrain_instance(ciphertext1.x.cell(), instance, 0)?;
+            synthesizer.constrain_instance(ciphertext1.y.cell(), instance, 1)?;
+            synthesizer.constrain_instance(ciphertext1.z.cell(), instance, 2)?;
+
+            synthesizer.constrain_instance(ciphertext2.x.cell(), instance, 3)?;
+            synthesizer.constrain_instance(ciphertext2.y.cell(), instance, 4)?;
+            synthesizer.constrain_instance(ciphertext2.z.cell(), instance, 5)?;
+
+            Ok(())
+        }
+    }
+
+    fn generate_keys() -> ([Fr; 254], GrumpkinPoint<Fr>) {
+        let rng = rng();
+
+        let generator = G1::generator();
+        let private_key = Fr::random(rng.clone());
+        let private_key_bits = field_element_to_le_bits(private_key);
+
+        let public_key = curve_arithmetic::scalar_multiply(
+            generator.into(),
+            private_key_bits,
+            *GRUMPKIN_3B,
+            Fr::ZERO,
+            Fr::ONE,
+        );
+
+        (private_key_bits, public_key)
+    }
+
+    fn input(
+        message: GrumpkinPoint<Fr>,
+        public_key: GrumpkinPoint<Fr>,
+        trapdoor_le_bits: [Fr; 254],
+    ) -> ElGamalEncryptionChipInput<Fr> {
+        ElGamalEncryptionChipInput {
+            message,
+            public_key,
+            trapdoor_le_bits,
+        }
+    }
+
+    fn verify(
+        input: ElGamalEncryptionChipInput<Fr>,
+        expected: ElGamalEncryptionChipOutput<Fr>,
+    ) -> Result<(), Vec<String>> {
+        MockProver::run(
+            12,
+            &ElGamalEncryptionCircuit(input),
+            vec![vec![
+                expected.ciphertext1.x,
+                expected.ciphertext1.y,
+                expected.ciphertext1.z,
+                expected.ciphertext2.x,
+                expected.ciphertext2.y,
+                expected.ciphertext2.z,
+            ]],
+        )
+        .expect("Mock prover should run successfully")
+        .verify()
+        .map_err(|errors| {
+            errors
+                .into_iter()
+                .map(|failure| failure.to_string())
+                .collect()
+        })
+    }
+
+    #[test]
+    fn off_circuit_encryption_and_decryption() {
+        let mut rng = rng();
+
+        let (private_key_bits, public_key) = generate_keys();
+
+        let message = GrumpkinPoint::random(&mut rng);
+        let trapdoor_bits = field_element_to_le_bits(Fr::random(rng));
+
+        let (ciphertext1, ciphertext2) = off_circuit::encrypt(message, public_key, trapdoor_bits);
+
+        let recovered_message = off_circuit::decrypt(ciphertext1, ciphertext2, private_key_bits);
+
+        assert_eq!(message, normalize_point(recovered_message));
+    }
+
+    #[test]
+    fn encrypt_random_message() {
+        let mut rng = rng();
+
+        let (_, public_key) = generate_keys();
+
+        let message = GrumpkinPoint::random(&mut rng);
+        let trapdoor_bits = field_element_to_le_bits(Fr::random(rng));
+
+        let (ciphertext1, ciphertext2) = off_circuit::encrypt(message, public_key, trapdoor_bits);
+
+        let input = input(message, public_key, trapdoor_bits);
+        let output = ElGamalEncryptionChipOutput {
+            ciphertext1,
+            ciphertext2,
+        };
+
+        assert!(verify(input, output).is_ok());
+    }
+}
