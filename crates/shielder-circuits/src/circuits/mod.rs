@@ -3,7 +3,10 @@ use alloc::{vec, vec::Vec};
 use halo2_proofs::{
     dev::MockProver,
     halo2curves::bn256::{Bn256, Fr, G1Affine},
-    plonk::{create_proof, keygen_pk, keygen_vk_custom, verify_proof, Circuit, Error, ErrorBack},
+    plonk::{
+        create_proof, keygen_pk_custom, keygen_vk_custom, verify_proof, Circuit, Error,
+        ErrorBack,
+    },
     poly::{
         commitment::Params as _,
         kzg::{
@@ -37,6 +40,8 @@ pub type CommitmentScheme = KZGCommitmentScheme<Bn256>;
 pub type Prover<'a> = ProverSHPLONK<'a, Bn256>;
 pub type Verifier = VerifierSHPLONK<Bn256>;
 
+pub const COMPRESS_SELECTORS: bool = false;
+
 // Generates setup parameters with given `k`. This restricts the circuit to at most `2^k` rows.
 pub fn generate_setup_params<R: RngCore>(k: u32, rng: &mut R) -> Params {
     Params::setup(k, rng)
@@ -56,9 +61,10 @@ pub fn generate_keys_with_min_k(
     for k in 6..MAX_K {
         let mut params = params.clone();
         params.downsize(k);
-        match keygen_vk_custom(&params, &circuit, false) {
+        match keygen_vk_custom(&params, &circuit, COMPRESS_SELECTORS) {
             Ok(vk) => {
-                let pk = keygen_pk(&params, vk.clone(), &circuit).expect("pk should not fail");
+                let pk = keygen_pk_custom(&params, vk.clone(), &circuit, COMPRESS_SELECTORS)
+                    .expect("pk generation should not fail");
                 return Ok((params, k, pk, vk));
             }
             Err(e) => last_err = Some(e),
