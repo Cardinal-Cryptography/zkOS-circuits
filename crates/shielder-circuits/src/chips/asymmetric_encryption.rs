@@ -1,5 +1,5 @@
-use macros::embeddable;
 use halo2_proofs::plonk::ErrorFront;
+use macros::embeddable;
 
 use crate::{embed::Embed, synthesizer::Synthesizer, AssignedCell};
 

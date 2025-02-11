@@ -1,8 +1,4 @@
-use halo2_proofs::{
-    arithmetic::Field,
-    halo2curves::bn256::Fr,
-    plonk::ErrorFront,
-};
+use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::ErrorFront};
 
 use super::sum::SumChip;
 use crate::{

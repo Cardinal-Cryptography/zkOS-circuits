@@ -4,8 +4,7 @@ use halo2_proofs::{
     dev::MockProver,
     halo2curves::bn256::{Bn256, Fr, G1Affine},
     plonk::{
-        create_proof, keygen_pk_custom, keygen_vk_custom, verify_proof, Circuit, Error,
-        ErrorBack,
+        create_proof, keygen_pk_custom, keygen_vk_custom, verify_proof, Circuit, Error, ErrorBack,
     },
     poly::{
         commitment::Params as _,
