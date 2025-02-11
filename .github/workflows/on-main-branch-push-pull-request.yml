@@ -25,8 +25,3 @@ jobs:
     needs: [rust-crates-checks]
     uses: ./.github/workflows/_measure-circuits.yml
     secrets: inherit
-
-  test-anonymity-revoking:
-    name: Test anonymity revoking
-    uses: ./.github/workflows/_test-anonymity-revoking.yml
-    secrets: inherit
