@@ -16,12 +16,14 @@ pub struct MacInput<T> {
 }
 
 /// MAC (commitment to a key accompanied by salt).
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct Mac<T> {
     pub salt: T,
     pub commitment: T,
 }
 
+#[allow(dead_code)]
 pub mod off_circuit {
     use crate::{
         chips::mac::{Mac, MacInput},
