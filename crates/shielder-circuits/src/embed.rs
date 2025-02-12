@@ -3,7 +3,7 @@ use alloc::{format, string::String, vec, vec::Vec};
 use halo2_proofs::plonk::Error;
 
 use crate::{
-    curve_arithmetic::{GrumpkinPoint, V},
+    curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine, V},
     synthesizer::Synthesizer,
     AssignedCell, Fr, Value,
 };
@@ -122,6 +122,25 @@ where
             x: embedded_arr[0].clone(),
             y: embedded_arr[1].clone(),
             z: embedded_arr[2].clone(),
+        })
+    }
+}
+
+impl<E: Embed> Embed for GrumpkinPointAffine<E>
+where
+    E::Embedded: Clone,
+{
+    type Embedded = GrumpkinPointAffine<E::Embedded>;
+
+    fn embed(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, Error> {
+        let embedded_arr = [&self.x, &self.y].embed(synthesizer, annotation)?;
+        Ok(GrumpkinPointAffine {
+            x: embedded_arr[0].clone(),
+            y: embedded_arr[1].clone(),
         })
     }
 }
