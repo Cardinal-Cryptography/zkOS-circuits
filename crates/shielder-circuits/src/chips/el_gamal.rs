@@ -1,4 +1,4 @@
-use halo2_proofs::{halo2curves::grumpkin::G1, plonk::Error};
+use halo2_proofs::plonk::Error;
 
 use super::{points_add::PointsAddChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip};
 use crate::{
@@ -61,7 +61,7 @@ impl ElGamalEncryptionChip {
         synthesizer: &mut impl Synthesizer,
         generator: GrumpkinPoint<AssignedCell>,
     ) -> Result<(), Error> {
-        let g = G1::generator();
+        let g = GrumpkinPoint::generator();
 
         let gx = synthesizer.assign_constant("g.x", g.x)?;
         let gy = synthesizer.assign_constant("g.y", g.y)?;
