@@ -141,6 +141,12 @@ pub struct GrumpkinPointAffine<T> {
     pub y: T,
 }
 
+impl<T> GrumpkinPointAffine<T> {
+    pub fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
 impl<T> From<GrumpkinPoint<T>> for GrumpkinPointAffine<T>
 where
     T: Field,

@@ -8,7 +8,7 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
-use super::copy_grumpkin_advices;
+use super::{copy_affine_grumpkin_advices, copy_grumpkin_advices};
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::GRUMPKIN_3B,
@@ -19,10 +19,14 @@ use crate::{
     AssignedCell,
 };
 
+/// represents the relation:
+/// P_projective (x, y, z) -> P_affine(x/z, y/z)
+///
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ToAffineGate {
     point_projective: [Column<Advice>; 3],
     point_affine: [Column<Advice>; 2],
+    z_inverse: Column<Advice>,
     selector: Selector,
 }
 
@@ -34,11 +38,12 @@ pub struct ToAffineGate {
 pub struct ToAffineGateInput<T> {
     pub point_projective: GrumpkinPoint<T>,
     pub point_affine: GrumpkinPointAffine<T>,
+    pub z_inverse: T,
 }
 
 const SELECTOR_OFFSET: usize = 0;
 const ADVICE_OFFSET: i32 = 0;
-const GATE_NAME: &str = "To affine agte";
+const GATE_NAME: &str = "To affine gate";
 
 impl Gate for ToAffineGate {
     type Input = ToAffineGateInput<AssignedCell>;
@@ -67,27 +72,65 @@ impl Gate for ToAffineGate {
             let y_affine = vc.query_advice(point_affine[1], Rotation(ADVICE_OFFSET));
 
             let z_inverse = vc.query_advice(z_inverse, Rotation(ADVICE_OFFSET));
-            let one = Expression::Constant(Fr::ONE);
 
             Constraints::with_selector(
                 selector,
                 vec![
                     x_affine - x_projective * z_inverse.clone(),
                     y_affine - y_projective * z_inverse.clone(),
-                    z_projective * z_inverse - one,
+                    z_projective * z_inverse - Expression::Constant(Fr::ONE),
                 ],
             )
         });
 
-        todo!()
+        Self {
+            point_projective,
+            point_affine,
+            z_inverse,
+            selector,
+        }
     }
 
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        input: Self::Input,
+        ToAffineGateInput {
+            point_projective,
+            point_affine,
+            z_inverse,
+        }: Self::Input,
     ) -> Result<(), Error> {
-        todo!()
+        synthesizer.assign_region(
+            || GATE_NAME,
+            |mut region| {
+                self.selector.enable(&mut region, SELECTOR_OFFSET)?;
+
+                copy_grumpkin_advices(
+                    &point_projective,
+                    "point_projective",
+                    &mut region,
+                    self.point_projective,
+                    ADVICE_OFFSET as usize,
+                )?;
+
+                copy_affine_grumpkin_advices(
+                    &point_affine,
+                    "point_affine",
+                    &mut region,
+                    self.point_affine,
+                    ADVICE_OFFSET as usize,
+                )?;
+
+                z_inverse.copy_advice(
+                    || "z_inverse",
+                    &mut region,
+                    self.z_inverse,
+                    ADVICE_OFFSET as usize,
+                )?;
+
+                Ok(())
+            },
+        )
     }
 
     fn organize_advice_columns(
