@@ -13,10 +13,10 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct ElGamalEncryptionInput<Fr> {
-    message: GrumpkinPoint<Fr>,
-    public_key: GrumpkinPoint<Fr>,
-    trapdoor_le_bits: [Fr; 254],
+pub struct ElGamalEncryptionInput<T> {
+    message: GrumpkinPoint<T>,
+    public_key: GrumpkinPoint<T>,
+    trapdoor_le_bits: [T; 254],
 }
 
 impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
@@ -130,15 +130,18 @@ impl ElGamalEncryptionChip {
 pub mod off_circuit {
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
 
+    use super::ElGamalEncryptionInput;
     use crate::{
         consts::GRUMPKIN_3B,
         curve_arithmetic::{self, GrumpkinPoint},
     };
 
     pub fn encrypt(
-        message: GrumpkinPoint<Fr>,
-        public_key: GrumpkinPoint<Fr>,
-        trapdoor_le_bits: [Fr; 254],
+        ElGamalEncryptionInput {
+            message,
+            public_key,
+            trapdoor_le_bits,
+        }: ElGamalEncryptionInput<Fr>,
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
         let generator = GrumpkinPoint::generator();
 
@@ -351,9 +354,13 @@ mod tests {
         let (private_key_bits, public_key) = generate_keys();
 
         let message = GrumpkinPoint::random(&mut rng);
-        let trapdoor_bits = field_element_to_le_bits(Fr::random(rng));
+        let trapdoor_le_bits = field_element_to_le_bits(Fr::random(rng));
 
-        let (ciphertext1, ciphertext2) = off_circuit::encrypt(message, public_key, trapdoor_bits);
+        let (ciphertext1, ciphertext2) = off_circuit::encrypt(ElGamalEncryptionInput {
+            message,
+            public_key,
+            trapdoor_le_bits,
+        });
 
         let recovered_message = off_circuit::decrypt(ciphertext1, ciphertext2, private_key_bits);
 
@@ -367,11 +374,15 @@ mod tests {
         let (_, public_key) = generate_keys();
 
         let message = GrumpkinPoint::random(&mut rng);
-        let trapdoor_bits = field_element_to_le_bits(Fr::random(rng));
+        let trapdoor_le_bits = field_element_to_le_bits(Fr::random(rng));
 
-        let (ciphertext1, ciphertext2) = off_circuit::encrypt(message, public_key, trapdoor_bits);
+        let (ciphertext1, ciphertext2) = off_circuit::encrypt(ElGamalEncryptionInput {
+            message,
+            public_key,
+            trapdoor_le_bits,
+        });
 
-        let input = input(message, public_key, trapdoor_bits);
+        let input = input(message, public_key, trapdoor_le_bits);
         let output = ElGamalEncryptionChipOutput {
             ciphertext1,
             ciphertext2,
