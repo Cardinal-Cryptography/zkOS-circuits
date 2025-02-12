@@ -38,10 +38,8 @@ use rand_core::RngCore;
 pub use strum::{EnumCount, IntoEnumIterator};
 pub use version::NoteVersion;
 
-// We decided to use Raw because otherwise the smart contract would have to perform decompression,
-// which we expect to be more expensive than the difference in call data size.
-// For our benchmarks, the sizes were 5447 and 3367 for Raw and Processed, respectively.
-pub const SERDE_FORMAT: SerdeFormat = SerdeFormat::RawBytes;
+/// Format for serializing SRS and proving/verifying keys.
+pub const SERDE_FORMAT: SerdeFormat = SerdeFormat::Processed;
 
 pub type AssignedCell = halo2_proofs::circuit::AssignedCell<Fr, Fr>;
 pub type Value = halo2_proofs::circuit::Value<Fr>;
