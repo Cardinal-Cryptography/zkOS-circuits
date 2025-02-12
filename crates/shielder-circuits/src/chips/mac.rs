@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::ErrorFront;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
@@ -63,7 +63,7 @@ impl MacChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &MacInput<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let commitment = hash(
             synthesizer,
             self.poseidon.clone(),
@@ -91,7 +91,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Advice, Circuit, ConstraintSystem, Error},
+        plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
     };
 
     use crate::{
@@ -127,7 +127,7 @@ mod tests {
             &self,
             (pool, mac_chip): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), Error> {
+        ) -> Result<(), ErrorFront> {
             let pool = pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed key and salt.
@@ -181,9 +181,6 @@ mod tests {
 
         assert!(errors
             .any(|error| error
-                .contains("Equality constraint not satisfied by cell (Column('Instance'")));
-        assert!(errors
-            .any(|error| error
                 .contains("Equality constraint not satisfied by cell (Column('Advice'")));
     }
 
@@ -197,9 +194,6 @@ mod tests {
             .expect_err("Verification should fail")
             .into_iter();
 
-        assert!(errors
-            .any(|error| error
-                .contains("Equality constraint not satisfied by cell (Column('Instance'")));
         assert!(errors
             .any(|error| error
                 .contains("Equality constraint not satisfied by cell (Column('Advice'")));

@@ -2,7 +2,7 @@ use alloc::collections::BTreeSet;
 
 use halo2_proofs::{
     circuit::Region,
-    plonk::{Advice, Column, ConstraintSystem, Error},
+    plonk::{Advice, Column, ConstraintSystem, ErrorFront},
 };
 
 use crate::{
@@ -51,7 +51,7 @@ pub trait Gate: Sized {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: Self::Input,
-    ) -> Result<(), Error>;
+    ) -> Result<(), ErrorFront>;
 
     /// Organize the advices in a way that the gate expects them to be passed during creation.
     ///
@@ -74,7 +74,7 @@ pub fn copy_grumpkin_advices(
     region: &mut Region<'_, Fr>,
     columns: [Column<Advice>; 3],
     advice_offset: usize,
-) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+) -> Result<GrumpkinPoint<AssignedCell>, ErrorFront> {
     ensure_unique_columns(&columns);
 
     let x = assigned_point.x.copy_advice(

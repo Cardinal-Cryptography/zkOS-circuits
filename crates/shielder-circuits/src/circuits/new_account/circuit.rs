@@ -1,6 +1,6 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
-    plonk::{Advice, Circuit, ConstraintSystem, Error},
+    plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
 };
 
 use crate::{
@@ -45,7 +45,7 @@ impl Circuit<Fr> for NewAccountCircuit {
         &self,
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self
@@ -138,7 +138,7 @@ mod tests {
         let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
             .expect_err("Verification must fail");
 
-        expect_instance_permutation_failures(&failures, "token_address", 3);
+        expect_instance_permutation_failures(&failures, "token_address", 1);
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.

@@ -3,7 +3,9 @@ use alloc::{vec, vec::Vec};
 use halo2_proofs::{
     dev::MockProver,
     halo2curves::bn256::{Bn256, Fr, G1Affine},
-    plonk::{create_proof, keygen_pk, keygen_vk_custom, verify_proof, Circuit, Error},
+    plonk::{
+        create_proof, keygen_pk_custom, keygen_vk_custom, verify_proof, Circuit, Error, ErrorBack,
+    },
     poly::{
         commitment::Params as _,
         kzg::{
@@ -12,7 +14,7 @@ use halo2_proofs::{
             strategy::SingleStrategy,
         },
     },
-    transcript::TranscriptWriterBuffer,
+    transcript::TranscriptWriterBuffer as _,
 };
 use rand_core::RngCore;
 use transcript::Keccak256Transcript;
@@ -35,7 +37,9 @@ pub type ProvingKey = halo2_proofs::plonk::ProvingKey<G1Affine>;
 pub type VerifyingKey = halo2_proofs::plonk::VerifyingKey<G1Affine>;
 pub type CommitmentScheme = KZGCommitmentScheme<Bn256>;
 pub type Prover<'a> = ProverSHPLONK<'a, Bn256>;
-pub type Verifier<'a> = VerifierSHPLONK<'a, Bn256>;
+pub type Verifier = VerifierSHPLONK<Bn256>;
+
+pub const COMPRESS_SELECTORS: bool = false;
 
 // Generates setup parameters with given `k`. This restricts the circuit to at most `2^k` rows.
 pub fn generate_setup_params<R: RngCore>(k: u32, rng: &mut R) -> Params {
@@ -56,9 +60,10 @@ pub fn generate_keys_with_min_k(
     for k in 6..MAX_K {
         let mut params = params.clone();
         params.downsize(k);
-        match keygen_vk_custom(&params, &circuit, false) {
+        match keygen_vk_custom(&params, &circuit, COMPRESS_SELECTORS) {
             Ok(vk) => {
-                let pk = keygen_pk(&params, vk.clone(), &circuit).expect("pk should not fail");
+                let pk = keygen_pk_custom(&params, vk.clone(), &circuit, COMPRESS_SELECTORS)
+                    .expect("pk generation should not fail");
                 return Ok((params, k, pk, vk));
             }
             Err(e) => last_err = Some(e),
@@ -91,13 +96,13 @@ pub fn generate_proof<C: Circuit<Fr>>(
         params,
         pk,
         &[circuit],
-        &[&[pub_input]],
+        &[vec![pub_input.into()]],
         rng,
         &mut transcript,
     )
     .expect("proof should not fail to generate");
 
-    transcript.finalize()
+    transcript.finalize().to_vec()
 }
 
 pub fn verify(
@@ -105,14 +110,14 @@ pub fn verify(
     vk: &VerifyingKey,
     transcript: &[u8],
     instance: &[Fr],
-) -> Result<(), Error> {
+) -> Result<(), ErrorBack> {
     let mut transcript = Keccak256Transcript::new(transcript);
 
     verify_proof::<CommitmentScheme, Verifier, _, _, _>(
-        params,
+        &params.verifier_params(),
         vk,
-        SingleStrategy::new(params),
-        &[&[instance]],
+        SingleStrategy::new(&params.verifier_params()),
+        &[vec![instance.into()]],
         &mut transcript,
     )
 }

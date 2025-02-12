@@ -1,5 +1,5 @@
 use gate::RangeCheckGate;
-use halo2_proofs::plonk::{Advice, ConstraintSystem, Error};
+use halo2_proofs::plonk::{Advice, ConstraintSystem, ErrorFront};
 
 use crate::{
     chips::{
@@ -41,7 +41,7 @@ impl RangeCheckChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         value: AssignedCell,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         // PROVER STEPS:
         // 1. Represent `value` as a running sum (compute it outside of the circuit).
         let running_sum_off_circuit =

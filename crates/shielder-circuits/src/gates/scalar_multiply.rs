@@ -2,7 +2,7 @@ use alloc::vec;
 
 use halo2_proofs::{
     halo2curves::bn256::Fr,
-    plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -140,7 +140,7 @@ impl Gate for ScalarMultiplyGate {
             next_input,
             next_result,
         }: Self::Input,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
@@ -206,7 +206,6 @@ impl Gate for ScalarMultiplyGate {
 
 #[cfg(test)]
 mod tests {
-
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{

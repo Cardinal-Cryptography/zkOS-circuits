@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Value, plonk::Error};
+use halo2_proofs::{circuit::Value, plonk::ErrorFront};
 
 use crate::{
     consts::GRUMPKIN_3B,
@@ -40,7 +40,7 @@ impl PointDoubleChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &PointDoubleChipInput<AssignedCell>,
-    ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
+    ) -> Result<PointDoubleChipOutput<AssignedCell>, ErrorFront> {
         let s_value =
             curve_arithmetic::point_double(input.p.clone().into(), Value::known(*GRUMPKIN_3B));
 
@@ -59,7 +59,6 @@ impl PointDoubleChip {
 
 #[cfg(test)]
 mod tests {
-
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{
@@ -67,7 +66,7 @@ mod tests {
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
-        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, Instance},
     };
 
     use super::*;
@@ -110,7 +109,7 @@ mod tests {
             &self,
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), Error> {
+        ) -> Result<(), ErrorFront> {
             let PointDoubleChipInput { p } = self.0;
 
             let column_pool = column_pool.start_synthesis();
