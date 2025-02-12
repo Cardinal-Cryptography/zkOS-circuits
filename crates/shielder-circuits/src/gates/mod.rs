@@ -17,6 +17,7 @@ pub mod point_double;
 pub mod points_add;
 pub mod scalar_multiply;
 pub mod sum;
+pub mod to_affine;
 
 #[cfg(test)]
 pub mod test_utils;
