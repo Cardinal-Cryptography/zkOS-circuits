@@ -1,4 +1,5 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::{halo2curves::bn256::Fr, plonk::Error};
+use macros::embeddable;
 
 use super::{points_add::PointsAddChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip};
 use crate::{
@@ -13,6 +14,10 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
+#[embeddable(
+    receiver = "ElGamalEncryptionInput<Fr>",
+    embedded = "ElGamalEncryptionInput<AssignedCell>"
+)]
 pub struct ElGamalEncryptionInput<T> {
     message: GrumpkinPoint<T>,
     public_key: GrumpkinPoint<T>,
@@ -254,30 +259,15 @@ mod tests {
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            let ElGamalEncryptionInput {
-                message,
-                public_key,
-                trapdoor_le_bits,
-            } = self.0;
-
             let column_pool = column_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
-            let message = message.embed(&mut synthesizer, "message")?;
-            let public_key = public_key.embed(&mut synthesizer, "public_key")?;
-            let trapdoor_le_bits = trapdoor_le_bits.embed(&mut synthesizer, "trapdoor_bits")?;
+            let input = self.0.embed(&mut synthesizer, "input")?;
 
             let ElGamalEncryptionChipOutput {
                 ciphertext1,
                 ciphertext2,
-            } = chip.encrypt(
-                &mut synthesizer,
-                &ElGamalEncryptionInput {
-                    message,
-                    public_key,
-                    trapdoor_le_bits,
-                },
-            )?;
+            } = chip.encrypt(&mut synthesizer, &input)?;
 
             synthesizer.constrain_instance(ciphertext1.x.cell(), instance, 0)?;
             synthesizer.constrain_instance(ciphertext1.y.cell(), instance, 1)?;
