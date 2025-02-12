@@ -128,10 +128,7 @@ impl ElGamalEncryptionChip {
 
 #[allow(dead_code)]
 pub mod off_circuit {
-    use halo2_proofs::{
-        arithmetic::Field,
-        halo2curves::{bn256::Fr, grumpkin::G1},
-    };
+    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
 
     use crate::{
         consts::GRUMPKIN_3B,
@@ -143,7 +140,7 @@ pub mod off_circuit {
         public_key: GrumpkinPoint<Fr>,
         trapdoor_le_bits: [Fr; 254],
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
-        let generator = G1::generator();
+        let generator = GrumpkinPoint::generator();
 
         let shared_secret = curve_arithmetic::scalar_multiply(
             public_key,
@@ -154,7 +151,7 @@ pub mod off_circuit {
         );
 
         let ciphertext1 = curve_arithmetic::scalar_multiply(
-            generator.into(),
+            generator,
             trapdoor_le_bits,
             *GRUMPKIN_3B,
             Fr::ZERO,
