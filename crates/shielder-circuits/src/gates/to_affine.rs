@@ -13,3 +13,10 @@ use crate::{
     synthesizer::Synthesizer,
     AssignedCell, Fr,
 };
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ToAffine {
+    point_projective: [Column<Advice>; 3],
+    point_affine: [Column<Advice>; 2],
+    selector: Selector,
+}

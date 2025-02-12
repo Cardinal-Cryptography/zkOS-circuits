@@ -21,6 +21,15 @@ impl<T> GrumpkinPoint<T> {
     }
 }
 
+impl<T> From<GrumpkinPointAffine<T>> for GrumpkinPoint<T>
+where
+    T: Field,
+{
+    fn from(GrumpkinPointAffine { x, y }: GrumpkinPointAffine<T>) -> Self {
+        Self { x, y, z: T::ONE }
+    }
+}
+
 impl From<G1> for GrumpkinPoint<Fr> {
     fn from(p: G1) -> Self {
         GrumpkinPoint {
@@ -123,6 +132,25 @@ impl Mul for V {
     type Output = V;
     fn mul(self, other: Self) -> Self {
         V(self.0 * other.0)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
+pub struct GrumpkinPointAffine<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl<T> From<GrumpkinPoint<T>> for GrumpkinPointAffine<T>
+where
+    T: Field,
+{
+    fn from(GrumpkinPoint { x, y, z }: GrumpkinPoint<T>) -> Self {
+        let z_inverse = z.invert().expect("z coordinate has an inverse element");
+        Self {
+            x: x * z_inverse,
+            y: y * z_inverse,
+        }
     }
 }
 
@@ -275,7 +303,7 @@ mod tests {
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
     };
 
-    use super::field_element_to_le_bits;
+    use super::{field_element_to_le_bits, GrumpkinPointAffine};
     use crate::{
         consts::GRUMPKIN_3B,
         curve_arithmetic::{
@@ -320,5 +348,20 @@ mod tests {
         let expected: GrumpkinPoint<Fr> = (p + p).into();
 
         assert_eq!(expected, point_double(p.into(), *GRUMPKIN_3B));
+    }
+
+    #[test]
+    fn coordinate_conversion() {
+        let rng = rng();
+
+        let p: GrumpkinPoint<Fr> = G1::random(rng).into();
+
+        let p_affine: GrumpkinPointAffine<Fr> = p.into();
+
+        assert_eq!(p, p_affine.into());
+
+        let p_recovered: GrumpkinPoint<Fr> = p_affine.into();
+
+        assert_eq!(p_recovered, p);
     }
 }
