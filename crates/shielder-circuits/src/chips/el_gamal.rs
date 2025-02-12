@@ -13,13 +13,13 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct ElGamalEncryptionChipInput<T> {
-    message: GrumpkinPoint<T>,
-    public_key: GrumpkinPoint<T>,
-    trapdoor_le_bits: [T; 254],
+pub struct ElGamalEncryptionInput<Fr> {
+    message: GrumpkinPoint<Fr>,
+    public_key: GrumpkinPoint<Fr>,
+    trapdoor_le_bits: [Fr; 254],
 }
 
-impl<T: Default + Copy> Default for ElGamalEncryptionChipInput<T> {
+impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
     fn default() -> Self {
         Self {
             message: GrumpkinPoint::default(),
@@ -80,11 +80,11 @@ impl ElGamalEncryptionChip {
     pub fn encrypt(
         &self,
         synthesizer: &mut impl Synthesizer,
-        ElGamalEncryptionChipInput {
+        ElGamalEncryptionInput {
             message,
             public_key,
             trapdoor_le_bits: trapdoor,
-        }: &ElGamalEncryptionChipInput<AssignedCell>,
+        }: &ElGamalEncryptionInput<AssignedCell>,
     ) -> Result<ElGamalEncryptionChipOutput<AssignedCell>, Error> {
         let generator_value = GrumpkinPoint::generator();
         let generator = generator_value.embed(synthesizer, "G1 generator")?;
@@ -197,7 +197,7 @@ mod tests {
     };
 
     use super::{
-        off_circuit, ElGamalEncryptionChip, ElGamalEncryptionChipInput, ElGamalEncryptionChipOutput,
+        off_circuit, ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput,
     };
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
@@ -210,7 +210,7 @@ mod tests {
     };
 
     #[derive(Clone, Debug, Default)]
-    struct ElGamalEncryptionCircuit(ElGamalEncryptionChipInput<Fr>);
+    struct ElGamalEncryptionCircuit(ElGamalEncryptionInput<Fr>);
 
     impl Circuit<Fr> for ElGamalEncryptionCircuit {
         type Config = (
@@ -251,7 +251,7 @@ mod tests {
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), Error> {
-            let ElGamalEncryptionChipInput {
+            let ElGamalEncryptionInput {
                 message,
                 public_key,
                 trapdoor_le_bits,
@@ -269,7 +269,7 @@ mod tests {
                 ciphertext2,
             } = chip.encrypt(
                 &mut synthesizer,
-                &ElGamalEncryptionChipInput {
+                &ElGamalEncryptionInput {
                     message,
                     public_key,
                     trapdoor_le_bits,
@@ -310,8 +310,8 @@ mod tests {
         message: GrumpkinPoint<Fr>,
         public_key: GrumpkinPoint<Fr>,
         trapdoor_le_bits: [Fr; 254],
-    ) -> ElGamalEncryptionChipInput<Fr> {
-        ElGamalEncryptionChipInput {
+    ) -> ElGamalEncryptionInput<Fr> {
+        ElGamalEncryptionInput {
             message,
             public_key,
             trapdoor_le_bits,
@@ -319,7 +319,7 @@ mod tests {
     }
 
     fn verify(
-        input: ElGamalEncryptionChipInput<Fr>,
+        input: ElGamalEncryptionInput<Fr>,
         expected: ElGamalEncryptionChipOutput<Fr>,
     ) -> Result<(), Vec<String>> {
         MockProver::run(
