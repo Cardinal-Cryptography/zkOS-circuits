@@ -11,8 +11,7 @@ use macros::embeddable;
 use super::{copy_affine_grumpkin_advices, copy_grumpkin_advices};
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-    consts::GRUMPKIN_3B,
-    curve_arithmetic::{self, GrumpkinPoint, GrumpkinPointAffine},
+    curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
@@ -153,22 +152,12 @@ mod tests {
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{
-        arithmetic::Field,
         dev::{MockProver, VerifyFailure},
-        halo2curves::{
-            bn256::Fr,
-            group::Group,
-            grumpkin::{G1Affine, G1},
-        },
-        plonk::ConstraintSystem,
+        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
     };
-    use rand::{Rng, RngCore};
 
     use super::*;
-    use crate::{
-        gates::{test_utils::OneGateCircuit, Gate as _},
-        rng,
-    };
+    use crate::{consts::GRUMPKIN_3B, curve_arithmetic, gates::test_utils::OneGateCircuit, rng};
 
     fn input(
         point_projective: GrumpkinPoint<Fr>,
@@ -187,6 +176,29 @@ mod tests {
         MockProver::run(3, &circuit, vec![])
             .expect("Mock prover should run")
             .verify()
+    }
+
+    #[test]
+    fn gate_creation() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+        let p = [cs.advice_column(), cs.advice_column(), cs.advice_column()];
+        let a = [cs.advice_column(), cs.advice_column()];
+        let z_inverse = cs.advice_column();
+
+        ToAffineGate::create_gate_custom(&mut cs, (p, a, z_inverse));
+    }
+
+    #[test]
+    #[should_panic = "Advice columns must be unique"]
+    fn unique_columns() {
+        let mut cs = ConstraintSystem::<Fr>::default();
+
+        let col = cs.advice_column();
+        let p = [col, cs.advice_column(), cs.advice_column()];
+        let a = [cs.advice_column(), cs.advice_column()];
+        let z_inverse = col;
+
+        ToAffineGate::create_gate_custom(&mut cs, (p, a, z_inverse));
     }
 
     #[test]
