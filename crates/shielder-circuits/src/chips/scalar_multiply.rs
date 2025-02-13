@@ -30,7 +30,6 @@ impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct ScalarMultiplyChipOutput<T> {
     pub result: GrumpkinPoint<T>,

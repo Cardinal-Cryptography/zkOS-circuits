@@ -1,6 +1,6 @@
 pub mod asymmetric_encryption;
+pub mod el_gamal;
 pub mod id_hiding;
-#[allow(unused)]
 pub mod mac;
 pub mod note;
 pub mod point_double;
