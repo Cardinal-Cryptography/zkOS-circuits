@@ -63,11 +63,13 @@ impl From<GrumpkinPoint<Fr>> for GrumpkinPoint<Value> {
     }
 }
 
-impl GrumpkinPoint<Fr> {
+impl<S: CurveScalar> GrumpkinPoint<S> {
     pub fn zero() -> Self {
-        Self::new(Fr::ZERO, Fr::ONE, Fr::ZERO)
+        Self::new(S::zero(), S::one(), S::zero())
     }
+}
 
+impl GrumpkinPoint<Fr> {
     pub fn random(rng: &mut impl RngCore) -> Self {
         G1::random(rng).into()
     }
@@ -92,11 +94,23 @@ pub trait CurveScalar:
 {
     /// Returns the parameter `b` from the curve equation added to itself 3 times.
     fn b3() -> Self;
+    /// Returns the zero element of the scalar field.
+    fn zero() -> Self;
+    /// Returns the one element of the scalar field.
+    fn one() -> Self;
 }
 
 impl CurveScalar for Fr {
     fn b3() -> Self {
         G1::b() + G1::b() + G1::b()
+    }
+
+    fn zero() -> Self {
+        Fr::ZERO
+    }
+
+    fn one() -> Self {
+        Fr::ONE
     }
 }
 
@@ -104,11 +118,27 @@ impl CurveScalar for Value {
     fn b3() -> Self {
         Value::known(Fr::b3())
     }
+
+    fn zero() -> Self {
+        Value::known(Fr::zero())
+    }
+
+    fn one() -> Self {
+        Value::known(Fr::one())
+    }
 }
 
 impl CurveScalar for Expression<Fr> {
     fn b3() -> Self {
         Expression::Constant(Fr::b3())
+    }
+
+    fn zero() -> Self {
+        Expression::Constant(Fr::zero())
+    }
+
+    fn one() -> Self {
+        Expression::Constant(Fr::one())
     }
 }
 
@@ -198,19 +228,13 @@ pub fn normalize_point<T: Field>(p: GrumpkinPoint<T>) -> GrumpkinPoint<T> {
 pub fn scalar_multiply<S: CurveScalar + PartialEq>(
     input: GrumpkinPoint<S>,
     scalar_bits: [S; 254],
-    zero: S,
-    one: S,
 ) -> GrumpkinPoint<S> {
-    let mut result = GrumpkinPoint {
-        x: zero.clone(),
-        y: one.clone(),
-        z: zero,
-    };
+    let mut result = GrumpkinPoint::zero();
 
     let mut doubled = input.clone();
 
     for bit in scalar_bits {
-        if bit == one {
+        if bit == S::one() {
             result = points_add(result, doubled.clone());
         }
         doubled = point_double(doubled);
@@ -243,10 +267,7 @@ fn to_bits_le(num: &[u8]) -> Vec<bool> {
 
 #[cfg(test)]
 mod tests {
-    use halo2_proofs::{
-        arithmetic::Field,
-        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
-    };
+    use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1};
 
     use super::field_element_to_le_bits;
     use crate::{
@@ -267,7 +288,7 @@ mod tests {
         let expected: GrumpkinPoint<Fr> = (p + p + p).into();
         let expected: GrumpkinPoint<Fr> = normalize_point(expected);
 
-        let result = scalar_multiply(p.into(), bits, Fr::ZERO, Fr::ONE);
+        let result = scalar_multiply(p.into(), bits);
         let result = normalize_point(result);
 
         assert_eq!(expected, result);

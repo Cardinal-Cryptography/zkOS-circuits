@@ -133,7 +133,7 @@ impl ElGamalEncryptionChip {
 
 #[allow(dead_code)]
 pub mod off_circuit {
-    use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
+    use halo2_proofs::halo2curves::bn256::Fr;
 
     use super::ElGamalEncryptionInput;
     use crate::curve_arithmetic::{self, GrumpkinPoint};
@@ -147,11 +147,9 @@ pub mod off_circuit {
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
         let generator = GrumpkinPoint::generator();
 
-        let shared_secret =
-            curve_arithmetic::scalar_multiply(public_key, trapdoor_le_bits, Fr::ZERO, Fr::ONE);
+        let shared_secret = curve_arithmetic::scalar_multiply(public_key, trapdoor_le_bits);
 
-        let ciphertext1 =
-            curve_arithmetic::scalar_multiply(generator, trapdoor_le_bits, Fr::ZERO, Fr::ONE);
+        let ciphertext1 = curve_arithmetic::scalar_multiply(generator, trapdoor_le_bits);
 
         let ciphertext2 = curve_arithmetic::points_add(message, shared_secret);
 
@@ -163,8 +161,7 @@ pub mod off_circuit {
         ciphertext2: GrumpkinPoint<Fr>,
         private_key_le_bits: [Fr; 254],
     ) -> GrumpkinPoint<Fr> {
-        let shared_secret =
-            curve_arithmetic::scalar_multiply(ciphertext1, private_key_le_bits, Fr::ZERO, Fr::ONE);
+        let shared_secret = curve_arithmetic::scalar_multiply(ciphertext1, private_key_le_bits);
         ciphertext2 - shared_secret
     }
 }
@@ -268,12 +265,7 @@ mod tests {
         let private_key = Fr::random(rng.clone());
         let private_key_bits = field_element_to_le_bits(private_key);
 
-        let public_key = curve_arithmetic::scalar_multiply(
-            generator.into(),
-            private_key_bits,
-            Fr::ZERO,
-            Fr::ONE,
-        );
+        let public_key = curve_arithmetic::scalar_multiply(generator.into(), private_key_bits);
 
         (private_key_bits, public_key)
     }

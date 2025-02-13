@@ -150,7 +150,6 @@ mod tests {
     };
 
     use halo2_proofs::{
-        arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
@@ -261,7 +260,7 @@ mod tests {
         let n = Fr::from_u128(3);
         let bits = field_element_to_le_bits(n);
 
-        let expected = curve_arithmetic::scalar_multiply(p.into(), bits.clone(), Fr::ZERO, Fr::ONE);
+        let expected = curve_arithmetic::scalar_multiply(p.into(), bits.clone());
 
         let input = input(p, bits);
         let output = ScalarMultiplyChipOutput { result: expected };
