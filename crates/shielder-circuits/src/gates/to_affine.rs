@@ -57,7 +57,14 @@ impl Gate for ToAffineGate {
         cs: &mut ConstraintSystem<Fr>,
         (point_projective, point_affine, z_inverse): Self::Advice,
     ) -> Self {
-        ensure_unique_columns(&[point_affine.to_vec(), point_projective.to_vec()].concat());
+        ensure_unique_columns(
+            &[
+                point_affine.to_vec(),
+                point_projective.to_vec(),
+                vec![z_inverse],
+            ]
+            .concat(),
+        );
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
