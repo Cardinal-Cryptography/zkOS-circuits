@@ -106,15 +106,40 @@ mod tests {
             let instance = meta.instance_column();
             meta.enable_equality(instance);
             // register chip
-            let configs_builder = ConfigsBuilder::new(meta);
+            let configs_builder = ConfigsBuilder::new(meta).with_to_affine_chip();
+            let chip = configs_builder.to_affine_chip();
+
+            (configs_builder.finish(), chip, instance)
         }
 
         fn synthesize(
             &self,
-            config: Self::Config,
-            layouter: impl Layouter<Fr>,
+            (column_pool, chip, instance): Self::Config,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), ErrorFront> {
-            todo!()
+            let ToAffineChipInput {
+                point_projective,
+                point_projective_z_inverse,
+            } = self.0;
+
+            let column_pool = column_pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
+
+            let point_projective = point_projective.embed(&mut synthesizer, "P")?;
+            let z_inverse = point_projective_z_inverse.embed(&mut synthesizer, "z_inverse")?;
+
+            let ToAffineChipOutput { point_affine } = chip.to_affine(
+                &mut synthesizer,
+                &ToAffineChipInput {
+                    point_projective,
+                    point_projective_z_inverse: z_inverse,
+                },
+            )?;
+
+            synthesizer.constrain_instance(point_affine.x.cell(), instance, 0)?;
+            synthesizer.constrain_instance(point_affine.y.cell(), instance, 1)?;
+
+            Ok(())
         }
     }
 }
