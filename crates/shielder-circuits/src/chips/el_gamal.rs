@@ -189,7 +189,6 @@ pub mod off_circuit {
 
 #[cfg(test)]
 mod tests {
-
     use alloc::{
         string::{String, ToString},
         vec,
