@@ -52,32 +52,12 @@ impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value> {
     }
 }
 
-impl From<GrumpkinPoint<V>> for GrumpkinPoint<Value> {
-    fn from(p: GrumpkinPoint<V>) -> Self {
-        GrumpkinPoint {
-            x: p.x.0,
-            y: p.y.0,
-            z: p.z.0,
-        }
-    }
-}
-
 impl From<GrumpkinPoint<Fr>> for GrumpkinPoint<Value> {
     fn from(p: GrumpkinPoint<Fr>) -> Self {
         GrumpkinPoint {
             x: Value::known(p.x),
             y: Value::known(p.y),
             z: Value::known(p.z),
-        }
-    }
-}
-
-impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<V> {
-    fn from(p: GrumpkinPoint<AssignedCell>) -> Self {
-        GrumpkinPoint {
-            x: V(p.x.value().cloned()),
-            y: V(p.y.value().cloned()),
-            z: V(p.z.value().cloned()),
         }
     }
 }
@@ -109,42 +89,6 @@ impl Sub for GrumpkinPoint<Fr> {
         let p: G1 = self.into();
         let q: G1 = other.into();
         (p - q).into()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct V(pub Value);
-
-impl PartialEq for V {
-    fn eq(&self, other: &Self) -> bool {
-        let mut is_equal = false;
-        self.0.zip(other.0).map(|(this, other)| {
-            if this.eq(&other) {
-                is_equal = true;
-            }
-        });
-        is_equal
-    }
-}
-
-impl Add for V {
-    type Output = V;
-    fn add(self, other: Self) -> Self {
-        V(self.0 + other.0)
-    }
-}
-
-impl Sub for V {
-    type Output = V;
-    fn sub(self, other: Self) -> Self {
-        V(self.0 - other.0)
-    }
-}
-
-impl Mul for V {
-    type Output = V;
-    fn mul(self, other: Self) -> Self {
-        V(self.0 * other.0)
     }
 }
 
