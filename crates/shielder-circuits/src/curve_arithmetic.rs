@@ -62,22 +62,15 @@ impl From<GrumpkinPoint<Fr>> for GrumpkinPoint<Value> {
     }
 }
 
-impl<T> GrumpkinPoint<T>
-where
-    T: Field,
-{
-    pub fn zero() -> Self {
-        Self::new(T::ZERO, T::ONE, T::ZERO)
-    }
-}
-
 impl GrumpkinPoint<Fr> {
+    pub fn zero() -> Self {
+        Self::new(Fr::ZERO, Fr::ONE, Fr::ZERO)
+    }
+
     pub fn random(rng: &mut impl RngCore) -> Self {
         G1::random(rng).into()
     }
-}
 
-impl GrumpkinPoint<Fr> {
     pub fn generator() -> Self {
         G1::generator().into()
     }
