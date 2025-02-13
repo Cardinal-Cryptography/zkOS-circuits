@@ -1,4 +1,4 @@
-use halo2_proofs::{circuit::Value, plonk::Error};
+use halo2_proofs::{circuit::Value, plonk::ErrorFront};
 
 use crate::{
     consts::GRUMPKIN_3B,
@@ -29,4 +29,26 @@ pub struct ToAffineChipOutput<T> {
 #[derive(Clone, Debug)]
 pub struct ToAffineChip {
     pub gate: ToAffineGate,
+}
+
+impl ToAffineChip {
+    pub fn new(gate: ToAffineGate) -> Self {
+        Self { gate }
+    }
+
+    pub fn to_affine(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        ToAffineChipInput {
+            point_projective,
+            point_projective_z_inverse,
+        }: &ToAffineChipInput<AssignedCell>,
+    ) -> Result<ToAffineChipOutput<AssignedCell>, ErrorFront> {
+        //
+
+        // let point_affine: GrumpkinPointAffine<AssignedCell> = point_projective.into();
+
+        //
+        todo!()
+    }
 }

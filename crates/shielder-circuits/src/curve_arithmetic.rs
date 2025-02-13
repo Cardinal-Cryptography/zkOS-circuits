@@ -301,6 +301,13 @@ where
     result
 }
 
+pub fn projective_to_affine<T>(p: GrumpkinPoint<T>, z_inverse: T) -> GrumpkinPointAffine<T>
+where
+    T: Mul<Output = T> + Clone,
+{
+    GrumpkinPointAffine::new(p.x * z_inverse.clone(), p.y * z_inverse)
+}
+
 /// Converts given field element to the individual LE bit representation
 ///
 /// panics if value is not 254 bits
@@ -335,7 +342,7 @@ mod tests {
     use crate::{
         consts::GRUMPKIN_3B,
         curve_arithmetic::{
-            normalize_point, point_double, points_add, scalar_multiply, GrumpkinPoint,
+            self, normalize_point, point_double, points_add, scalar_multiply, GrumpkinPoint,
         },
         rng,
     };
@@ -383,10 +390,16 @@ mod tests {
         let rng = rng();
 
         let p: GrumpkinPoint<Fr> = G1::random(rng).into();
-
         let p_affine: GrumpkinPointAffine<Fr> = p.into();
 
         assert_eq!(p, p_affine.into());
+        assert_eq!(
+            p_affine,
+            curve_arithmetic::projective_to_affine(
+                p,
+                p.z.invert().expect("z coord has an inverse")
+            )
+        );
 
         let p_recovered: GrumpkinPoint<Fr> = p_affine.into();
 

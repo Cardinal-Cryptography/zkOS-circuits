@@ -105,7 +105,7 @@ pub fn copy_affine_grumpkin_advices(
     region: &mut Region<'_, Fr>,
     columns: [Column<Advice>; 2],
     advice_offset: usize,
-) -> Result<GrumpkinPointAffine<AssignedCell>, Error> {
+) -> Result<GrumpkinPointAffine<AssignedCell>, ErrorFront> {
     ensure_unique_columns(&columns);
 
     let x = assigned_point.x.copy_advice(

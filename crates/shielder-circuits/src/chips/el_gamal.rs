@@ -1,4 +1,4 @@
-use halo2_proofs::{halo2curves::bn256::Fr, plonk::Error};
+use halo2_proofs::{halo2curves::bn256::Fr, plonk::ErrorFront};
 use macros::embeddable;
 
 use super::{points_add::PointsAddChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip};
@@ -65,7 +65,7 @@ impl ElGamalEncryptionChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         generator: GrumpkinPoint<AssignedCell>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let g = GrumpkinPoint::generator();
 
         let gx = synthesizer.assign_constant("g.x", g.x)?;
@@ -90,7 +90,7 @@ impl ElGamalEncryptionChip {
             public_key,
             trapdoor_le_bits: trapdoor,
         }: &ElGamalEncryptionInput<AssignedCell>,
-    ) -> Result<ElGamalEncryptionChipOutput<AssignedCell>, Error> {
+    ) -> Result<ElGamalEncryptionChipOutput<AssignedCell>, ErrorFront> {
         let generator_value = GrumpkinPoint::generator();
         let generator = generator_value.embed(synthesizer, "G1 generator")?;
 
@@ -201,7 +201,7 @@ mod tests {
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
         halo2curves::{bn256::Fr, grumpkin::G1},
-        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, ErrorFront, Instance},
     };
 
     use super::{
@@ -258,7 +258,7 @@ mod tests {
             &self,
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), Error> {
+        ) -> Result<(), ErrorFront> {
             let column_pool = column_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 

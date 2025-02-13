@@ -136,7 +136,7 @@ where
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, Error> {
+    ) -> Result<Self::Embedded, ErrorFront> {
         let embedded_arr = [&self.x, &self.y].embed(synthesizer, annotation)?;
         Ok(GrumpkinPointAffine {
             x: embedded_arr[0].clone(),
