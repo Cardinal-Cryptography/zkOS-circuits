@@ -8,12 +8,13 @@ use crate::{
         range_check::RangeCheckChip,
         scalar_multiply::ScalarMultiplyChip,
         sum::SumChip,
+        to_affine::ToAffineChip,
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::WIDTH,
     gates::{
         membership::MembershipGate, point_double::PointDoubleGate, points_add::PointsAddGate,
-        scalar_multiply::ScalarMultiplyGate, sum::SumGate, Gate,
+        scalar_multiply::ScalarMultiplyGate, sum::SumGate, to_affine::ToAffineGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -33,6 +34,7 @@ pub struct ConfigsBuilder<'cs> {
     points_add: Option<PointsAddChip>,
     point_double: Option<PointDoubleChip>,
     scalar_multiply: Option<ScalarMultiplyChip>,
+    to_affine: Option<ToAffineChip>,
     note: Option<NoteChip>,
 }
 
@@ -58,6 +60,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             points_add: None,
             point_double: None,
             scalar_multiply: None,
+            to_affine: None,
             note: None,
         }
     }
@@ -175,6 +178,20 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.scalar_multiply
             .clone()
             .expect("ScalarMultiplyChip is not configured")
+    }
+
+    pub fn with_to_affine_chip(mut self) -> Self {
+        check_if_cached!(self, to_affine);
+        self.to_affine = Some(ToAffineChip {
+            gate: ToAffineGate::create_gate(self.system, &mut self.advice_pool),
+        });
+        self
+    }
+
+    pub fn to_affine_chip(&self) -> ToAffineChip {
+        self.to_affine
+            .clone()
+            .expect("ToAffine chip is not configured")
     }
 
     pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {
