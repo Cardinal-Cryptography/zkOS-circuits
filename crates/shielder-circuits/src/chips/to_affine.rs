@@ -1,11 +1,9 @@
-use halo2_proofs::{circuit::Value, plonk::ErrorFront};
+use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
-    consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint, GrumpkinPointAffine},
     embed::Embed,
     gates::{
-        point_double::{PointDoubleGate, PointDoubleGateInput},
         to_affine::{ToAffineGate, ToAffineGateInput},
         Gate,
     },
@@ -141,5 +139,66 @@ mod tests {
 
             Ok(())
         }
+    }
+
+    fn input(
+        point_projective: GrumpkinPoint<Fr>,
+        point_projective_z_inverse: Fr,
+    ) -> ToAffineChipInput<Fr> {
+        ToAffineChipInput {
+            point_projective,
+            point_projective_z_inverse,
+        }
+    }
+
+    fn verify(
+        input: ToAffineChipInput<Fr>,
+        expected: ToAffineChipOutput<Fr>,
+    ) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = ToAffineCircuit(input);
+        MockProver::run(
+            4,
+            &circuit,
+            vec![vec![expected.point_affine.x, expected.point_affine.y]],
+        )
+        .expect("Mock prover should run")
+        .verify()
+    }
+
+    #[test]
+    fn coordinate_conversion() {
+        let mut rng = rng();
+
+        let point_projective: GrumpkinPoint<Fr> = GrumpkinPoint::random(&mut rng).into();
+        let point_affine: GrumpkinPointAffine<Fr> = point_projective.into();
+        let z_inverse = point_projective
+            .z
+            .invert()
+            .expect("z coordinate has an inverse");
+
+        let input = input(point_projective, z_inverse);
+        let output = ToAffineChipOutput { point_affine };
+
+        assert!(verify(input, output).is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let rng = rng();
+
+        let point_projective: GrumpkinPoint<Fr> = G1::random(&mut rng.clone()).into();
+        let point_affine: GrumpkinPointAffine<Fr> = curve_arithmetic::normalize_point(
+            curve_arithmetic::point_double(point_projective, *GRUMPKIN_3B),
+        )
+        .into();
+        let z_inverse = point_projective
+            .z
+            .invert()
+            .expect("z coordinate has an inverse");
+
+        let input = input(point_projective, z_inverse);
+        let output = ToAffineChipOutput { point_affine };
+
+        assert!(verify(input, output).is_err());
     }
 }
