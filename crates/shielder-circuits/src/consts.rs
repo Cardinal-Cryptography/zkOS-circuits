@@ -1,7 +1,4 @@
-use halo2_proofs::{
-    arithmetic::CurveExt,
-    halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
-};
+use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField};
 use lazy_static::lazy_static;
 
 pub const MAX_K: u32 = 13;
@@ -42,10 +39,6 @@ static_assertions::const_assert_eq!(POSEIDON_RATE + 1, merkle_constants::WIDTH);
 
 /// Nonces that make up pow-anonymity are drawn randomly from [0...2^MAX_NONCE_BIT_LENGTH].
 pub const NONCE_UPPER_LIMIT: u32 = 1 << MAX_NONCE_BIT_LENGTH;
-
-lazy_static! {
-    pub static ref GRUMPKIN_3B: Fr = G1::b() + G1::b() + G1::b();
-}
 
 lazy_static! {
     /// The salt used for deriving the symmetric key for encrypting `op_priv` and deriving MAC.

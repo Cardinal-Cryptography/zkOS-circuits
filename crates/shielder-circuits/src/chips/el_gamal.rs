@@ -136,10 +136,7 @@ pub mod off_circuit {
     use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr};
 
     use super::ElGamalEncryptionInput;
-    use crate::{
-        consts::GRUMPKIN_3B,
-        curve_arithmetic::{self, GrumpkinPoint},
-    };
+    use crate::curve_arithmetic::{self, GrumpkinPoint};
 
     pub fn encrypt(
         ElGamalEncryptionInput {
@@ -150,23 +147,13 @@ pub mod off_circuit {
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
         let generator = GrumpkinPoint::generator();
 
-        let shared_secret = curve_arithmetic::scalar_multiply(
-            public_key,
-            trapdoor_le_bits,
-            *GRUMPKIN_3B,
-            Fr::ZERO,
-            Fr::ONE,
-        );
+        let shared_secret =
+            curve_arithmetic::scalar_multiply(public_key, trapdoor_le_bits, Fr::ZERO, Fr::ONE);
 
-        let ciphertext1 = curve_arithmetic::scalar_multiply(
-            generator,
-            trapdoor_le_bits,
-            *GRUMPKIN_3B,
-            Fr::ZERO,
-            Fr::ONE,
-        );
+        let ciphertext1 =
+            curve_arithmetic::scalar_multiply(generator, trapdoor_le_bits, Fr::ZERO, Fr::ONE);
 
-        let ciphertext2 = curve_arithmetic::points_add(message, shared_secret, *GRUMPKIN_3B);
+        let ciphertext2 = curve_arithmetic::points_add(message, shared_secret);
 
         (ciphertext1, ciphertext2)
     }
@@ -176,13 +163,8 @@ pub mod off_circuit {
         ciphertext2: GrumpkinPoint<Fr>,
         private_key_le_bits: [Fr; 254],
     ) -> GrumpkinPoint<Fr> {
-        let shared_secret = curve_arithmetic::scalar_multiply(
-            ciphertext1,
-            private_key_le_bits,
-            *GRUMPKIN_3B,
-            Fr::ZERO,
-            Fr::ONE,
-        );
+        let shared_secret =
+            curve_arithmetic::scalar_multiply(ciphertext1, private_key_le_bits, Fr::ZERO, Fr::ONE);
         ciphertext2 - shared_secret
     }
 }
@@ -209,7 +191,6 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
-        consts::GRUMPKIN_3B,
         curve_arithmetic::{self, field_element_to_le_bits, normalize_point, GrumpkinPoint},
         embed::Embed,
         rng,
@@ -290,7 +271,6 @@ mod tests {
         let public_key = curve_arithmetic::scalar_multiply(
             generator.into(),
             private_key_bits,
-            *GRUMPKIN_3B,
             Fr::ZERO,
             Fr::ONE,
         );

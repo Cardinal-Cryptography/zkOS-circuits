@@ -1,8 +1,9 @@
 use alloc::vec::Vec;
 use core::ops::{Add, Mul, Sub};
 
+use halo2_frontend::plonk::Expression;
 use halo2_proofs::{
-    arithmetic::Field,
+    arithmetic::{CurveExt, Field},
     halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
 };
 use rand::RngCore;
@@ -85,11 +86,34 @@ impl Sub for GrumpkinPoint<Fr> {
     }
 }
 
-/// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
-pub fn points_add<T>(p: GrumpkinPoint<T>, q: GrumpkinPoint<T>, b3: T) -> GrumpkinPoint<T>
-where
-    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone,
+/// An abstraction over the scalar field of the curve.
+pub trait CurveScalar:
+    Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Clone
 {
+    /// Returns the parameter `b` from the curve equation added to itself 3 times.
+    fn b3() -> Self;
+}
+
+impl CurveScalar for Fr {
+    fn b3() -> Self {
+        G1::b() + G1::b() + G1::b()
+    }
+}
+
+impl CurveScalar for Value {
+    fn b3() -> Self {
+        Value::known(Fr::b3())
+    }
+}
+
+impl CurveScalar for Expression<Fr> {
+    fn b3() -> Self {
+        Expression::Constant(Fr::b3())
+    }
+}
+
+/// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
+pub fn points_add<S: CurveScalar>(p: GrumpkinPoint<S>, q: GrumpkinPoint<S>) -> GrumpkinPoint<S> {
     let GrumpkinPoint {
         x: x1,
         y: y1,
@@ -122,10 +146,10 @@ where
     let y3 = x3 - y3;
     let x3 = t0.clone() + t0.clone();
     let t0 = x3 + t0;
-    let t2 = t2 * b3.clone();
+    let t2 = t2 * S::b3();
     let z3 = t1.clone() + t2.clone();
     let t1 = t1 - t2;
-    let y3 = y3 * b3;
+    let y3 = y3 * S::b3();
     let x3 = t4.clone() * y3.clone();
     let t2 = t3.clone() * t1.clone();
     let x3 = t2 - x3;
@@ -140,10 +164,7 @@ where
 }
 
 /// Algorithm 9, https://eprint.iacr.org/2015/1060.pdf
-pub fn point_double<T>(p: GrumpkinPoint<T>, b3: T) -> GrumpkinPoint<T>
-where
-    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone,
-{
+pub fn point_double<S: CurveScalar>(p: GrumpkinPoint<S>) -> GrumpkinPoint<S> {
     let GrumpkinPoint { x, y, z } = p;
 
     let t0 = y.clone() * y.clone();
@@ -152,7 +173,7 @@ where
     let z3 = z3.clone() + z3;
     let t1 = y.clone() * z.clone();
     let t2 = z.clone() * z;
-    let t2 = t2 * b3;
+    let t2 = t2 * S::b3();
     let x3 = t2.clone() * z3.clone();
     let y3 = t0.clone() + t2.clone();
     let z3 = t1 * z3;
@@ -168,25 +189,18 @@ where
     GrumpkinPoint::new(x3, y3, z3)
 }
 
-pub fn normalize_point<T>(p: GrumpkinPoint<T>) -> GrumpkinPoint<T>
-where
-    T: Field,
-{
+pub fn normalize_point<T: Field>(p: GrumpkinPoint<T>) -> GrumpkinPoint<T> {
     let GrumpkinPoint { x, y, z } = p;
     let z_inv = z.invert().unwrap();
     GrumpkinPoint::new(x * z_inv, y * z_inv, T::ONE)
 }
 
-pub fn scalar_multiply<T>(
-    input: GrumpkinPoint<T>,
-    scalar_bits: [T; 254],
-    b3: T,
-    zero: T,
-    one: T,
-) -> GrumpkinPoint<T>
-where
-    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone + PartialEq,
-{
+pub fn scalar_multiply<S: CurveScalar + PartialEq>(
+    input: GrumpkinPoint<S>,
+    scalar_bits: [S; 254],
+    zero: S,
+    one: S,
+) -> GrumpkinPoint<S> {
     let mut result = GrumpkinPoint {
         x: zero.clone(),
         y: one.clone(),
@@ -197,9 +211,9 @@ where
 
     for bit in scalar_bits {
         if bit == one {
-            result = points_add(result, doubled.clone(), b3.clone());
+            result = points_add(result, doubled.clone());
         }
-        doubled = point_double(doubled, b3.clone());
+        doubled = point_double(doubled);
     }
     result
 }
@@ -236,7 +250,6 @@ mod tests {
 
     use super::field_element_to_le_bits;
     use crate::{
-        consts::GRUMPKIN_3B,
         curve_arithmetic::{
             normalize_point, point_double, points_add, scalar_multiply, GrumpkinPoint,
         },
@@ -254,7 +267,7 @@ mod tests {
         let expected: GrumpkinPoint<Fr> = (p + p + p).into();
         let expected: GrumpkinPoint<Fr> = normalize_point(expected);
 
-        let result = scalar_multiply(p.into(), bits, *GRUMPKIN_3B, Fr::ZERO, Fr::ONE);
+        let result = scalar_multiply(p.into(), bits, Fr::ZERO, Fr::ONE);
         let result = normalize_point(result);
 
         assert_eq!(expected, result);
@@ -268,7 +281,7 @@ mod tests {
         let q = G1::random(rng.clone());
         let expected: GrumpkinPoint<Fr> = (p + q).into();
 
-        assert_eq!(expected, points_add(p.into(), q.into(), *GRUMPKIN_3B));
+        assert_eq!(expected, points_add(p.into(), q.into()));
     }
 
     #[test]
@@ -278,6 +291,6 @@ mod tests {
         let p = G1::random(rng.clone());
         let expected: GrumpkinPoint<Fr> = (p + p).into();
 
-        assert_eq!(expected, point_double(p.into(), *GRUMPKIN_3B));
+        assert_eq!(expected, point_double(p.into()));
     }
 }

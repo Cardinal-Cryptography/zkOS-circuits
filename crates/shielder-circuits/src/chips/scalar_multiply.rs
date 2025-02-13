@@ -2,7 +2,6 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::ErrorFront}
 
 use super::sum::SumChip;
 use crate::{
-    consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
@@ -15,7 +14,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChipInput<T> {
-    /// point on the Grunmpkin curve
+    /// point on the Grumpkin curve
     pub input: GrumpkinPoint<T>,
     /// scalar bits in LE representation
     pub scalar_bits: [T; 254],
@@ -109,17 +108,12 @@ impl ScalarMultiplyChip {
 
             let mut next_result_value = result_value;
             if is_one {
-                next_result_value = curve_arithmetic::points_add(
-                    result_value,
-                    input_value,
-                    Value::known(*GRUMPKIN_3B),
-                );
+                next_result_value = curve_arithmetic::points_add(result_value, input_value);
             }
 
             let next_result = next_result_value.embed(synthesizer, "next_result")?;
 
-            let next_input_value =
-                curve_arithmetic::point_double(input_value, Value::known(*GRUMPKIN_3B));
+            let next_input_value = curve_arithmetic::point_double(input_value);
             let next_input = next_input_value.embed(synthesizer, "next_input")?;
 
             self.multiply_gate.apply_in_new_region(
@@ -167,7 +161,6 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
-        consts::GRUMPKIN_3B,
         curve_arithmetic::{self, field_element_to_le_bits},
         embed::Embed,
         rng,
@@ -268,13 +261,7 @@ mod tests {
         let n = Fr::from_u128(3);
         let bits = field_element_to_le_bits(n);
 
-        let expected = curve_arithmetic::scalar_multiply(
-            p.into(),
-            bits.clone(),
-            *GRUMPKIN_3B,
-            Fr::ZERO,
-            Fr::ONE,
-        );
+        let expected = curve_arithmetic::scalar_multiply(p.into(), bits.clone(), Fr::ZERO, Fr::ONE);
 
         let input = input(p, bits);
         let output = ScalarMultiplyChipOutput { result: expected };
