@@ -1,146 +1,13 @@
 use alloc::vec::Vec;
-use core::ops::{Add, Mul, Sub};
 
-use halo2_frontend::plonk::Expression;
+pub use curve_scalar::CurveScalar;
+pub use grumpkin_point::GrumpkinPoint;
 use halo2_proofs::{
-    arithmetic::{CurveExt, Field},
-    halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+    arithmetic::Field,
+    halo2curves::{bn256::Fr, ff::PrimeField},
 };
-use rand::RngCore;
-
-use crate::{AssignedCell, Value};
-
-#[derive(Copy, Clone, Debug, PartialEq, Default)]
-pub struct GrumpkinPoint<T> {
-    pub x: T,
-    pub y: T,
-    pub z: T,
-}
-
-impl<T> GrumpkinPoint<T> {
-    pub fn new(x: T, y: T, z: T) -> Self {
-        Self { x, y, z }
-    }
-}
-
-impl From<G1> for GrumpkinPoint<Fr> {
-    fn from(p: G1) -> Self {
-        GrumpkinPoint {
-            x: p.x,
-            y: p.y,
-            z: p.z,
-        }
-    }
-}
-
-impl From<GrumpkinPoint<Fr>> for G1 {
-    fn from(p: GrumpkinPoint<Fr>) -> Self {
-        G1 {
-            x: p.x,
-            y: p.y,
-            z: p.z,
-        }
-    }
-}
-
-impl From<GrumpkinPoint<AssignedCell>> for GrumpkinPoint<Value> {
-    fn from(p: GrumpkinPoint<AssignedCell>) -> Self {
-        GrumpkinPoint {
-            x: p.x.value().copied(),
-            y: p.y.value().copied(),
-            z: p.z.value().copied(),
-        }
-    }
-}
-
-impl From<GrumpkinPoint<Fr>> for GrumpkinPoint<Value> {
-    fn from(p: GrumpkinPoint<Fr>) -> Self {
-        GrumpkinPoint {
-            x: Value::known(p.x),
-            y: Value::known(p.y),
-            z: Value::known(p.z),
-        }
-    }
-}
-
-impl<S: CurveScalar> GrumpkinPoint<S> {
-    pub fn zero() -> Self {
-        Self::new(S::zero(), S::one(), S::zero())
-    }
-}
-
-impl GrumpkinPoint<Fr> {
-    pub fn random(rng: &mut impl RngCore) -> Self {
-        G1::random(rng).into()
-    }
-
-    pub fn generator() -> Self {
-        G1::generator().into()
-    }
-}
-
-impl Sub for GrumpkinPoint<Fr> {
-    type Output = GrumpkinPoint<Fr>;
-    fn sub(self, other: Self) -> Self {
-        let p: G1 = self.into();
-        let q: G1 = other.into();
-        (p - q).into()
-    }
-}
-
-/// An abstraction over the scalar field of the curve.
-pub trait CurveScalar:
-    Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Clone
-{
-    /// Returns the parameter `b` from the curve equation added to itself 3 times.
-    fn b3() -> Self;
-    /// Returns the zero element of the scalar field.
-    fn zero() -> Self;
-    /// Returns the one element of the scalar field.
-    fn one() -> Self;
-}
-
-impl CurveScalar for Fr {
-    fn b3() -> Self {
-        G1::b() + G1::b() + G1::b()
-    }
-
-    fn zero() -> Self {
-        Fr::ZERO
-    }
-
-    fn one() -> Self {
-        Fr::ONE
-    }
-}
-
-impl CurveScalar for Value {
-    fn b3() -> Self {
-        Value::known(Fr::b3())
-    }
-
-    fn zero() -> Self {
-        Value::known(Fr::zero())
-    }
-
-    fn one() -> Self {
-        Value::known(Fr::one())
-    }
-}
-
-impl CurveScalar for Expression<Fr> {
-    fn b3() -> Self {
-        Expression::Constant(Fr::b3())
-    }
-
-    fn zero() -> Self {
-        Expression::Constant(Fr::zero())
-    }
-
-    fn one() -> Self {
-        Expression::Constant(Fr::one())
-    }
-}
+mod curve_scalar;
+mod grumpkin_point;
 
 /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
 pub fn points_add<S: CurveScalar>(p: GrumpkinPoint<S>, q: GrumpkinPoint<S>) -> GrumpkinPoint<S> {
@@ -272,7 +139,8 @@ mod tests {
     use super::field_element_to_le_bits;
     use crate::{
         curve_arithmetic::{
-            normalize_point, point_double, points_add, scalar_multiply, GrumpkinPoint,
+            grumpkin_point::GrumpkinPoint, normalize_point, point_double, points_add,
+            scalar_multiply,
         },
         rng,
     };
