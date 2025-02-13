@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
     gates::{
@@ -24,7 +24,7 @@ impl SumChip {
         summand_1: AssignedCell,
         summand_2: AssignedCell,
         sum: AssignedCell,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let gate_input = SumGateInput {
             summand_1,
             summand_2,
@@ -39,7 +39,7 @@ impl SumChip {
         synthesizer: &mut impl Synthesizer,
         left_sock: AssignedCell,
         right_sock: AssignedCell,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let gate_input = SumGateInput {
             summand_1: left_sock,
             summand_2: self.zero(synthesizer)?,
@@ -53,12 +53,12 @@ impl SumChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         zero: AssignedCell,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         let true_zero = self.zero(synthesizer)?;
         self.constrain_equal(synthesizer, zero, true_zero)
     }
 
-    fn zero(&self, synthesizer: &mut impl Synthesizer) -> Result<AssignedCell, Error> {
+    fn zero(&self, synthesizer: &mut impl Synthesizer) -> Result<AssignedCell, ErrorFront> {
         synthesizer.assign_constant("zero", Fr::ZERO)
     }
 }

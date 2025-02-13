@@ -139,18 +139,14 @@ pub fn expect_gate_failure(actual: &VerifyFailure, expected_gate_name: &'static 
 }
 
 // Asserts that the `Vec<VerifyFailure>` is as expected for a failed public input constraint, i.e.:
-//  - exactly 2 failures, 1 for advice and 1 for instance,
+//  - exactly `expected_occurrences` failures,
 //  - `expected_advice_region_name` is present in the advice `FailureLocation`,
-//  - `expected_instance_row` is present in the instance `FailureLocation`.
 pub fn expect_instance_permutation_failures(
     actual: &Vec<VerifyFailure>,
     expected_advice_region_name: &str,
-    expected_instance_row: usize,
+    expected_occurrences: usize,
 ) {
-    assert!(actual.len() == 2);
-
-    let mut matched_advice = false;
-    let mut matched_instance = false;
+    assert_eq!(actual.len(), expected_occurrences, "{:#?}", actual);
 
     // Matches, for example: Region 123 ('Expected region name')
     let in_region_regex = Regex::new(&format!(
@@ -160,27 +156,20 @@ pub fn expect_instance_permutation_failures(
     .unwrap();
 
     for failure in actual {
-        match failure {
-            VerifyFailure::Permutation { column, location } => match column.column_type() {
-                Any::Advice(_) => match location {
-                    FailureLocation::InRegion { region, offset: _ } => {
-                        matched_advice = in_region_regex.is_match(&region.to_string())
-                    }
-                    _ => panic!("Unexpected failure location"),
-                },
-                Any::Instance => match location {
-                    FailureLocation::OutsideRegion { row } => {
-                        matched_instance = *row == expected_instance_row
-                    }
-                    _ => panic!("Unexpected failure location"),
-                },
-                _ => panic!("Unexpected column type"),
-            },
-            _ => panic!("Unexpected failure type"),
+        let VerifyFailure::Permutation { column, location } = failure else {
+            panic!("Unexpected failure type");
+        };
+        if !matches!(column.column_type, Any::Advice) {
+            panic!("Unexpected column type");
         }
+        let FailureLocation::InRegion { region, .. } = location else {
+            panic!("Unexpected failure location");
+        };
+        assert!(
+            in_region_regex.is_match(&region.to_string()),
+            "Unexpected region name"
+        );
     }
-    assert!(matched_advice, "Advice failure not found");
-    assert!(matched_instance, "Instance failure not found");
 }
 
 /// Returns an instance of rng, seeded

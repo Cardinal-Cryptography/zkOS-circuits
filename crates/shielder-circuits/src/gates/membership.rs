@@ -1,7 +1,7 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    plonk::{Advice, Column, ConstraintSystem, Error, Selector},
+    plonk::{Advice, Column, ConstraintSystem, ErrorFront, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -74,7 +74,7 @@ impl<const N: usize> Gate for MembershipGate<N> {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: Self::Input,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ErrorFront> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {

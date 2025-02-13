@@ -1,13 +1,16 @@
 use alloc::{vec, vec::Vec};
 use core::fmt::{self, Display, Formatter};
 
-use halo2_proofs::{halo2curves::serde::SerdeObject, plonk::Circuit};
+use halo2_proofs::{
+    halo2curves::serde::SerdeObject,
+    plonk::{pk_read, Circuit},
+};
 
 use crate::{
     circuits::{Params, ProvingKey},
     consts::merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
     marshall::MarshallError::{InvalidContent, IoError},
-    Fr, SERDE_FORMAT,
+    Fr, COMPRESS_SELECTORS, SERDE_FORMAT,
 };
 
 #[derive(Debug)]
@@ -42,19 +45,22 @@ pub fn unmarshall_params(mut buf: &[u8]) -> MarshallResult<Params> {
 }
 
 /// Serialize `pk` to bytes together with `k` - minimal sufficient number of rows (log2 of it).
-pub fn marshall_pk(k: u32, pk: &ProvingKey) -> MarshallResult<Vec<u8>> {
-    let mut buf = vec![];
-    buf.extend(k.to_be_bytes());
-    pk.write(&mut buf, SERDE_FORMAT).map_err(|_| IoError)?;
-    Ok(buf)
+pub fn marshall_pk(k: u32, pk: &ProvingKey) -> Vec<u8> {
+    [k.to_be_bytes().to_vec(), pk.to_bytes(SERDE_FORMAT)].concat()
 }
 
 /// Deserialize `pk` from bytes together with `k`. `k` can be then used to downsize parameters.
-pub fn unmarshall_pk<C: Circuit<Fr>>(buf: &[u8]) -> MarshallResult<(u32, ProvingKey)> {
+pub fn unmarshall_pk<C: Circuit<Fr> + Default>(buf: &[u8]) -> MarshallResult<(u32, ProvingKey)> {
     let k = u32::from_be_bytes(buf[..4].try_into().map_err(|_| InvalidContent)?);
-    ProvingKey::read::<_, C>(&mut &buf[4..], SERDE_FORMAT)
-        .map_err(|_| IoError)
-        .map(|pk| (k, pk))
+    pk_read(
+        &mut &buf[4..],
+        SERDE_FORMAT,
+        k,
+        &C::default(),
+        COMPRESS_SELECTORS,
+    )
+    .map_err(|_| IoError)
+    .map(|pk| (k, pk))
 }
 
 /// Serialize `(leaf, path)` to bytes.
@@ -119,7 +125,7 @@ mod tests {
     fn marshalling_pk() {
         let (_, k, pk) = generate_data();
 
-        let bytes = marshall_pk(k, &pk).unwrap();
+        let bytes = marshall_pk(k, &pk);
         let (k2, pk2) = unmarshall_pk::<MerkleCircuit<NOTE_TREE_HEIGHT>>(&bytes).unwrap();
 
         assert_eq!(k, k2);
