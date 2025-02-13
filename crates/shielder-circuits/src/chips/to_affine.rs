@@ -78,6 +78,7 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
+        consts::GRUMPKIN_3B,
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
