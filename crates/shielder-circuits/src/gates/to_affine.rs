@@ -38,7 +38,7 @@ pub struct ToAffineGate {
 pub struct ToAffineGateInput<T> {
     pub point_projective: GrumpkinPoint<T>,
     pub point_affine: GrumpkinPointAffine<T>,
-    pub z_inverse: T,
+    pub point_projective_z_inverse: T,
 }
 
 const SELECTOR_OFFSET: usize = 0;
@@ -97,7 +97,7 @@ impl Gate for ToAffineGate {
         ToAffineGateInput {
             point_projective,
             point_affine,
-            z_inverse,
+            point_projective_z_inverse: z_inverse,
         }: Self::Input,
     ) -> Result<(), Error> {
         synthesizer.assign_region(
@@ -137,6 +137,88 @@ impl Gate for ToAffineGate {
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advice {
-        todo!()
+        pool.ensure_capacity(cs, 6);
+
+        (
+            [pool.get_column(0), pool.get_column(1), pool.get_column(2)], // projective
+            [pool.get_column(3), pool.get_column(4)],                     // affine
+            pool.get_column(5),                                           // z_{p}^{-1}
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{vec, vec::Vec};
+
+    use halo2_proofs::{
+        arithmetic::Field,
+        dev::{MockProver, VerifyFailure},
+        halo2curves::{
+            bn256::Fr,
+            group::Group,
+            grumpkin::{G1Affine, G1},
+        },
+        plonk::ConstraintSystem,
+    };
+    use rand::{Rng, RngCore};
+
+    use super::*;
+    use crate::{
+        gates::{test_utils::OneGateCircuit, Gate as _},
+        rng,
+    };
+
+    fn input(
+        point_projective: GrumpkinPoint<Fr>,
+        point_affine: GrumpkinPointAffine<Fr>,
+        point_projective_z_inverse: Fr,
+    ) -> ToAffineGateInput<Fr> {
+        ToAffineGateInput {
+            point_projective,
+            point_affine,
+            point_projective_z_inverse,
+        }
+    }
+
+    fn verify(input: ToAffineGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = OneGateCircuit::<ToAffineGate, _>::new(input);
+        MockProver::run(3, &circuit, vec![])
+            .expect("Mock prover should run")
+            .verify()
+    }
+
+    #[test]
+    fn coordinate_conversion() {
+        let rng = rng();
+
+        let point_projective: GrumpkinPoint<Fr> = G1::random(rng).into();
+        let point_affine: GrumpkinPointAffine<Fr> = point_projective.into();
+        let z_inverse = point_projective
+            .z
+            .invert()
+            .expect("z coordinate has an inverse");
+
+        assert!(verify(input(point_projective, point_affine, z_inverse)).is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let rng = rng();
+
+        let point_projective: GrumpkinPoint<Fr> = G1::random(&mut rng.clone()).into();
+
+        let point_affine: GrumpkinPointAffine<Fr> = curve_arithmetic::normalize_point(
+            curve_arithmetic::point_double(point_projective, *GRUMPKIN_3B),
+        )
+        .into();
+
+        let z_inverse = point_projective
+            .z
+            .invert()
+            .expect("z coordinate has an inverse");
+
+        assert!(verify(input(point_projective, point_affine, z_inverse)).is_err());
     }
 }
