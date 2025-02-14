@@ -62,7 +62,6 @@ impl ToAffineChip {
 
 #[cfg(test)]
 mod tests {
-
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{
@@ -76,7 +75,6 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
-        consts::GRUMPKIN_3B,
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
@@ -168,10 +166,9 @@ mod tests {
         let rng = rng();
 
         let point_projective: GrumpkinPoint<Fr> = G1::random(&mut rng.clone()).into();
-        let point_affine: GrumpkinPointAffine<Fr> = curve_arithmetic::normalize_point(
-            curve_arithmetic::point_double(point_projective, *GRUMPKIN_3B),
-        )
-        .into();
+        let point_affine: GrumpkinPointAffine<Fr> =
+            curve_arithmetic::normalize_point(curve_arithmetic::point_double(point_projective))
+                .into();
 
         let input = input(
             point_projective, // , z_inverse

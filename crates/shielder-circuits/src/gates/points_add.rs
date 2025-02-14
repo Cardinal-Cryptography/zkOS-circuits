@@ -2,7 +2,7 @@ use alloc::vec;
 
 use halo2_proofs::{
     halo2curves::bn256::Fr,
-    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -10,7 +10,6 @@ use macros::embeddable;
 use super::copy_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-    consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
@@ -79,7 +78,6 @@ impl Gate for PointsAddGate {
             } = curve_arithmetic::points_add(
                 GrumpkinPoint::new(x1, y1, z1),
                 GrumpkinPoint::new(x2, y2, z2),
-                Expression::Constant(*GRUMPKIN_3B),
             );
 
             Constraints::with_selector(selector, vec![res_x3 - x3, res_y3 - y3, res_z3 - z3])

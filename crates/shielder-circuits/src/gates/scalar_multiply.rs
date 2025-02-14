@@ -2,7 +2,7 @@ use alloc::vec;
 
 use halo2_proofs::{
     halo2curves::bn256::Fr,
-    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -10,7 +10,6 @@ use macros::embeddable;
 use super::copy_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-    consts::GRUMPKIN_3B,
     curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
@@ -55,7 +54,7 @@ impl Gate for ScalarMultiplyGate {
     /// The gate operates on an advice column `scalar_bit`, a triplet (representing projective coordinates of a point on an EC) of `input` advice columns
     /// and a triplet of `result` columns.
     ///
-    /// It is the kernel of the double-and-add algorithm for point by scalar multipilcation on an EC.
+    /// It is the kernel of the double-and-add algorithm for point by scalar multiplication on an EC.
     /// Constraints:
     ///
     /// result[i + 1] = input[i] + result[i] if bit == 1
@@ -97,14 +96,13 @@ impl Gate for ScalarMultiplyGate {
             } = curve_arithmetic::points_add(
                 result,
                 input.clone(),
-                Expression::Constant(*GRUMPKIN_3B),
             );
 
             let GrumpkinPoint {
                 x: doubled_x,
                 y: doubled_y,
                 z: doubled_z,
-            } = curve_arithmetic::point_double(input, Expression::Constant(*GRUMPKIN_3B));
+            } = curve_arithmetic::point_double(input);
 
             Constraints::with_selector(
                 vc.query_selector(selector),
@@ -231,7 +229,7 @@ mod tests {
         let input = G1::random(rng.clone()).into();
         let result = G1::random(rng.clone()).into();
 
-        let next_input = curve_arithmetic::point_double(input, *GRUMPKIN_3B);
+        let next_input = curve_arithmetic::point_double(input);
         let next_result = result;
 
         assert!(verify(ScalarMultiplyGateInput {
@@ -252,8 +250,8 @@ mod tests {
         let input = G1::random(rng.clone()).into();
         let result = G1::random(rng.clone()).into();
 
-        let next_input = curve_arithmetic::point_double(input, *GRUMPKIN_3B);
-        let next_result = curve_arithmetic::points_add(input, result, *GRUMPKIN_3B);
+        let next_input = curve_arithmetic::point_double(input);
+        let next_result = curve_arithmetic::points_add(input, result);
 
         assert!(verify(ScalarMultiplyGateInput {
             bit,
