@@ -3,7 +3,9 @@ use core::ops::Sub;
 use halo2_proofs::halo2curves::{group::Group, grumpkin::G1};
 use rand_core::RngCore;
 
-use crate::{curve_arithmetic::curve_scalar::CurveScalar, AssignedCell, Fr, Value};
+use crate::{
+    curve_arithmetic::curve_scalar_field::CurveScalarField, AssignedCell, Field, Fr, Value,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub struct GrumpkinPoint<T> {
@@ -58,7 +60,7 @@ impl From<GrumpkinPoint<Fr>> for GrumpkinPoint<Value> {
     }
 }
 
-impl<S: CurveScalar> GrumpkinPoint<S> {
+impl<S: CurveScalarField> GrumpkinPoint<S> {
     pub fn zero() -> Self {
         Self::new(S::zero(), S::one(), S::zero())
     }
@@ -80,5 +82,33 @@ impl Sub for GrumpkinPoint<Fr> {
         let p: G1 = self.into();
         let q: G1 = other.into();
         (p - q).into()
+    }
+}
+
+impl<T: Field> From<GrumpkinPointAffine<T>> for GrumpkinPoint<T> {
+    fn from(GrumpkinPointAffine { x, y }: GrumpkinPointAffine<T>) -> Self {
+        Self { x, y, z: T::ONE }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
+pub struct GrumpkinPointAffine<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl<T> GrumpkinPointAffine<T> {
+    pub fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
+impl<T: Field> From<GrumpkinPoint<T>> for GrumpkinPointAffine<T> {
+    fn from(GrumpkinPoint { x, y, z }: GrumpkinPoint<T>) -> Self {
+        let z_inverse = z.invert().expect("z coordinate has an inverse element");
+        Self {
+            x: x * z_inverse,
+            y: y * z_inverse,
+        }
     }
 }

@@ -2,7 +2,11 @@ use alloc::{format, string::String, vec, vec::Vec};
 
 use halo2_proofs::plonk::ErrorFront;
 
-use crate::{curve_arithmetic::GrumpkinPoint, synthesizer::Synthesizer, AssignedCell, Fr, Value};
+use crate::{
+    curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
+    synthesizer::Synthesizer,
+    AssignedCell, Fr, Value,
+};
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
 pub trait Embed {
@@ -105,6 +109,25 @@ where
             x: embedded_arr[0].clone(),
             y: embedded_arr[1].clone(),
             z: embedded_arr[2].clone(),
+        })
+    }
+}
+
+impl<E: Embed> Embed for GrumpkinPointAffine<E>
+where
+    E::Embedded: Clone,
+{
+    type Embedded = GrumpkinPointAffine<E::Embedded>;
+
+    fn embed(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, ErrorFront> {
+        let embedded_arr = [&self.x, &self.y].embed(synthesizer, annotation)?;
+        Ok(GrumpkinPointAffine {
+            x: embedded_arr[0].clone(),
+            y: embedded_arr[1].clone(),
         })
     }
 }

@@ -1,16 +1,20 @@
 use alloc::vec::Vec;
+use core::ops::Mul;
 
-pub use curve_scalar::CurveScalar;
-pub use grumpkin_point::GrumpkinPoint;
+pub use curve_scalar_field::CurveScalarField;
+pub use grumpkin_point::{GrumpkinPoint, GrumpkinPointAffine};
 use halo2_proofs::{
     arithmetic::Field,
     halo2curves::{bn256::Fr, ff::PrimeField},
 };
-mod curve_scalar;
+mod curve_scalar_field;
 mod grumpkin_point;
 
 /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
-pub fn points_add<S: CurveScalar>(p: GrumpkinPoint<S>, q: GrumpkinPoint<S>) -> GrumpkinPoint<S> {
+pub fn points_add<S: CurveScalarField>(
+    p: GrumpkinPoint<S>,
+    q: GrumpkinPoint<S>,
+) -> GrumpkinPoint<S> {
     let GrumpkinPoint {
         x: x1,
         y: y1,
@@ -61,7 +65,7 @@ pub fn points_add<S: CurveScalar>(p: GrumpkinPoint<S>, q: GrumpkinPoint<S>) -> G
 }
 
 /// Algorithm 9, https://eprint.iacr.org/2015/1060.pdf
-pub fn point_double<S: CurveScalar>(p: GrumpkinPoint<S>) -> GrumpkinPoint<S> {
+pub fn point_double<S: CurveScalarField>(p: GrumpkinPoint<S>) -> GrumpkinPoint<S> {
     let GrumpkinPoint { x, y, z } = p;
 
     let t0 = y.clone() * y.clone();
@@ -92,7 +96,7 @@ pub fn normalize_point<T: Field>(p: GrumpkinPoint<T>) -> GrumpkinPoint<T> {
     GrumpkinPoint::new(x * z_inv, y * z_inv, T::ONE)
 }
 
-pub fn scalar_multiply<S: CurveScalar + PartialEq>(
+pub fn scalar_multiply<S: CurveScalarField + PartialEq>(
     input: GrumpkinPoint<S>,
     scalar_bits: [S; 254],
 ) -> GrumpkinPoint<S> {
@@ -107,6 +111,13 @@ pub fn scalar_multiply<S: CurveScalar + PartialEq>(
         doubled = point_double(doubled);
     }
     result
+}
+
+pub fn projective_to_affine<T>(p: GrumpkinPoint<T>, z_inverse: T) -> GrumpkinPointAffine<T>
+where
+    T: Mul<Output = T> + Clone,
+{
+    GrumpkinPointAffine::new(p.x * z_inverse.clone(), p.y * z_inverse)
 }
 
 /// Converts given field element to the individual LE bit representation
@@ -136,13 +147,14 @@ fn to_bits_le(num: &[u8]) -> Vec<bool> {
 mod tests {
     use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1};
 
-    use super::field_element_to_le_bits;
+    use super::{field_element_to_le_bits, GrumpkinPointAffine};
     use crate::{
+        curve_arithmetic,
         curve_arithmetic::{
             grumpkin_point::GrumpkinPoint, normalize_point, point_double, points_add,
             scalar_multiply,
         },
-        rng,
+        rng, Field,
     };
 
     #[test]
@@ -181,5 +193,26 @@ mod tests {
         let expected: GrumpkinPoint<Fr> = (p + p).into();
 
         assert_eq!(expected, point_double(p.into()));
+    }
+
+    #[test]
+    fn coordinate_conversion() {
+        let rng = rng();
+
+        let p: GrumpkinPoint<Fr> = G1::random(rng).into();
+        let p_affine: GrumpkinPointAffine<Fr> = p.into();
+
+        assert_eq!(p, p_affine.into());
+        assert_eq!(
+            p_affine,
+            curve_arithmetic::projective_to_affine(
+                p,
+                p.z.invert().expect("z coord has an inverse")
+            )
+        );
+
+        let p_recovered: GrumpkinPoint<Fr> = p_affine.into();
+
+        assert_eq!(p_recovered, p);
     }
 }

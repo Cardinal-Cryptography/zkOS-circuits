@@ -6,7 +6,7 @@ use halo2_proofs::{arithmetic::CurveExt, halo2curves::grumpkin::G1};
 use crate::{Field, Fr, Value};
 
 /// An abstraction over the scalar field of the curve.
-pub trait CurveScalar:
+pub trait CurveScalarField:
     Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Clone
 {
     /// Returns the parameter `b` from the curve equation added to itself 3 times.
@@ -17,7 +17,7 @@ pub trait CurveScalar:
     fn one() -> Self;
 }
 
-impl CurveScalar for Fr {
+impl CurveScalarField for Fr {
     fn b3() -> Self {
         G1::b() + G1::b() + G1::b()
     }
@@ -31,7 +31,7 @@ impl CurveScalar for Fr {
     }
 }
 
-impl CurveScalar for Value {
+impl CurveScalarField for Value {
     fn b3() -> Self {
         Value::known(Fr::b3())
     }
@@ -45,7 +45,7 @@ impl CurveScalar for Value {
     }
 }
 
-impl CurveScalar for Expression<Fr> {
+impl CurveScalarField for Expression<Fr> {
     fn b3() -> Self {
         Expression::Constant(Fr::b3())
     }
