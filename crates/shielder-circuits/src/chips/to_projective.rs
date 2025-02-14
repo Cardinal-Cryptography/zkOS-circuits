@@ -49,3 +49,25 @@ impl ToProjectiveChip {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use std::{vec, vec::Vec};
+
+    use halo2_proofs::{
+        circuit::{floor_planner::V1, Layouter},
+        dev::{MockProver, VerifyFailure},
+        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, Instance},
+    };
+
+    use super::*;
+    use crate::{
+        column_pool::{ColumnPool, PreSynthesisPhase},
+        config_builder::ConfigsBuilder,
+        embed::Embed,
+        rng,
+        synthesizer::create_synthesizer,
+    };
+}
