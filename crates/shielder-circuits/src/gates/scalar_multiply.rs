@@ -130,7 +130,6 @@ impl Gate for ScalarMultiplyGate {
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        // ScalarMultiplyGateInput { scalar_bits, input }: Self::Input,
         ScalarMultiplyGateInput {
             bit,
             input,
