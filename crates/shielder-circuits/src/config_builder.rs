@@ -199,7 +199,6 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_to_projective_chip(mut self) -> Self {
         check_if_cached!(self, to_projective);
-        self.advice_pool_with_capacity(5);
         self.to_projective = Some(ToProjectiveChip::new());
         self
     }
@@ -227,7 +226,10 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.note.clone().expect("Note not configured")
     }
 
-    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {
+    pub fn advice_pool_with_capacity(
+        &mut self,
+        capacity: usize,
+    ) -> &ColumnPool<Advice, ConfigPhase> {
         self.advice_pool.ensure_capacity(self.system, capacity);
         &self.advice_pool
     }

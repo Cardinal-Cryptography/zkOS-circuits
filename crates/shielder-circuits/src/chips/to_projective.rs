@@ -90,7 +90,8 @@ mod tests {
             let fixed = meta.fixed_column();
             meta.enable_constant(fixed);
 
-            let configs_builder = ConfigsBuilder::new(meta).with_to_projective_chip();
+            let mut configs_builder = ConfigsBuilder::new(meta).with_to_projective_chip();
+            configs_builder.advice_pool_with_capacity(5);
 
             let chip = configs_builder.to_projective_chip();
             (configs_builder.finish(), chip, instance)
