@@ -64,10 +64,79 @@ mod tests {
 
     use super::*;
     use crate::{
+        chips::to_affine::ToAffineChipInput,
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
     };
+
+    #[derive(Clone, Debug, Default)]
+    struct ToProjectiveCircuit(ToProjectiveChipInput<Fr>);
+
+    impl Circuit<Fr> for ToProjectiveCircuit {
+        type Config = (
+            ColumnPool<Advice, PreSynthesisPhase>,
+            ToProjectiveChip,
+            Column<Instance>,
+        );
+
+        type FloorPlanner = V1;
+
+        fn without_witnesses(&self) -> Self {
+            Self::default()
+        }
+
+        fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
+            let instance = meta.instance_column();
+            meta.enable_equality(instance);
+            let configs_builder = ConfigsBuilder::new(meta).with_to_projective_chip();
+            let chip = configs_builder.to_projective_chip();
+            (configs_builder.finish(), chip, instance)
+        }
+
+        fn synthesize(
+            &self,
+            (column_pool, chip, instance): Self::Config,
+            mut layouter: impl Layouter<Fr>,
+        ) -> Result<(), ErrorFront> {
+            let column_pool = column_pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
+
+            let ToProjectiveChipInput { point_affine } = self.0;
+            let point_affine = point_affine.embed(&mut synthesizer, "point_affine")?;
+
+            let ToProjectiveChipOutput { point_projective } =
+                chip.to_projective(&mut synthesizer, &ToProjectiveChipInput { point_affine })?;
+
+            synthesizer.constrain_instance(point_projective.x.cell(), instance, 0)?;
+            synthesizer.constrain_instance(point_projective.y.cell(), instance, 1)?;
+            synthesizer.constrain_instance(point_projective.z.cell(), instance, 2)?;
+
+            Ok(())
+        }
+    }
+
+    fn input(point_affine: GrumpkinPointAffine<Fr>) -> ToProjectiveChipInput<Fr> {
+        ToProjectiveChipInput { point_affine }
+    }
+
+    fn verify(
+        input: ToProjectiveChipInput<Fr>,
+        expected: ToProjectiveChipOutput<Fr>,
+    ) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = ToProjectiveCircuit(input);
+        MockProver::run(
+            4,
+            &circuit,
+            vec![vec![
+                expected.point_projective.x,
+                expected.point_projective.y,
+                expected.point_projective.z,
+            ]],
+        )
+        .expect("Mock prover should run")
+        .verify()
+    }
 }
