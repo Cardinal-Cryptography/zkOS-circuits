@@ -22,6 +22,15 @@ impl<T> GrumpkinPoint<T> {
     }
 }
 
+impl<T> From<GrumpkinPointAffine<T>> for GrumpkinPoint<T>
+where
+    T: Field,
+{
+    fn from(GrumpkinPointAffine { x, y }: GrumpkinPointAffine<T>) -> Self {
+        Self { x, y, z: T::ONE }
+    }
+}
+
 impl From<G1> for GrumpkinPoint<Fr> {
     fn from(p: G1) -> Self {
         GrumpkinPoint {
@@ -89,6 +98,31 @@ impl Sub for GrumpkinPoint<Fr> {
         let p: G1 = self.into();
         let q: G1 = other.into();
         (p - q).into()
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
+pub struct GrumpkinPointAffine<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl<T> GrumpkinPointAffine<T> {
+    pub fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
+impl<T> From<GrumpkinPoint<T>> for GrumpkinPointAffine<T>
+where
+    T: Field,
+{
+    fn from(GrumpkinPoint { x, y, z }: GrumpkinPoint<T>) -> Self {
+        let z_inverse = z.invert().expect("z coordinate has an inverse element");
+        Self {
+            x: x * z_inverse,
+            y: y * z_inverse,
+        }
     }
 }
 
@@ -211,6 +245,13 @@ where
     result
 }
 
+pub fn projective_to_affine<T>(p: GrumpkinPoint<T>, z_inverse: T) -> GrumpkinPointAffine<T>
+where
+    T: Mul<Output = T> + Clone,
+{
+    GrumpkinPointAffine::new(p.x * z_inverse.clone(), p.y * z_inverse)
+}
+
 /// Converts given field element to the individual LE bit representation
 ///
 /// panics if value is not 254 bits
@@ -241,11 +282,11 @@ mod tests {
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
     };
 
-    use super::field_element_to_le_bits;
+    use super::{field_element_to_le_bits, GrumpkinPointAffine};
     use crate::{
         consts::GRUMPKIN_3B,
         curve_arithmetic::{
-            normalize_point, point_double, points_add, scalar_multiply, GrumpkinPoint,
+            self, normalize_point, point_double, points_add, scalar_multiply, GrumpkinPoint,
         },
         rng,
     };
@@ -286,5 +327,26 @@ mod tests {
         let expected: GrumpkinPoint<Fr> = (p + p).into();
 
         assert_eq!(expected, point_double(p.into(), *GRUMPKIN_3B));
+    }
+
+    #[test]
+    fn coordinate_conversion() {
+        let rng = rng();
+
+        let p: GrumpkinPoint<Fr> = G1::random(rng).into();
+        let p_affine: GrumpkinPointAffine<Fr> = p.into();
+
+        assert_eq!(p, p_affine.into());
+        assert_eq!(
+            p_affine,
+            curve_arithmetic::projective_to_affine(
+                p,
+                p.z.invert().expect("z coord has an inverse")
+            )
+        );
+
+        let p_recovered: GrumpkinPoint<Fr> = p_affine.into();
+
+        assert_eq!(p_recovered, p);
     }
 }

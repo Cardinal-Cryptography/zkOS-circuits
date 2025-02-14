@@ -7,7 +7,7 @@ use halo2_proofs::{
 
 use crate::{
     column_pool::{ColumnPool, ConfigPhase},
-    curve_arithmetic::GrumpkinPoint,
+    curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
     synthesizer::Synthesizer,
     AssignedCell, Fr,
 };
@@ -17,6 +17,7 @@ pub mod point_double;
 pub mod points_add;
 pub mod scalar_multiply;
 pub mod sum;
+pub mod to_affine;
 
 #[cfg(test)]
 pub mod test_utils;
@@ -96,4 +97,29 @@ pub fn copy_grumpkin_advices(
         advice_offset,
     )?;
     Ok(GrumpkinPoint::new(x, y, z))
+}
+
+pub fn copy_affine_grumpkin_advices(
+    assigned_point: &GrumpkinPointAffine<AssignedCell>,
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    columns: [Column<Advice>; 2],
+    advice_offset: usize,
+) -> Result<GrumpkinPointAffine<AssignedCell>, ErrorFront> {
+    ensure_unique_columns(&columns);
+
+    let x = assigned_point.x.copy_advice(
+        || alloc::format!("{}[x]", annotation),
+        region,
+        columns[0],
+        advice_offset,
+    )?;
+    let y = assigned_point.y.copy_advice(
+        || alloc::format!("{}[y]", annotation),
+        region,
+        columns[1],
+        advice_offset,
+    )?;
+
+    Ok(GrumpkinPointAffine::new(x, y))
 }

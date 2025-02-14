@@ -9,3 +9,4 @@ pub mod range_check;
 pub mod scalar_multiply;
 pub mod sum;
 pub mod sym_key;
+pub mod to_affine;
