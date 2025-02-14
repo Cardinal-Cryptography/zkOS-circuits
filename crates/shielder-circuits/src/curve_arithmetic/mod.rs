@@ -120,6 +120,10 @@ where
     GrumpkinPointAffine::new(p.x * z_inverse.clone(), p.y * z_inverse)
 }
 
+pub fn affine_to_projective<T: Field>(p: GrumpkinPointAffine<T>) -> GrumpkinPoint<T> {
+    GrumpkinPoint::new(p.x, p.y, T::ONE)
+}
+
 /// Converts given field element to the individual LE bit representation
 ///
 /// panics if value is not 254 bits
@@ -214,5 +218,9 @@ mod tests {
         let p_recovered: GrumpkinPoint<Fr> = p_affine.into();
 
         assert_eq!(p_recovered, p);
+        assert_eq!(
+            p_recovered,
+            curve_arithmetic::affine_to_projective(p_affine)
+        );
     }
 }
