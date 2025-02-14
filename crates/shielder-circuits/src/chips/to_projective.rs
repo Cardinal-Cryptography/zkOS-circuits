@@ -92,6 +92,7 @@ mod tests {
             let instance = meta.instance_column();
             meta.enable_equality(instance);
             let configs_builder = ConfigsBuilder::new(meta).with_to_projective_chip();
+
             let chip = configs_builder.to_projective_chip();
             (configs_builder.finish(), chip, instance)
         }
@@ -102,6 +103,9 @@ mod tests {
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), ErrorFront> {
             let column_pool = column_pool.start_synthesis();
+
+            // column_poo
+
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
             let ToProjectiveChipInput { point_affine } = self.0;
@@ -138,5 +142,19 @@ mod tests {
         )
         .expect("Mock prover should run")
         .verify()
+    }
+
+    #[test]
+    fn coordinate_conversion() {
+        let mut rng = rng();
+
+        let point_affine: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng).into();
+        let point_projective = point_affine.clone().into();
+
+        assert!(verify(
+            input(point_affine),
+            ToProjectiveChipOutput { point_projective }
+        )
+        .is_ok());
     }
 }
