@@ -118,7 +118,6 @@ mod tests {
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
             let point_projective = point_projective.embed(&mut synthesizer, "P")?;
-            // let z_inverse = point_projective_z_inverse.embed(&mut synthesizer, "z_inverse")?;
 
             let ToAffineChipOutput { point_affine } =
                 chip.to_affine(&mut synthesizer, &ToAffineChipInput { point_projective })?;
@@ -170,9 +169,7 @@ mod tests {
             curve_arithmetic::normalize_point(curve_arithmetic::point_double(point_projective))
                 .into();
 
-        let input = input(
-            point_projective, // , z_inverse
-        );
+        let input = input(point_projective);
         let output = ToAffineChipOutput { point_affine };
 
         assert!(verify(input, output).is_err());

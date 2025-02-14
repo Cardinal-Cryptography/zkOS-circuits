@@ -103,6 +103,12 @@ impl<T> GrumpkinPointAffine<T> {
     }
 }
 
+impl GrumpkinPointAffine<Fr> {
+    pub fn random(rng: &mut impl RngCore) -> Self {
+        GrumpkinPoint::from(G1::random(rng)).into()
+    }
+}
+
 impl<T: Field> From<GrumpkinPoint<T>> for GrumpkinPointAffine<T> {
     fn from(GrumpkinPoint { x, y, z }: GrumpkinPoint<T>) -> Self {
         let z_inverse = z.invert().expect("z coordinate has an inverse element");

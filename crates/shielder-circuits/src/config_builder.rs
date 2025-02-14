@@ -9,6 +9,7 @@ use crate::{
         scalar_multiply::ScalarMultiplyChip,
         sum::SumChip,
         to_affine::ToAffineChip,
+        to_projective::ToProjectiveChip,
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::WIDTH,
@@ -35,6 +36,7 @@ pub struct ConfigsBuilder<'cs> {
     point_double: Option<PointDoubleChip>,
     scalar_multiply: Option<ScalarMultiplyChip>,
     to_affine: Option<ToAffineChip>,
+    to_projective: Option<ToProjectiveChip>,
     note: Option<NoteChip>,
 }
 
@@ -61,6 +63,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             point_double: None,
             scalar_multiply: None,
             to_affine: None,
+            to_projective: None,
             note: None,
         }
     }
@@ -194,6 +197,18 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("ToAffine chip is not configured")
     }
 
+    pub fn with_to_projective_chip(mut self) -> Self {
+        check_if_cached!(self, to_projective);
+        self.to_projective = Some(ToProjectiveChip::new());
+        self
+    }
+
+    pub fn to_projective_chip(&self) -> ToProjectiveChip {
+        self.to_projective
+            .clone()
+            .expect("ToProjective chip is not configured")
+    }
+
     pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {
         check_if_cached!(self, note);
         self = self.with_sum();
@@ -211,7 +226,10 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.note.clone().expect("Note not configured")
     }
 
-    fn advice_pool_with_capacity(&mut self, capacity: usize) -> &ColumnPool<Advice, ConfigPhase> {
+    pub fn advice_pool_with_capacity(
+        &mut self,
+        capacity: usize,
+    ) -> &ColumnPool<Advice, ConfigPhase> {
         self.advice_pool.ensure_capacity(self.system, capacity);
         &self.advice_pool
     }
