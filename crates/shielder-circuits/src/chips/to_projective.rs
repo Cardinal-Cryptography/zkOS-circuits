@@ -1,14 +1,9 @@
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::ErrorFront};
 
 use crate::{
-    curve_arithmetic::{self, GrumpkinPoint, GrumpkinPointAffine},
-    embed::Embed,
-    gates::{
-        point_double::{PointDoubleGate, PointDoubleGateInput},
-        Gate,
-    },
+    curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
     synthesizer::Synthesizer,
-    AssignedCell, Value,
+    AssignedCell,
 };
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -53,20 +48,20 @@ impl ToProjectiveChip {
 #[cfg(test)]
 mod tests {
 
-    use std::{vec, vec::Vec};
+    use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
+        halo2curves::bn256::Fr,
         plonk::{Advice, Circuit, Column, ConstraintSystem, Instance},
     };
 
     use super::*;
     use crate::{
-        chips::to_affine::ToAffineChipInput,
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
+        curve_arithmetic,
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
@@ -91,6 +86,10 @@ mod tests {
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
             let instance = meta.instance_column();
             meta.enable_equality(instance);
+
+            let fixed = meta.fixed_column();
+            meta.enable_constant(fixed);
+
             let configs_builder = ConfigsBuilder::new(meta).with_to_projective_chip();
 
             let chip = configs_builder.to_projective_chip();
@@ -103,8 +102,6 @@ mod tests {
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), ErrorFront> {
             let column_pool = column_pool.start_synthesis();
-
-            // column_poo
 
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
@@ -156,5 +153,21 @@ mod tests {
             ToProjectiveChipOutput { point_projective }
         )
         .is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let mut rng = rng();
+
+        let point_affine: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng).into();
+        let point_projective = curve_arithmetic::normalize_point(curve_arithmetic::point_double(
+            point_affine.clone().into(),
+        ));
+
+        assert!(verify(
+            input(point_affine),
+            ToProjectiveChipOutput { point_projective }
+        )
+        .is_err());
     }
 }

@@ -199,6 +199,7 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn with_to_projective_chip(mut self) -> Self {
         check_if_cached!(self, to_projective);
+        self.advice_pool_with_capacity(5);
         self.to_projective = Some(ToProjectiveChip::new());
         self
     }
