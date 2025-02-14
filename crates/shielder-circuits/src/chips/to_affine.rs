@@ -14,7 +14,6 @@ use crate::{
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ToAffineChipInput<T> {
     pub point_projective: GrumpkinPoint<T>,
-    pub point_projective_z_inverse: T,
 }
 
 #[allow(dead_code)]
@@ -37,14 +36,14 @@ impl ToAffineChip {
     pub fn to_affine(
         &self,
         synthesizer: &mut impl Synthesizer,
-        ToAffineChipInput {
-            point_projective,
-            point_projective_z_inverse,
-        }: &ToAffineChipInput<AssignedCell>,
+        ToAffineChipInput { point_projective }: &ToAffineChipInput<AssignedCell>,
     ) -> Result<ToAffineChipOutput<AssignedCell>, ErrorFront> {
+        let z_inverse_value = point_projective.z.value_field().invert().evaluate();
+        let z_inverse = z_inverse_value.embed(synthesizer, "z_inverse")?;
+
         let point_affine_value = curve_arithmetic::projective_to_affine(
             point_projective.clone().into(),
-            point_projective_z_inverse.value().cloned(),
+            z_inverse_value,
         );
         let point_affine = point_affine_value.embed(synthesizer, "point_affine")?;
 
@@ -53,7 +52,7 @@ impl ToAffineChip {
             ToAffineGateInput {
                 point_projective: point_projective.clone(),
                 point_affine: point_affine.clone(),
-                point_projective_z_inverse: point_projective_z_inverse.clone(),
+                point_projective_z_inverse: z_inverse,
             },
         )?;
 
@@ -67,7 +66,6 @@ mod tests {
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{
-        arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
@@ -116,24 +114,16 @@ mod tests {
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), ErrorFront> {
-            let ToAffineChipInput {
-                point_projective,
-                point_projective_z_inverse,
-            } = self.0;
+            let ToAffineChipInput { point_projective } = self.0;
 
             let column_pool = column_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
             let point_projective = point_projective.embed(&mut synthesizer, "P")?;
-            let z_inverse = point_projective_z_inverse.embed(&mut synthesizer, "z_inverse")?;
+            // let z_inverse = point_projective_z_inverse.embed(&mut synthesizer, "z_inverse")?;
 
-            let ToAffineChipOutput { point_affine } = chip.to_affine(
-                &mut synthesizer,
-                &ToAffineChipInput {
-                    point_projective,
-                    point_projective_z_inverse: z_inverse,
-                },
-            )?;
+            let ToAffineChipOutput { point_affine } =
+                chip.to_affine(&mut synthesizer, &ToAffineChipInput { point_projective })?;
 
             synthesizer.constrain_instance(point_affine.x.cell(), instance, 0)?;
             synthesizer.constrain_instance(point_affine.y.cell(), instance, 1)?;
@@ -142,14 +132,8 @@ mod tests {
         }
     }
 
-    fn input(
-        point_projective: GrumpkinPoint<Fr>,
-        point_projective_z_inverse: Fr,
-    ) -> ToAffineChipInput<Fr> {
-        ToAffineChipInput {
-            point_projective,
-            point_projective_z_inverse,
-        }
+    fn input(point_projective: GrumpkinPoint<Fr>) -> ToAffineChipInput<Fr> {
+        ToAffineChipInput { point_projective }
     }
 
     fn verify(
@@ -172,12 +156,8 @@ mod tests {
 
         let point_projective: GrumpkinPoint<Fr> = GrumpkinPoint::random(&mut rng).into();
         let point_affine: GrumpkinPointAffine<Fr> = point_projective.into();
-        let z_inverse = point_projective
-            .z
-            .invert()
-            .expect("z coordinate has an inverse");
 
-        let input = input(point_projective, z_inverse);
+        let input = input(point_projective);
         let output = ToAffineChipOutput { point_affine };
 
         assert!(verify(input, output).is_ok());
@@ -192,12 +172,10 @@ mod tests {
             curve_arithmetic::point_double(point_projective, *GRUMPKIN_3B),
         )
         .into();
-        let z_inverse = point_projective
-            .z
-            .invert()
-            .expect("z coordinate has an inverse");
 
-        let input = input(point_projective, z_inverse);
+        let input = input(
+            point_projective, // , z_inverse
+        );
         let output = ToAffineChipOutput { point_affine };
 
         assert!(verify(input, output).is_err());
