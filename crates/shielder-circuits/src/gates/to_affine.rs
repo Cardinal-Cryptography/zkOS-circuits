@@ -155,7 +155,8 @@ impl Gate for ToAffineGate {
 
 #[cfg(test)]
 mod tests {
-    use std::{vec, vec::Vec};
+
+    use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
         dev::{MockProver, VerifyFailure},

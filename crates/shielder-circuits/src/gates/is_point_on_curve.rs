@@ -19,17 +19,17 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PointIsOnCurveGate {
+pub struct IsPointOnCurveGate {
     pub selector: Selector,
     pub point: [Column<Advice>; 3],
 }
 
 #[derive(Clone, Debug, Default)]
 #[embeddable(
-    receiver = "PointIsOnCurveGateInput<Fr>",
-    embedded = "PointIsOnCurveGateInput<crate::AssignedCell>"
+    receiver = "IsPointOnCurveGateInput<Fr>",
+    embedded = "IsPointOnCurveGateInput<crate::AssignedCell>"
 )]
-pub struct PointIsOnCurveGateInput<T> {
+pub struct IsPointOnCurveGateInput<T> {
     pub point: GrumpkinPoint<T>,
 }
 
@@ -37,12 +37,12 @@ const SELECTOR_OFFSET: i32 = 0;
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "PointIsOnCurve";
 
-impl Gate for PointIsOnCurveGate {
-    type Input = PointIsOnCurveGateInput<AssignedCell>;
+impl Gate for IsPointOnCurveGate {
+    type Input = IsPointOnCurveGateInput<AssignedCell>;
 
     type Advice = [Column<Advice>; 3];
 
-    /// The gate checks whether the set of coordinates stisfies the projective closure of the Grumpkin curve:
+    /// The gate checks whether the set of point coordinates satisfies the projective closure of the Grumpkin curve:
     /// y^2 * z = x^3 + a * x * z^2 + b * z^3
     fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, point: Self::Advice) -> Self {
         ensure_unique_columns(&point.to_vec());
@@ -73,7 +73,7 @@ impl Gate for PointIsOnCurveGate {
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        PointIsOnCurveGateInput { point }: Self::Input,
+        IsPointOnCurveGateInput { point }: Self::Input,
     ) -> Result<(), ErrorFront> {
         synthesizer.assign_region(
             || GATE_NAME,
@@ -100,5 +100,39 @@ impl Gate for PointIsOnCurveGate {
     ) -> Self::Advice {
         pool.ensure_capacity(cs, 7);
         [pool.get_column(0), pool.get_column(1), pool.get_column(2)]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use alloc::{vec, vec::Vec};
+
+    use halo2_proofs::{
+        dev::{MockProver, VerifyFailure},
+        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+    };
+
+    use super::{IsPointOnCurveGate, IsPointOnCurveGateInput};
+    use crate::{curve_arithmetic::GrumpkinPoint, gates::test_utils::OneGateCircuit, rng};
+
+    fn input(point: GrumpkinPoint<Fr>) -> IsPointOnCurveGateInput<Fr> {
+        IsPointOnCurveGateInput { point }
+    }
+
+    fn verify(input: IsPointOnCurveGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = OneGateCircuit::<IsPointOnCurveGate, _>::new(input);
+        MockProver::run(4, &circuit, vec![])
+            .expect("Mock prover should run")
+            .verify()
+    }
+
+    #[test]
+    fn is_random_point_on_curve() {
+        let rng = rng();
+
+        let point: GrumpkinPoint<Fr> = G1::random(rng).into();
+
+        assert!(verify(input(point)).is_ok());
     }
 }
