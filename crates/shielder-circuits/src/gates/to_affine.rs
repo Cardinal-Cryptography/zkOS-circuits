@@ -155,7 +155,6 @@ impl Gate for ToAffineGate {
 
 #[cfg(test)]
 mod tests {
-
     use std::{vec, vec::Vec};
 
     use halo2_proofs::{
@@ -164,7 +163,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::{consts::GRUMPKIN_3B, curve_arithmetic, gates::test_utils::OneGateCircuit, rng};
+    use crate::{curve_arithmetic, gates::test_utils::OneGateCircuit, rng};
 
     fn input(
         point_projective: GrumpkinPoint<Fr>,
@@ -228,10 +227,9 @@ mod tests {
 
         let point_projective: GrumpkinPoint<Fr> = G1::random(&mut rng.clone()).into();
 
-        let point_affine: GrumpkinPointAffine<Fr> = curve_arithmetic::normalize_point(
-            curve_arithmetic::point_double(point_projective, *GRUMPKIN_3B),
-        )
-        .into();
+        let point_affine: GrumpkinPointAffine<Fr> =
+            curve_arithmetic::normalize_point(curve_arithmetic::point_double(point_projective))
+                .into();
 
         let z_inverse = point_projective
             .z
