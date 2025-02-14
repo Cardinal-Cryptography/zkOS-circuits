@@ -11,7 +11,7 @@ use macros::embeddable;
 use super::copy_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
-    curve_arithmetic::{self, GrumpkinPoint},
+    curve_arithmetic::GrumpkinPoint,
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
@@ -49,9 +49,7 @@ impl Gate for IsPointOnCurveGate {
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
-            let a = Expression::Constant(G1::a());
-            let b = Expression::Constant(G1::a());
-
+            let b = Expression::Constant(G1::b());
             let x = vc.query_advice(point[0], Rotation(ADVICE_OFFSET));
             let y = vc.query_advice(point[1], Rotation(ADVICE_OFFSET));
             let z = vc.query_advice(point[2], Rotation(ADVICE_OFFSET));
@@ -60,9 +58,9 @@ impl Gate for IsPointOnCurveGate {
                 vc.query_selector(selector),
                 vec![(
                     "y^2 * z = x^3 + a * x * z^2 + b * z^3",
-                    y.clone() * y * z.clone() - x.clone() * x.clone() * x.clone()
-                        + a * x * z.clone() * z.clone()
-                        + b * z.clone() * z.clone() * z,
+                    y.square() * z.clone()
+                        - x.clone() * x.clone() * x.clone()
+                        - b * z.clone() * z.clone() * z,
                 )],
             )
         });
@@ -130,9 +128,18 @@ mod tests {
     #[test]
     fn is_random_point_on_curve() {
         let rng = rng();
-
         let point: GrumpkinPoint<Fr> = G1::random(rng).into();
-
         assert!(verify(input(point)).is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let point: GrumpkinPoint<Fr> = G1 {
+            x: Fr::from_u128(1),
+            y: Fr::from_u128(2),
+            z: Fr::from_u128(1),
+        }
+        .into();
+        assert!(verify(input(point)).is_err());
     }
 }
