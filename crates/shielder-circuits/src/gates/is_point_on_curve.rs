@@ -42,10 +42,10 @@ impl Gate for IsPointOnCurveGate {
 
     type Advice = [Column<Advice>; 3];
 
-    /// The gate checks whether the set of point coordinates satisfies the projective closure of the Grumpkin curve:
-    /// y^2 * z = x^3 + a * x * z^2 + b * z^3
+    /// The gate checks whether a set of point coordinates satisfies the projective closure of the Grumpkin curve:
+    /// y^2 * z = x^3 + 17 * z^3
     fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, point: Self::Advice) -> Self {
-        ensure_unique_columns(&point.to_vec());
+        ensure_unique_columns(point.as_ref());
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
