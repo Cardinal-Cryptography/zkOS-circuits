@@ -11,3 +11,4 @@ pub mod sum;
 pub mod sym_key;
 pub mod to_affine;
 pub mod to_projective;
+pub mod is_point_on_curve;

@@ -62,7 +62,7 @@ impl ToAffineChip {
 
 #[cfg(test)]
 mod tests {
-    use std::{vec, vec::Vec};
+    use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
