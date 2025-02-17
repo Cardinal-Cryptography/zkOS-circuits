@@ -75,10 +75,19 @@ mod tests {
         type FloorPlanner = V1;
 
         fn without_witnesses(&self) -> Self {
-            todo!()
+            Self::default()
         }
 
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
+            // public input column
+            let instance = meta.instance_column();
+            meta.enable_equality(instance);
+            // register chip
+            // let configs_builder = ConfigsBuilder::new(meta).with_to_affine_chip();
+            // let chip = configs_builder.to_affine_chip();
+
+            // (configs_builder.finish(), chip, instance)
+
             todo!()
         }
 

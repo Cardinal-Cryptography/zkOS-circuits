@@ -2,6 +2,7 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
+        is_point_on_curve::IsPointOnCurveChip,
         note::{NoteChip, NoteInstance},
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
@@ -14,7 +15,8 @@ use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::WIDTH,
     gates::{
-        membership::MembershipGate, point_double::PointDoubleGate, points_add::PointsAddGate,
+        is_point_on_curve::IsPointOnCurveGate, membership::MembershipGate,
+        point_double::PointDoubleGate, points_add::PointsAddGate,
         scalar_multiply::ScalarMultiplyGate, sum::SumGate, to_affine::ToAffineGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
@@ -37,6 +39,7 @@ pub struct ConfigsBuilder<'cs> {
     scalar_multiply: Option<ScalarMultiplyChip>,
     to_affine: Option<ToAffineChip>,
     to_projective: Option<ToProjectiveChip>,
+    is_point_on_curve: Option<IsPointOnCurveChip>,
     note: Option<NoteChip>,
 }
 
@@ -64,6 +67,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             scalar_multiply: None,
             to_affine: None,
             to_projective: None,
+            is_point_on_curve: None,
             note: None,
         }
     }
@@ -207,6 +211,21 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.to_projective
             .clone()
             .expect("ToProjective chip is not configured")
+    }
+
+    pub fn with_is_point_on_curve_chip(mut self) -> Self {
+        check_if_cached!(self, is_point_on_curve);
+        self.is_point_on_curve = Some(IsPointOnCurveChip::new(IsPointOnCurveGate::create_gate(
+            self.system,
+            &mut self.advice_pool,
+        )));
+        self
+    }
+
+    pub fn is_point_on_curve_chip(&self) -> IsPointOnCurveChip {
+        self.is_point_on_curve
+            .clone()
+            .expect("IsPointOnCurveChip is not configured")
     }
 
     pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {
