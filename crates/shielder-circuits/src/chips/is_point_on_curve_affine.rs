@@ -15,7 +15,7 @@ pub struct IsPointOnCurveAffineChipInput<T> {
     pub point: GrumpkinPointAffine<T>,
 }
 
-/// Chip that checks a point in affine coordinates is on the Grumpkin curve.
+/// Chip that checks whether a point in affine coordinates is on the Grumpkin curve.
 #[derive(Clone, Debug)]
 pub struct IsPointOnCurveAffineChip {
     pub gate: IsPointOnCurveAffineGate,
