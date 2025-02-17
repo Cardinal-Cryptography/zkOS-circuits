@@ -108,7 +108,7 @@ mod tests {
 
     use halo2_proofs::{
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+        halo2curves::{bn256::Fr, ff::PrimeField},
     };
 
     use super::{IsPointOnCurveGate, IsPointOnCurveGateInput};
@@ -134,12 +134,8 @@ mod tests {
 
     #[test]
     fn incorrect_inputs() {
-        let point: GrumpkinPoint<Fr> = G1 {
-            x: Fr::from_u128(1),
-            y: Fr::from_u128(2),
-            z: Fr::from_u128(1),
-        }
-        .into();
+        let point: GrumpkinPoint<Fr> =
+            GrumpkinPoint::new(Fr::from_u128(1), Fr::from_u128(2), Fr::from_u128(1));
         assert!(verify(input(point)).is_err());
     }
 }
