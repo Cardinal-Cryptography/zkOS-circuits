@@ -35,7 +35,7 @@ pub struct IsPointOnCurveGateInput<T> {
 
 const SELECTOR_OFFSET: i32 = 0;
 const ADVICE_OFFSET: i32 = 0;
-const GATE_NAME: &str = "PointIsOnCurve";
+const GATE_NAME: &str = "IsPointOnCurveGate";
 
 impl Gate for IsPointOnCurveGate {
     type Input = IsPointOnCurveGateInput<AssignedCell>;
@@ -107,6 +107,7 @@ mod tests {
     use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
+        arithmetic::Field,
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, ff::PrimeField},
     };
@@ -135,7 +136,7 @@ mod tests {
     #[test]
     fn incorrect_inputs() {
         let point: GrumpkinPoint<Fr> =
-            GrumpkinPoint::new(Fr::from_u128(1), Fr::from_u128(2), Fr::from_u128(1));
+            GrumpkinPoint::new(Fr::from_u128(1), Fr::from_u128(2), Fr::ONE);
         assert!(verify(input(point)).is_err());
     }
 }
