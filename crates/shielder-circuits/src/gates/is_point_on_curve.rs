@@ -57,7 +57,7 @@ impl Gate for IsPointOnCurveGate {
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![(
-                    "y^2 * z = x^3 + a * x * z^2 + b * z^3",
+                    "y^2 * z = x^3 + b * z^3",
                     y.square() * z.clone()
                         - x.clone() * x.clone() * x.clone()
                         - b * z.clone() * z.clone() * z,
@@ -96,7 +96,7 @@ impl Gate for IsPointOnCurveGate {
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advice {
-        pool.ensure_capacity(cs, 7);
+        pool.ensure_capacity(cs, 3);
         [pool.get_column(0), pool.get_column(1), pool.get_column(2)]
     }
 }

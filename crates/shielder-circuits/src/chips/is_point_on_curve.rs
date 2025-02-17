@@ -50,7 +50,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
-        halo2curves::bn256::Fr,
+        halo2curves::{bn256::Fr, ff::PrimeField},
         plonk::{Advice, Circuit, ConstraintSystem},
     };
 
@@ -119,5 +119,12 @@ mod tests {
         let point: GrumpkinPoint<Fr> = GrumpkinPoint::random(&mut rng).into();
         let input = input(point);
         assert!(verify(input).is_ok());
+    }
+
+    #[test]
+    fn incorrect_inputs() {
+        let point: GrumpkinPoint<Fr> =
+            GrumpkinPoint::new(Fr::from_u128(1), Fr::from_u128(2), Fr::from_u128(1));
+        assert!(verify(input(point)).is_err());
     }
 }
