@@ -46,6 +46,8 @@ impl IsPointOnCurveChip {
 #[cfg(test)]
 mod tests {
 
+    use alloc::{vec, vec::Vec};
+
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
@@ -57,6 +59,7 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
+        curve_arithmetic::GrumpkinPoint,
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
@@ -69,7 +72,7 @@ mod tests {
         type Config = (
             ColumnPool<Advice, PreSynthesisPhase>,
             IsPointOnCurveChip,
-            Column<Instance>,
+            // Column<Instance>,
         );
 
         type FloorPlanner = V1;
@@ -79,24 +82,50 @@ mod tests {
         }
 
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
-            // public input column
-            let instance = meta.instance_column();
-            meta.enable_equality(instance);
-            // register chip
-            // let configs_builder = ConfigsBuilder::new(meta).with_to_affine_chip();
-            // let chip = configs_builder.to_affine_chip();
+            // let instance = meta.instance_column();
+            // meta.enable_equality(instance);
 
-            // (configs_builder.finish(), chip, instance)
+            let configs_builder = ConfigsBuilder::new(meta).with_is_point_on_curve_chip();
+            let chip = configs_builder.is_point_on_curve_chip();
 
-            todo!()
+            (configs_builder.finish(), chip)
         }
 
         fn synthesize(
             &self,
-            config: Self::Config,
-            layouter: impl Layouter<Fr>,
+            (column_pool, chip): Self::Config,
+            mut layouter: impl Layouter<Fr>,
         ) -> Result<(), halo2_frontend::plonk::Error> {
-            todo!()
+            let IsPointOnCurveChipInput { point } = self.0;
+
+            let column_pool = column_pool.start_synthesis();
+            let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
+
+            let point = point.embed(&mut synthesizer, "P")?;
+
+            chip.is_point_on_curve(&mut synthesizer, &IsPointOnCurveChipInput { point })?;
+
+            Ok(())
         }
+    }
+
+    fn input(point: GrumpkinPoint<Fr>) -> IsPointOnCurveChipInput<Fr> {
+        IsPointOnCurveChipInput { point }
+    }
+
+    fn verify(input: IsPointOnCurveChipInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = IsPointOnCurveCircuit(input);
+        MockProver::run(4, &circuit, vec![vec![]])
+            .expect("Mock prover should run")
+            .verify()
+    }
+
+    #[test]
+    fn random_point() {
+        let mut rng = rng();
+
+        let point: GrumpkinPoint<Fr> = GrumpkinPoint::random(&mut rng).into();
+        let input = input(point);
+        assert!(verify(input).is_ok());
     }
 }
