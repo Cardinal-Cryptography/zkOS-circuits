@@ -8,7 +8,7 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
-use super::{copy_affine_grumpkin_advices, copy_grumpkin_advices};
+use super::copy_affine_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     curve_arithmetic::GrumpkinPointAffine,
