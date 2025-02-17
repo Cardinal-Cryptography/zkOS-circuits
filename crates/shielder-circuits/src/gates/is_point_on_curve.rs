@@ -35,7 +35,7 @@ pub struct IsPointOnCurveGateInput<T> {
 
 const SELECTOR_OFFSET: i32 = 0;
 const ADVICE_OFFSET: i32 = 0;
-const GATE_NAME: &str = "PointIsOnCurve";
+const GATE_NAME: &str = "IsPointOnCurveGate";
 
 impl Gate for IsPointOnCurveGate {
     type Input = IsPointOnCurveGateInput<AssignedCell>;
