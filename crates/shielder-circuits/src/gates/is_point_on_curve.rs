@@ -107,6 +107,7 @@ mod tests {
     use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
+        arithmetic::Field,
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, ff::PrimeField},
     };
@@ -135,7 +136,7 @@ mod tests {
     #[test]
     fn incorrect_inputs() {
         let point: GrumpkinPoint<Fr> =
-            GrumpkinPoint::new(Fr::from_u128(1), Fr::from_u128(2), Fr::from_u128(1));
+            GrumpkinPoint::new(Fr::from_u128(1), Fr::from_u128(2), Fr::ONE);
         assert!(verify(input(point)).is_err());
     }
 }
