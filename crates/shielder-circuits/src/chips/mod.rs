@@ -1,6 +1,7 @@
 pub mod asymmetric_encryption;
 pub mod el_gamal;
 pub mod id_hiding;
+pub mod is_point_on_curve;
 pub mod mac;
 pub mod note;
 pub mod point_double;
@@ -11,4 +12,3 @@ pub mod sum;
 pub mod sym_key;
 pub mod to_affine;
 pub mod to_projective;
-pub mod is_point_on_curve;
