@@ -127,8 +127,8 @@ mod tests {
 
     #[test]
     fn is_random_point_on_curve() {
-        let rng = rng();
-        let point: GrumpkinPoint<Fr> = G1::random(rng).into();
+        let mut rng = rng();
+        let point: GrumpkinPoint<Fr> = GrumpkinPoint::random(&mut rng);
         assert!(verify(input(point)).is_ok());
     }
 

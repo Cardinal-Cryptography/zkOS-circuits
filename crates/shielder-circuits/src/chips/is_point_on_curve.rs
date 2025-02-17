@@ -1,8 +1,7 @@
 use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
-    curve_arithmetic::{self, GrumpkinPoint, GrumpkinPointAffine},
-    embed::Embed,
+    curve_arithmetic::GrumpkinPoint,
     gates::{
         is_point_on_curve::{IsPointOnCurveGate, IsPointOnCurveGateInput},
         Gate,
@@ -51,8 +50,8 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, group::Group, grumpkin::G1},
-        plonk::{Advice, Circuit, Column, ConstraintSystem, Instance},
+        halo2curves::bn256::Fr,
+        plonk::{Advice, Circuit, ConstraintSystem},
     };
 
     use super::{IsPointOnCurveChip, IsPointOnCurveChipInput};
@@ -69,11 +68,7 @@ mod tests {
     struct IsPointOnCurveCircuit(IsPointOnCurveChipInput<Fr>);
 
     impl Circuit<Fr> for IsPointOnCurveCircuit {
-        type Config = (
-            ColumnPool<Advice, PreSynthesisPhase>,
-            IsPointOnCurveChip,
-            // Column<Instance>,
-        );
+        type Config = (ColumnPool<Advice, PreSynthesisPhase>, IsPointOnCurveChip);
 
         type FloorPlanner = V1;
 
@@ -82,9 +77,6 @@ mod tests {
         }
 
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
-            // let instance = meta.instance_column();
-            // meta.enable_equality(instance);
-
             let configs_builder = ConfigsBuilder::new(meta).with_is_point_on_curve_chip();
             let chip = configs_builder.is_point_on_curve_chip();
 
@@ -115,13 +107,13 @@ mod tests {
 
     fn verify(input: IsPointOnCurveChipInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = IsPointOnCurveCircuit(input);
-        MockProver::run(4, &circuit, vec![vec![]])
+        MockProver::run(4, &circuit, vec![])
             .expect("Mock prover should run")
             .verify()
     }
 
     #[test]
-    fn random_point() {
+    fn is_random_point_on_curve() {
         let mut rng = rng();
 
         let point: GrumpkinPoint<Fr> = GrumpkinPoint::random(&mut rng).into();
