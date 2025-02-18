@@ -56,7 +56,7 @@ impl Gate for IsPointOnCurveAffineGate {
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![(
-                    "y^2 = x^3 + b",
+                    "y^2 = x^3 - 17",
                     y.square() - x.clone() * x.clone() * x.clone() - b,
                 )],
             )

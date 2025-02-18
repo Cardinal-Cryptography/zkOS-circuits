@@ -57,7 +57,7 @@ impl Gate for IsPointOnCurveGate {
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![(
-                    "y^2 * z = x^3 + b * z^3",
+                    "y^2 * z = x^3 - 17 * z^3",
                     y.square() * z.clone()
                         - x.clone() * x.clone() * x.clone()
                         - b * z.clone() * z.clone() * z,
