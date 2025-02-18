@@ -130,7 +130,6 @@ impl Gate for ScalarMultiplyGate {
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        // ScalarMultiplyGateInput { scalar_bits, input }: Self::Input,
         ScalarMultiplyGateInput {
             bit,
             input,
@@ -204,7 +203,8 @@ impl Gate for ScalarMultiplyGate {
 
 #[cfg(test)]
 mod tests {
-    use std::{vec, vec::Vec};
+
+    use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
         dev::{MockProver, VerifyFailure},
