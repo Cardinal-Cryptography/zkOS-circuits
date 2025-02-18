@@ -2,7 +2,11 @@ use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
-    chips::{asymmetric_encryption, asymmetric_encryption::AsymPublicKey, sym_key},
+    chips::{
+        asymmetric_encryption::{self, AsymPublicKey},
+        sym_key,
+    },
+    curve_arithmetic,
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
@@ -31,7 +35,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
 
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
         Self {
-            id: Fr::random(&mut *rng),
+            id: curve_arithmetic::generate_user_id(Fr::random(&mut *rng).to_bytes()),
             nullifier: Fr::random(&mut *rng),
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,

@@ -134,13 +134,13 @@ pub fn is_point_on_curve_affine<S: CurveScalarField + PartialEq>(
     y.clone() * y == x.clone() * x.clone() * x + S::b()
 }
 
-/// Given a 32 byte array generates a random `id` such
+/// Given a 32 byte array with a field element generates a random `id` such
 /// that it's hash, along with a specific salt is the x-coordinate of a point on the (affine) Grumpkin curve:
 /// For x = hash(id, SALT), y = sqrt(x^3 + b) P(x,y) \in E
 ///
-/// The procedure is deterministic given the byte array, which is starting point of the incremental search
-pub fn generate_user_id(k: [u8; 32]) -> Fr {
-    let mut id = Fr::from_bytes(&k).expect("not a field element");
+/// The procedure is deterministic given the byte array, which is treated as an x-coordinate to start the incremental search with.
+pub fn generate_user_id(start_from: [u8; 32]) -> Fr {
+    let mut id = Fr::from_bytes(&start_from).expect("not a 32 byte array");
 
     loop {
         let x = sym_key::off_circuit::derive(id);

@@ -9,6 +9,7 @@ use crate::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK, NONCE_UPPER_LIMIT,
     },
+    curve_arithmetic,
     embed::Embed,
     merkle::generate_example_path_with_given_leaf,
     note_hash,
@@ -63,7 +64,7 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
     ///
     /// `account_old_balance` has the largest possible value that passes the range check.
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
-        let id = Fr::random(&mut *rng);
+        let id = curve_arithmetic::generate_user_id(Fr::random(&mut *rng).to_bytes());
         let nonce = Fr::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
         let nullifier_old = Fr::random(&mut *rng);
         let trapdoor_old = Fr::random(&mut *rng);
