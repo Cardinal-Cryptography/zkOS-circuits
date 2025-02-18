@@ -124,6 +124,12 @@ pub fn affine_to_projective<T: Field>(p: GrumpkinPointAffine<T>) -> GrumpkinPoin
     GrumpkinPoint::new(p.x, p.y, T::ONE)
 }
 
+pub fn is_point_on_curve_affine<S: CurveScalarField + PartialEq>(
+    GrumpkinPointAffine { x, y }: GrumpkinPointAffine<S>,
+) -> bool {
+    y.clone() * y == x.clone() * x.clone() * x + S::b()
+}
+
 /// Converts given field element to the individual LE bit representation
 ///
 /// panics if value is not 254 bits
@@ -222,5 +228,13 @@ mod tests {
             p_recovered,
             curve_arithmetic::affine_to_projective(p_affine)
         );
+    }
+
+    #[test]
+    fn is_random_point_on_curve_affine() {
+        let mut rng = rng();
+        let point: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng);
+
+        assert!(curve_arithmetic::is_point_on_curve_affine(point));
     }
 }

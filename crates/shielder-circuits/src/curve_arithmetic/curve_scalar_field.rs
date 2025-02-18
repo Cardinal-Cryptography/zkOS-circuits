@@ -9,6 +9,8 @@ use crate::{Field, Fr, Value};
 pub trait CurveScalarField:
     Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Clone
 {
+    /// Returns the parameter `b` from the curve equation.
+    fn b() -> Self;
     /// Returns the parameter `b` from the curve equation added to itself 3 times.
     fn b3() -> Self;
     /// Returns the zero element of the scalar field.
@@ -18,8 +20,11 @@ pub trait CurveScalarField:
 }
 
 impl CurveScalarField for Fr {
+    fn b() -> Self {
+        G1::b()
+    }
     fn b3() -> Self {
-        G1::b() + G1::b() + G1::b()
+        Self::b() + Self::b() + Self::b()
     }
 
     fn zero() -> Self {
@@ -32,6 +37,9 @@ impl CurveScalarField for Fr {
 }
 
 impl CurveScalarField for Value {
+    fn b() -> Self {
+        Value::known(G1::b())
+    }
     fn b3() -> Self {
         Value::known(Fr::b3())
     }
@@ -46,6 +54,9 @@ impl CurveScalarField for Value {
 }
 
 impl CurveScalarField for Expression<Fr> {
+    fn b() -> Self {
+        Expression::Constant(Fr::b())
+    }
     fn b3() -> Self {
         Expression::Constant(Fr::b3())
     }
