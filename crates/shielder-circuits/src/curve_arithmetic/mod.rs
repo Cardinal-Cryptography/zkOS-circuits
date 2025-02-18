@@ -4,9 +4,13 @@ use core::ops::Mul;
 pub use curve_scalar_field::CurveScalarField;
 pub use grumpkin_point::{GrumpkinPoint, GrumpkinPointAffine};
 use halo2_proofs::{
-    arithmetic::Field,
-    halo2curves::{bn256::Fr, ff::PrimeField},
+    arithmetic::{CurveExt, Field},
+    halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
+
+use crate::chips::sym_key;
+
+// use crate::chips::;
 mod curve_scalar_field;
 mod grumpkin_point;
 
@@ -130,6 +134,26 @@ pub fn is_point_on_curve_affine<S: CurveScalarField + PartialEq>(
     y.clone() * y == x.clone() * x.clone() * x + S::b()
 }
 
+/// Given a 32 byte array generates a random `id` such
+/// that it's hash, along with a specific salt is the x-coordinate of a point on the (affine) Grumpkin curve:
+/// For x = hash(id, SALT), y = sqrt(x^3 + b) P(x,y) \in E
+///
+/// The procedure is deterministic given the byte array, which is starting point of the incremental search
+pub fn generate_user_id(k: [u8; 32]) -> Fr {
+    let mut id = Fr::from_bytes(&k).expect("not a field element");
+
+    loop {
+        let x = sym_key::off_circuit::derive(id);
+        let y_squared = x * x * x + G1::b();
+        match y_squared.sqrt().into_option() {
+            Some(_) => return id,
+            None => {
+                id += Fr::one();
+            }
+        }
+    }
+}
+
 /// Converts given field element to the individual LE bit representation
 ///
 /// panics if value is not 254 bits
@@ -155,13 +179,16 @@ fn to_bits_le(num: &[u8]) -> Vec<bool> {
 
 #[cfg(test)]
 mod tests {
-    use halo2_proofs::halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1};
+    use halo2_proofs::{
+        arithmetic::CurveExt,
+        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+    };
 
     use super::{field_element_to_le_bits, GrumpkinPointAffine};
     use crate::{
-        curve_arithmetic,
+        chips::sym_key,
         curve_arithmetic::{
-            grumpkin_point::GrumpkinPoint, normalize_point, point_double, points_add,
+            self, grumpkin_point::GrumpkinPoint, normalize_point, point_double, points_add,
             scalar_multiply,
         },
         rng, Field,
@@ -234,6 +261,25 @@ mod tests {
     fn is_random_point_on_curve_affine() {
         let mut rng = rng();
         let point: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng);
+
+        assert!(curve_arithmetic::is_point_on_curve_affine(point));
+    }
+
+    #[test]
+    fn user_id_generation() {
+        let bytes = [21u128.to_le_bytes(), 37u128.to_le_bytes()]
+            .concat()
+            .try_into()
+            .expect("not a 32 byte array");
+
+        let id = curve_arithmetic::generate_user_id(bytes);
+
+        let x = sym_key::off_circuit::derive(id);
+        let y = (x * x * x + G1::b())
+            .sqrt()
+            .expect("element is not a quadratic residue");
+
+        let point = GrumpkinPointAffine::new(x, y);
 
         assert!(curve_arithmetic::is_point_on_curve_affine(point));
     }
