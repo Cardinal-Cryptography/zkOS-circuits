@@ -3,7 +3,7 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 use crate::{
     chips::{
         is_point_on_curve::IsPointOnCurveChip,
-        is_point_on_curve_affine::IsPointOnCurveAffineChip,
+        is_quadratic_residue::IsQuadraticResidueChip,
         note::{NoteChip, NoteInstance},
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
@@ -41,7 +41,8 @@ pub struct ConfigsBuilder<'cs> {
     to_affine: Option<ToAffineChip>,
     to_projective: Option<ToProjectiveChip>,
     is_point_on_curve: Option<IsPointOnCurveChip>,
-    is_point_on_curve_affine: Option<IsPointOnCurveAffineChip>,
+    is_quadratic_residue: Option<IsQuadraticResidueChip>,
+    // is_point_on_curve_affine: Option<IsXCoordOnCurveAffineChip>,
     note: Option<NoteChip>,
 }
 
@@ -70,7 +71,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             to_affine: None,
             to_projective: None,
             is_point_on_curve: None,
-            is_point_on_curve_affine: None,
+            is_quadratic_residue: None,
             note: None,
         }
     }
@@ -231,18 +232,18 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("IsPointOnCurveChip is not configured")
     }
 
-    pub fn with_is_point_on_curve_affine_chip(mut self) -> Self {
-        check_if_cached!(self, is_point_on_curve_affine);
-        self.is_point_on_curve_affine = Some(IsPointOnCurveAffineChip::new(
+    pub fn with_is_quadratic_residue_chip(mut self) -> Self {
+        check_if_cached!(self, is_quadratic_residue);
+        self.is_quadratic_residue = Some(IsQuadraticResidueChip::new(
             IsPointOnCurveAffineGate::create_gate(self.system, &mut self.advice_pool),
         ));
         self
     }
 
-    pub fn is_point_on_curve_affine_chip(&self) -> IsPointOnCurveAffineChip {
-        self.is_point_on_curve_affine
+    pub fn is_quadratic_residue_chip(&self) -> IsQuadraticResidueChip {
+        self.is_quadratic_residue
             .clone()
-            .expect("IsPointOnCurveAffineChip is not configured")
+            .expect("IsQuadraticResidueChip is not configured")
     }
 
     pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {

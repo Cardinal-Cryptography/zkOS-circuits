@@ -1,18 +1,21 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::{arithmetic::CurveExt, halo2curves::grumpkin::G1, plonk::ErrorFront};
 
 use crate::{
     chips::{
         asymmetric_encryption::ElGamalEncryptionChip,
+        is_quadratic_residue::IsQuadraticResidueChip,
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
+    curve_arithmetic::GrumpkinPointAffine,
+    embed::Embed,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
-    AssignedCell,
+    AssignedCell, Value,
 };
 
 #[derive(Clone, Debug)]
@@ -20,6 +23,7 @@ pub struct NewAccountChip {
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
     pub poseidon: PoseidonChip,
     pub note: NoteChip,
+    pub is_quadratic_residue: IsQuadraticResidueChip,
 }
 
 impl NewAccountChip {
@@ -59,6 +63,16 @@ impl NewAccountChip {
             .constrain_cells(synthesizer, [(h_id, HashedId)])
     }
 
+    /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve
+    /// y^2 = key^3 - 17
+    fn is_key_quadratic_residue(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        key: AssignedCell,
+    ) -> Result<(), ErrorFront> {
+        self.is_quadratic_residue.check_coordinate(synthesizer, key)
+    }
+
     pub fn constrain_sym_key_encryption(
         &self,
         synthesizer: &mut impl Synthesizer,
@@ -66,6 +80,8 @@ impl NewAccountChip {
     ) -> Result<(), ErrorFront> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+
+        self.is_key_quadratic_residue(synthesizer, sym_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
         let sym_key_encryption =

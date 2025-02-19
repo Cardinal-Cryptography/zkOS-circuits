@@ -134,6 +134,11 @@ pub fn is_point_on_curve_affine<S: CurveScalarField + PartialEq>(
     y.clone() * y == x.clone() * x.clone() * x + S::b()
 }
 
+/// returns y^2 given x on the grumpkin curve
+pub fn quadratic_residue_given_x_affine<S: CurveScalarField>(x: S) -> S {
+    x.clone() * x.clone() * x + S::b()
+}
+
 /// Given a 32 byte array with a field element generates a random `id` such
 /// that it's hash, along with a specific salt is the x-coordinate of a point on the (affine) Grumpkin curve:
 /// For x = hash(id, SALT), y = sqrt(x^3 + b) P(x,y) \in E

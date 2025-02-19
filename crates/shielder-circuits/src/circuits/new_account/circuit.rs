@@ -8,6 +8,7 @@ use crate::{
     column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
+    gates::{is_point_on_curve_affine::IsPointOnCurveAffineGate, Gate},
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance,
     synthesizer::create_synthesizer,
@@ -29,13 +30,15 @@ impl Circuit<Fr> for NewAccountCircuit {
         let public_inputs = InstanceWrapper::<NewAccountInstance>::new(meta);
         let configs_builder = ConfigsBuilder::new(meta)
             .with_poseidon()
-            .with_note(public_inputs.narrow());
+            .with_note(public_inputs.narrow())
+            .with_is_quadratic_residue_chip();
 
         (
             NewAccountChip {
                 public_inputs,
                 poseidon: configs_builder.poseidon_chip(),
                 note: configs_builder.note_chip(),
+                is_quadratic_residue: configs_builder.is_quadratic_residue_chip(),
             },
             configs_builder.finish(),
         )
