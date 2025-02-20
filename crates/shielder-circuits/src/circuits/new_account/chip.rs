@@ -115,6 +115,9 @@ impl NewAccountChip {
                 bits_vec = array.into_iter().map(Value::known).collect();
             });
 
+        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long");
+        let bits = bits_values.embed(synthesizer, "trapdor_le_bits")?;
+
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
         let ToProjectiveChipOutput {
@@ -125,9 +128,6 @@ impl NewAccountChip {
                 point_affine: revoker_pkey.clone(),
             },
         )?;
-
-        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long");
-        let bits = bits_values.embed(synthesizer, "trapdor_le_bits")?;
 
         let y_value = curve_arithmetic::quadratic_residue_given_x_affine(sym_key.value().copied())
             .map(|elem| elem.sqrt().expect("element has a square root"));

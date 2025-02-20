@@ -32,7 +32,8 @@ impl Circuit<Fr> for NewAccountCircuit {
             .with_note(public_inputs.narrow())
             .with_is_point_on_curve_affine_chip()
             .with_to_projective_chip()
-            .with_to_affine_chip();
+            .with_to_affine_chip()
+            .with_el_gamal_encryption_chip();
 
         (
             NewAccountChip {
