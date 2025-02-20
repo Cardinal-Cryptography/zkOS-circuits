@@ -30,14 +30,14 @@ impl Circuit<Fr> for NewAccountCircuit {
         let configs_builder = ConfigsBuilder::new(meta)
             .with_poseidon()
             .with_note(public_inputs.narrow())
-            .with_is_quadratic_residue_chip();
+            .with_is_point_on_curve_affine_chip();
 
         (
             NewAccountChip {
                 public_inputs,
                 poseidon: configs_builder.poseidon_chip(),
                 note: configs_builder.note_chip(),
-                is_quadratic_residue: configs_builder.is_quadratic_residue_chip(),
+                is_point_on_curve: configs_builder.is_point_on_curve_affine_chip(),
             },
             configs_builder.finish(),
         )

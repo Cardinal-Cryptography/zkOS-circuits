@@ -1,14 +1,14 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::{arithmetic::Field, plonk::ErrorFront};
 
 use crate::{
     chips::{
         asymmetric_encryption::ElGamalEncryptionChip,
-        is_quadratic_residue::{IsQuadraticResidueChip, IsQuadraticResidueChipInput},
+        is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
-    curve_arithmetic,
+    curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
@@ -23,7 +23,7 @@ pub struct NewAccountChip {
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
     pub poseidon: PoseidonChip,
     pub note: NoteChip,
-    pub is_quadratic_residue: IsQuadraticResidueChip,
+    pub is_point_on_curve: IsPointOnCurveAffineChip,
 }
 
 impl NewAccountChip {
@@ -65,18 +65,21 @@ impl NewAccountChip {
 
     /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve
     /// y^2 = key^3 - 17
-    fn is_key_quadratic_residue(
+    fn constrain_symmetric_key(
         &self,
         synthesizer: &mut impl Synthesizer,
         key: AssignedCell,
     ) -> Result<(), ErrorFront> {
         let y_squared_value =
             curve_arithmetic::quadratic_residue_given_x_affine(key.value().copied());
-        let y_squared = y_squared_value.embed(synthesizer, "y^2")?;
+        let y_value = y_squared_value.map(|v| v.sqrt().expect(""));
+        let y = y_value.embed(synthesizer, "y")?;
 
-        self.is_quadratic_residue.check_coordinate(
+        self.is_point_on_curve.is_point_on_curve_affine(
             synthesizer,
-            IsQuadraticResidueChipInput { x: key, y_squared },
+            &IsPointOnCurveAffineChipInput {
+                point: GrumpkinPointAffine::new(key, y),
+            },
         )
     }
 
@@ -88,7 +91,7 @@ impl NewAccountChip {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 
-        self.is_key_quadratic_residue(synthesizer, sym_key.clone())?;
+        self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
         let sym_key_encryption =

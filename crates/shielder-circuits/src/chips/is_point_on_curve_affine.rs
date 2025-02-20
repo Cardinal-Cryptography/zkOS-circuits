@@ -1,6 +1,7 @@
 use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
+    curve_arithmetic::GrumpkinPointAffine,
     gates::{
         is_point_on_curve_affine::{IsPointOnCurveAffineGate, IsPointOnCurveAffineGateInput},
         Gate,
@@ -10,29 +11,33 @@ use crate::{
 };
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct IsQuadraticResidueChipInput<T> {
-    pub x: T,
-    pub y_squared: T,
+pub struct IsPointOnCurveAffineChipInput<T> {
+    pub point: GrumpkinPointAffine<T>,
 }
 
-/// chip that checks whether x^3-17 forms a quadratic residue on the Grumpkin curve
+/// Chip that checks a point in affine coordinates is on the Grumpkin curve.
 #[derive(Clone, Debug)]
-pub struct IsQuadraticResidueChip {
+pub struct IsPointOnCurveAffineChip {
     pub gate: IsPointOnCurveAffineGate,
 }
 
-impl IsQuadraticResidueChip {
+impl IsPointOnCurveAffineChip {
     pub fn new(gate: IsPointOnCurveAffineGate) -> Self {
         Self { gate }
     }
 
-    pub fn check_coordinate(
+    pub fn is_point_on_curve_affine(
         &self,
         synthesizer: &mut impl Synthesizer,
-        IsQuadraticResidueChipInput { x, y_squared }: IsQuadraticResidueChipInput<AssignedCell>,
+        IsPointOnCurveAffineChipInput { point }: &IsPointOnCurveAffineChipInput<AssignedCell>,
     ) -> Result<(), ErrorFront> {
-        self.gate
-            .apply_in_new_region(synthesizer, IsPointOnCurveAffineGateInput { x, y_squared })?;
+        self.gate.apply_in_new_region(
+            synthesizer,
+            IsPointOnCurveAffineGateInput {
+                point: point.clone(),
+            },
+        )?;
+
         Ok(())
     }
 }
@@ -49,7 +54,7 @@ mod tests {
         plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
     };
 
-    use super::{IsQuadraticResidueChip, IsQuadraticResidueChipInput};
+    use super::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput};
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
@@ -60,12 +65,12 @@ mod tests {
     };
 
     #[derive(Clone, Debug, Default)]
-    struct IsQuadraticResidueCircuit(IsQuadraticResidueChipInput<Fr>);
+    struct IsPointOnCurveAffineCircuit(IsPointOnCurveAffineChipInput<Fr>);
 
-    impl Circuit<Fr> for IsQuadraticResidueCircuit {
+    impl Circuit<Fr> for IsPointOnCurveAffineCircuit {
         type Config = (
             ColumnPool<Advice, PreSynthesisPhase>,
-            IsQuadraticResidueChip,
+            IsPointOnCurveAffineChip,
         );
 
         type FloorPlanner = V1;
@@ -75,8 +80,8 @@ mod tests {
         }
 
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
-            let configs_builder = ConfigsBuilder::new(meta).with_is_quadratic_residue_chip();
-            let chip = configs_builder.is_quadratic_residue_chip();
+            let configs_builder = ConfigsBuilder::new(meta).with_is_point_on_curve_affine_chip();
+            let chip = configs_builder.is_point_on_curve_affine_chip();
 
             (configs_builder.finish(), chip)
         }
@@ -86,24 +91,28 @@ mod tests {
             (column_pool, chip): Self::Config,
             mut layouter: impl Layouter<Fr>,
         ) -> Result<(), ErrorFront> {
+            let IsPointOnCurveAffineChipInput { point } = self.0;
+
             let column_pool = column_pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
-            let IsQuadraticResidueChipInput { x, y_squared } = self.0;
+            let point = point.embed(&mut synthesizer, "P")?;
 
-            let x = x.embed(&mut synthesizer, "x")?;
-            let y_squared = y_squared.embed(&mut synthesizer, "y_squared")?;
-            chip.check_coordinate(
+            chip.is_point_on_curve_affine(
                 &mut synthesizer,
-                IsQuadraticResidueChipInput { x, y_squared },
+                &IsPointOnCurveAffineChipInput { point },
             )?;
 
             Ok(())
         }
     }
 
-    fn verify(x: Fr, y_squared: Fr) -> Result<(), Vec<VerifyFailure>> {
-        let circuit = IsQuadraticResidueCircuit(IsQuadraticResidueChipInput { x, y_squared });
+    fn input(point: GrumpkinPointAffine<Fr>) -> IsPointOnCurveAffineChipInput<Fr> {
+        IsPointOnCurveAffineChipInput { point }
+    }
+
+    fn verify(input: IsPointOnCurveAffineChipInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+        let circuit = IsPointOnCurveAffineCircuit(input);
         MockProver::run(4, &circuit, vec![])
             .expect("Mock prover should run")
             .verify()
@@ -112,14 +121,15 @@ mod tests {
     #[test]
     fn is_random_point_on_curve() {
         let mut rng = rng();
-        let GrumpkinPointAffine { x, y } = GrumpkinPointAffine::random(&mut rng).into();
-        assert!(verify(x, y.square()).is_ok());
+        let point: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng).into();
+        let input = input(point);
+        assert!(verify(input).is_ok());
     }
 
     #[test]
     fn incorrect_inputs() {
-        let GrumpkinPointAffine { x, y } =
+        let point: GrumpkinPointAffine<Fr> =
             GrumpkinPointAffine::new(Fr::from_u128(1), Fr::from_u128(2));
-        assert!(verify(x, y).is_err());
+        assert!(verify(input(point)).is_err());
     }
 }
