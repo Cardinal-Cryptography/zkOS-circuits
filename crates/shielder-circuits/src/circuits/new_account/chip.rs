@@ -98,13 +98,15 @@ impl NewAccountChip {
         let sym_key_encryption =
             ElGamalEncryptionChip {}.encrypt(synthesizer, revoker_pkey.clone(), sym_key)?;
 
-        self.public_inputs.constrain_cells(
-            synthesizer,
-            [
-                (revoker_pkey.x, AnonymityRevokerPublicKeyX),
-                (revoker_pkey.y, AnonymityRevokerPublicKeyY),
-                (sym_key_encryption, SymKeyEncryption),
-            ],
-        )
+        // self.public_inputs.constrain_cells(
+        //     synthesizer,
+        //     [
+        //         (revoker_pkey.x, AnonymityRevokerPublicKeyX),
+        //         (revoker_pkey.y, AnonymityRevokerPublicKeyY),
+        //         (sym_key_encryption, SymKeyEncryption),
+        //     ],
+        // )
+
+        todo!()
     }
 }

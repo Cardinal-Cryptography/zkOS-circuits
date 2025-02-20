@@ -17,7 +17,11 @@ pub enum NewAccountInstance {
     TokenAddress,
     AnonymityRevokerPublicKeyX,
     AnonymityRevokerPublicKeyY,
-    SymKeyEncryption,
+    SymKeyEncryptionCiphertext1X,
+    SymKeyEncryptionCiphertext1Y,
+    SymKeyEncryptionCiphertext2X,
+    SymKeyEncryptionCiphertext2Y,
+    // SymKeyEncryption
 }
 
 impl TryFrom<NewAccountInstance> for NoteInstance {
@@ -49,7 +53,10 @@ mod tests {
             TokenAddress,
             AnonymityRevokerPublicKeyX,
             AnonymityRevokerPublicKeyY,
-            SymKeyEncryption,
+            SymKeyEncryptionCiphertext1X,
+            SymKeyEncryptionCiphertext1Y,
+            SymKeyEncryptionCiphertext2X,
+            SymKeyEncryptionCiphertext2Y,
         ];
         assert_eq!(
             expected_order,
