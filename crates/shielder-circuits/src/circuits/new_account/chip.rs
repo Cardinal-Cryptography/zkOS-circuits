@@ -106,23 +106,15 @@ impl NewAccountChip {
 
         let mut bits_vec: Vec<Value> = vec![];
 
-        // let tmp = knowledge
-        //     .trapdoor
-        //     .value()
-        //     .cloned()
-        //     .map(field_element_to_le_bits);
+        let trap = knowledge.trapdoor.value().cloned();
 
-        // let tmp2 = tmp.map(|array| {
-        //     println!("@1 {:?}", array.len());
+        println!("@0 {trap:?}");
 
-        //     bits_vec = array.into_iter().map(Value::known).collect();
-        // });
-
-        let tmp = knowledge.trapdoor.value().cloned().map(|field_element| {
-            field_element_to_le_bits(field_element)
+        trap.map(|field_element| {
+            bits_vec = field_element_to_le_bits(field_element)
                 .into_iter()
                 .map(Value::known)
-                .collect::<Vec<Value>>()
+                .collect::<Vec<Value>>();
         });
 
         println!("@2 {}", bits_vec.len());
