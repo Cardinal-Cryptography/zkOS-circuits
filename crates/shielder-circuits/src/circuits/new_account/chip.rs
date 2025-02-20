@@ -10,7 +10,7 @@ use crate::{
         is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
-        to_affine::ToAffineChipInput,
+        to_affine::{ToAffineChip, ToAffineChipInput, ToAffineChipOutput},
         to_projective::{ToProjectiveChip, ToProjectiveChipInput, ToProjectiveChipOutput},
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
@@ -33,6 +33,7 @@ pub struct NewAccountChip {
     pub is_point_on_curve: IsPointOnCurveAffineChip,
     pub el_gamal_encryption: ElGamalEncryptionChip,
     pub to_projective: ToProjectiveChip,
+    pub to_affine: ToAffineChip,
 }
 
 impl NewAccountChip {
@@ -121,7 +122,7 @@ impl NewAccountChip {
         } = self.to_projective.to_projective(
             synthesizer,
             &ToProjectiveChipInput {
-                point_affine: revoker_pkey,
+                point_affine: revoker_pkey.clone(),
             },
         )?;
 
@@ -134,8 +135,8 @@ impl NewAccountChip {
         let z = synthesizer.assign_constant("ONE", Fr::ONE)?;
 
         let ElGamalEncryptionChipOutput {
-            ciphertext1,
-            ciphertext2,
+            ciphertext1: c1_projective,
+            ciphertext2: c2_projective,
         } = self.el_gamal_encryption.encrypt(
             synthesizer,
             &ElGamalEncryptionInput {
@@ -145,15 +146,34 @@ impl NewAccountChip {
             },
         )?;
 
-        // self.public_inputs.constrain_cells(
-        //     synthesizer,
-        //     [
-        //         (revoker_pkey.x, AnonymityRevokerPublicKeyX),
-        //         (revoker_pkey.y, AnonymityRevokerPublicKeyY),
-        //         (sym_key_encryption, SymKeyEncryption),
-        //     ],
-        // )
+        let ToAffineChipOutput {
+            point_affine: c1_affine,
+        } = self.to_affine.to_affine(
+            synthesizer,
+            &ToAffineChipInput {
+                point_projective: c1_projective,
+            },
+        )?;
 
-        todo!()
+        let ToAffineChipOutput {
+            point_affine: c2_affine,
+        } = self.to_affine.to_affine(
+            synthesizer,
+            &ToAffineChipInput {
+                point_projective: c2_projective,
+            },
+        )?;
+
+        self.public_inputs.constrain_cells(
+            synthesizer,
+            [
+                (revoker_pkey.x, AnonymityRevokerPublicKeyX),
+                (revoker_pkey.y, AnonymityRevokerPublicKeyY),
+                (c1_affine.x, SymKeyEncryptionCiphertext1X),
+                (c1_affine.y, SymKeyEncryptionCiphertext1Y),
+                (c2_affine.x, SymKeyEncryptionCiphertext2X),
+                (c2_affine.y, SymKeyEncryptionCiphertext2Y),
+            ],
+        )
     }
 }
