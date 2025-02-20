@@ -10,7 +10,6 @@ use halo2_proofs::{
 
 use crate::chips::sym_key;
 
-// use crate::chips::;
 mod curve_scalar_field;
 mod grumpkin_point;
 

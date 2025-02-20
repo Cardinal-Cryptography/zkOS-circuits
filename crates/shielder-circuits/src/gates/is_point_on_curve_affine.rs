@@ -43,7 +43,7 @@ impl Gate for IsPointOnCurveAffineGate {
 
     type Advice = (Column<Advice>, Column<Advice>);
 
-    /// The gate checks whether a set of coordinates satisfies the projective closure of the Grumpkin curve:
+    /// The gate checks whether a set of coordinates satisfies the affine closure of the Grumpkin curve:
     /// y^2 = x^3 - 17
     fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, (x, y_squared): Self::Advice) -> Self {
         ensure_unique_columns(&[x, y_squared]);
