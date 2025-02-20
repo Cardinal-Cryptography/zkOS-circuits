@@ -3,7 +3,7 @@ use rand_core::RngCore;
 
 use crate::{
     chips::{
-        asymmetric_encryption::{self, AsymPublicKey, ElGamalEncryptionInput},
+        asymmetric_encryption::{self, ElGamalEncryptionInput},
         sym_key,
     },
     curve_arithmetic::{self, field_element_to_le_bits, GrumpkinPoint, GrumpkinPointAffine},
@@ -26,7 +26,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub trapdoor: T,
     pub initial_deposit: T,
     pub token_address: T,
-    pub anonymity_revoker_public_key: AsymPublicKey<T>,
+    pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
 }
 
 impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
@@ -40,7 +40,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
             token_address: Fr::ZERO,
-            anonymity_revoker_public_key: AsymPublicKey::random(rng),
+            anonymity_revoker_public_key: GrumpkinPointAffine::random(rng),
         }
     }
 
@@ -51,7 +51,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
             token_address: Value::known(self.token_address),
-            anonymity_revoker_public_key: AsymPublicKey::new(
+            anonymity_revoker_public_key: GrumpkinPointAffine::new(
                 Value::known(self.anonymity_revoker_public_key.x),
                 Value::known(self.anonymity_revoker_public_key.y),
             ),
