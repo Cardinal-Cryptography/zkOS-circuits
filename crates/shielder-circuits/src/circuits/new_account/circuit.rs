@@ -30,7 +30,9 @@ impl Circuit<Fr> for NewAccountCircuit {
         let configs_builder = ConfigsBuilder::new(meta)
             .with_poseidon()
             .with_note(public_inputs.narrow())
-            .with_is_point_on_curve_affine_chip();
+            .with_is_point_on_curve_affine_chip()
+            .with_to_projective_chip()
+            .with_to_affine_chip();
 
         (
             NewAccountChip {
@@ -38,6 +40,9 @@ impl Circuit<Fr> for NewAccountCircuit {
                 poseidon: configs_builder.poseidon_chip(),
                 note: configs_builder.note_chip(),
                 is_point_on_curve: configs_builder.is_point_on_curve_affine_chip(),
+                el_gamal_encryption: configs_builder.el_gamal_encryption_chip(),
+                to_projective: configs_builder.to_projective_chip(),
+                to_affine: configs_builder.to_affine_chip(),
             },
             configs_builder.finish(),
         )
