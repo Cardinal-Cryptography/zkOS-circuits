@@ -42,7 +42,6 @@ pub struct ConfigsBuilder<'cs> {
     to_projective: Option<ToProjectiveChip>,
     is_point_on_curve: Option<IsPointOnCurveChip>,
     is_quadratic_residue: Option<IsQuadraticResidueChip>,
-    // is_point_on_curve_affine: Option<IsXCoordOnCurveAffineChip>,
     note: Option<NoteChip>,
 }
 

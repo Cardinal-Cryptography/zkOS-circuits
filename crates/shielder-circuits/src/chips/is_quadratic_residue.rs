@@ -116,7 +116,6 @@ mod tests {
         assert!(verify(x, y.square()).is_ok());
     }
 
-    // TODO
     #[test]
     fn incorrect_inputs() {
         let GrumpkinPointAffine { x, y } =

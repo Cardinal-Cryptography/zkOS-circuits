@@ -252,7 +252,6 @@ mod tests {
                 p.z.invert().expect("z coord has an inverse")
             )
         );
-
         let p_recovered: GrumpkinPoint<Fr> = p_affine.into();
 
         assert_eq!(p_recovered, p);
@@ -266,7 +265,6 @@ mod tests {
     fn is_random_point_on_curve_affine() {
         let mut rng = rng();
         let point: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng);
-
         assert!(curve_arithmetic::is_point_on_curve_affine(point));
     }
 
@@ -278,12 +276,10 @@ mod tests {
             .expect("not a 32 byte array");
 
         let id = curve_arithmetic::generate_user_id(bytes);
-
         let x = sym_key::off_circuit::derive(id);
         let y = (x * x * x + G1::b())
             .sqrt()
             .expect("element is not a quadratic residue");
-
         let point = GrumpkinPointAffine::new(x, y);
 
         assert!(curve_arithmetic::is_point_on_curve_affine(point));

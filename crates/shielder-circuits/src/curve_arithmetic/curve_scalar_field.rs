@@ -17,8 +17,6 @@ pub trait CurveScalarField:
     fn zero() -> Self;
     /// Returns the one element of the scalar field.
     fn one() -> Self;
-    // /// Returns the square root of the field element, if it is quadratic residue and None if it is not
-    // fn square_root(&self) -> Option<Self>;
 }
 
 impl CurveScalarField for Fr {
@@ -36,10 +34,6 @@ impl CurveScalarField for Fr {
     fn one() -> Self {
         Fr::ONE
     }
-
-    // fn square_root(&self) -> Option<Self> {
-    //     Fr::sqrt(self).into_option()
-    // }
 }
 
 impl CurveScalarField for Value {
@@ -57,14 +51,6 @@ impl CurveScalarField for Value {
     fn one() -> Self {
         Value::known(Fr::one())
     }
-
-    // fn square_root(&self) -> Option<Self> {
-    //     let mut square_root = None;
-    //     self.map(|element| {
-    //         square_root = element.sqrt().into_option();
-    //     });
-    //     square_root
-    // }
 }
 
 impl CurveScalarField for Expression<Fr> {
@@ -82,8 +68,4 @@ impl CurveScalarField for Expression<Fr> {
     fn one() -> Self {
         Expression::Constant(Fr::one())
     }
-
-    // fn square_root(&self) -> Option<Self> {
-
-    // }
 }
