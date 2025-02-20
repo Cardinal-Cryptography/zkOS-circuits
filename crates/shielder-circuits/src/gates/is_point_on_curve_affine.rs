@@ -8,6 +8,7 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
+use super::ensure_unique_columns;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     embed::Embed,
@@ -45,7 +46,7 @@ impl Gate for IsPointOnCurveAffineGate {
     /// The gate checks whether a set of coordinates satisfies the projective closure of the Grumpkin curve:
     /// y^2 = x^3 - 17
     fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, (x, y_squared): Self::Advice) -> Self {
-        // ensure_unique_columns(point.as_ref());
+        ensure_unique_columns(&[x, y_squared]);
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
@@ -134,7 +135,6 @@ mod tests {
         assert!(verify(input(x, y_squared)).is_ok());
     }
 
-    // TODO
     #[test]
     fn incorrect_inputs() {
         let GrumpkinPointAffine { x, y } =

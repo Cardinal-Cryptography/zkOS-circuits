@@ -8,7 +8,6 @@ use crate::{
     column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
-    gates::{is_point_on_curve_affine::IsPointOnCurveAffineGate, Gate},
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance,
     synthesizer::create_synthesizer,

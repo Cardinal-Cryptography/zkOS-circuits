@@ -1,21 +1,21 @@
-use halo2_proofs::{arithmetic::CurveExt, halo2curves::grumpkin::G1, plonk::ErrorFront};
+use halo2_proofs::plonk::ErrorFront;
 
 use crate::{
     chips::{
         asymmetric_encryption::ElGamalEncryptionChip,
-        is_quadratic_residue::IsQuadraticResidueChip,
+        is_quadratic_residue::{IsQuadraticResidueChip, IsQuadraticResidueChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
-    curve_arithmetic::GrumpkinPointAffine,
+    curve_arithmetic,
     embed::Embed,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
-    AssignedCell, Value,
+    AssignedCell,
 };
 
 #[derive(Clone, Debug)]
@@ -70,7 +70,14 @@ impl NewAccountChip {
         synthesizer: &mut impl Synthesizer,
         key: AssignedCell,
     ) -> Result<(), ErrorFront> {
-        self.is_quadratic_residue.check_coordinate(synthesizer, key)
+        let x_value = key.value().copied();
+        let y_squared_value = curve_arithmetic::quadratic_residue_given_x_affine(x_value);
+        let y_squared = y_squared_value.embed(synthesizer, "y^2")?;
+
+        self.is_quadratic_residue.check_coordinate(
+            synthesizer,
+            IsQuadraticResidueChipInput { x: key, y_squared },
+        )
     }
 
     pub fn constrain_sym_key_encryption(
