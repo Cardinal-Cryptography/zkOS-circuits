@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 
 use crate::{
     chips::{
@@ -37,7 +37,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let old_note = self.note.note_hash(
             synthesizer,
             &Note {
@@ -60,7 +60,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
             synthesizer,
             self.poseidon.clone(),
@@ -76,7 +76,7 @@ impl WithdrawChip {
         synthesizer: &mut impl Synthesizer,
 
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
             .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
         self.public_inputs
@@ -87,7 +87,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let new_balance = self.note.decrease_balance(
             synthesizer,
             knowledge.account_old_balance.clone(),
@@ -122,7 +122,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         self.public_inputs
             .constrain_cells(synthesizer, [(knowledge.commitment.clone(), Commitment)])
     }
@@ -131,7 +131,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 

@@ -1,16 +1,13 @@
 use alloc::{vec, vec::Vec};
 use core::fmt::{self, Display, Formatter};
 
-use halo2_proofs::{
-    halo2curves::serde::SerdeObject,
-    plonk::{pk_read, Circuit},
-};
+use halo2_proofs::{halo2curves::serde::SerdeObject, plonk::Circuit};
 
 use crate::{
     circuits::{Params, ProvingKey},
     consts::merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
     marshall::MarshallError::{InvalidContent, IoError},
-    Fr, COMPRESS_SELECTORS, SERDE_FORMAT,
+    Fr, SERDE_FORMAT,
 };
 
 #[derive(Debug)]
@@ -52,15 +49,9 @@ pub fn marshall_pk(k: u32, pk: &ProvingKey) -> Vec<u8> {
 /// Deserialize `pk` from bytes together with `k`. `k` can be then used to downsize parameters.
 pub fn unmarshall_pk<C: Circuit<Fr> + Default>(buf: &[u8]) -> MarshallResult<(u32, ProvingKey)> {
     let k = u32::from_be_bytes(buf[..4].try_into().map_err(|_| InvalidContent)?);
-    pk_read(
-        &mut &buf[4..],
-        SERDE_FORMAT,
-        k,
-        &C::default(),
-        COMPRESS_SELECTORS,
-    )
-    .map_err(|_| IoError)
-    .map(|pk| (k, pk))
+    ProvingKey::read::<_, C>(&mut &buf[4..], SERDE_FORMAT)
+        .map_err(|_| IoError)
+        .map(|pk| (k, pk))
 }
 
 /// Serialize `(leaf, path)` to bytes.

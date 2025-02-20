@@ -36,7 +36,7 @@ pub mod off_circuit {
 }
 
 pub mod circuit {
-    use halo2_proofs::plonk::ErrorFront;
+    use halo2_proofs::plonk::Error;
 
     use crate::{
         consts::merkle_constants::{ARITY, WIDTH},
@@ -53,7 +53,7 @@ pub mod circuit {
         synthesizer: &mut impl Synthesizer,
         poseidon_chip: PoseidonChip,
         input: [AssignedCell; LENGTH],
-    ) -> Result<AssignedCell, ErrorFront> {
+    ) -> Result<AssignedCell, Error> {
         PoseidonCircuitHash::<LENGTH>::init(poseidon_chip, synthesizer.namespace(|| "Hash init"))?
             .hash(synthesizer.namespace(|| "Poseidon hash"), input)
     }

@@ -229,15 +229,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blake2"
-version = "0.10.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
-dependencies = [
- "digest 0.10.7",
-]
-
-[[package]]
 name = "blake2b_simd"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -542,7 +533,6 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer 0.10.4",
  "crypto-common",
- "subtle",
 ]
 
 [[package]]
@@ -657,57 +647,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "halo2_backend"
-version = "0.4.0"
-source = "git+https://github.com/privacy-scaling-explorations/halo2?tag=v0.4.0#7eb156ac79589093719ffdd24ccf4440d717e405"
-dependencies = [
- "blake2b_simd",
- "ff",
- "group",
- "halo2_middleware",
- "halo2curves",
- "rand_chacha",
- "rand_core",
- "rayon",
- "sha3 0.9.1",
- "tracing",
-]
-
-[[package]]
-name = "halo2_frontend"
-version = "0.4.0"
-source = "git+https://github.com/privacy-scaling-explorations/halo2?tag=v0.4.0#7eb156ac79589093719ffdd24ccf4440d717e405"
-dependencies = [
- "blake2b_simd",
- "ff",
- "group",
- "halo2_middleware",
- "halo2curves",
- "serde",
- "serde_derive",
- "tracing",
-]
-
-[[package]]
-name = "halo2_middleware"
-version = "0.4.0"
-source = "git+https://github.com/privacy-scaling-explorations/halo2?tag=v0.4.0#7eb156ac79589093719ffdd24ccf4440d717e405"
-dependencies = [
- "ff",
- "halo2curves",
- "rayon",
-]
-
-[[package]]
 name = "halo2_poseidon"
 version = "0.2.0"
-source = "git+ssh://git@github.com/Cardinal-Cryptography/poseidon-gadget?rev=pow7-halo2-v0.4.0#e13b511cb0db151c6b4ab63e9df785c622b07d21"
+source = "git+ssh://git@github.com/Cardinal-Cryptography/poseidon-gadget?rev=ce317a6#ce317a65e0f1148ce9220a7f3281ef0f27544fb4"
 dependencies = [
  "arrayvec",
  "bitvec",
  "ff",
  "group",
- "halo2_frontend",
  "halo2_proofs",
  "halo2curves",
  "hex",
@@ -719,31 +666,33 @@ dependencies = [
 
 [[package]]
 name = "halo2_proofs"
-version = "0.4.0"
-source = "git+https://github.com/privacy-scaling-explorations/halo2?tag=v0.4.0#7eb156ac79589093719ffdd24ccf4440d717e405"
+version = "0.3.0"
+source = "git+https://github.com/privacy-scaling-explorations/halo2?tag=v0.3.0#73408a140737d8336490452193b21f5a7a94e7de"
 dependencies = [
+ "blake2b_simd",
+ "ff",
  "group",
- "halo2_backend",
- "halo2_frontend",
- "halo2_middleware",
  "halo2curves",
+ "rand_chacha",
  "rand_core",
+ "rayon",
+ "serde",
+ "serde_derive",
+ "sha3 0.9.1",
+ "tracing",
 ]
 
 [[package]]
 name = "halo2curves"
-version = "0.7.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d380afeef3f1d4d3245b76895172018cfb087d9976a7cabcd5597775b2933e07"
+checksum = "db81d01d0bbfec9f624d7590fc6929ee2537a64ec1e080d8f8c9e2d2da291405"
 dependencies = [
- "blake2",
- "digest 0.10.7",
+ "blake2b_simd",
  "ff",
  "group",
- "halo2derive",
  "lazy_static",
  "num-bigint",
- "num-integer",
  "num-traits",
  "pairing",
  "pasta_curves",
@@ -751,24 +700,8 @@ dependencies = [
  "rand",
  "rand_core",
  "rayon",
- "sha2",
  "static_assertions",
  "subtle",
- "unroll",
-]
-
-[[package]]
-name = "halo2derive"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdb99e7492b4f5ff469d238db464131b86c2eaac814a78715acba369f64d2c76"
-dependencies = [
- "num-bigint",
- "num-integer",
- "num-traits",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1422,17 +1355,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sha2"
-version = "0.10.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
-dependencies = [
- "cfg-if",
- "cpufeatures",
- "digest 0.10.7",
-]
-
-[[package]]
 name = "sha3"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1460,7 +1382,6 @@ version = "0.1.0"
 dependencies = [
  "assert2",
  "criterion",
- "halo2_frontend",
  "halo2_poseidon",
  "halo2_proofs",
  "human_bytes",
@@ -1678,16 +1599,6 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
-
-[[package]]
-name = "unroll"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad948c1cb799b1a70f836077721a92a35ac177d4daddf4c20a633786d4cf618"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
 
 [[package]]
 name = "valuable"

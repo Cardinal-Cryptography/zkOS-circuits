@@ -3,11 +3,9 @@ use alloc::{vec, vec::Vec};
 use halo2_proofs::{
     dev::MockProver,
     halo2curves::bn256::{Bn256, Fr, G1Affine},
-    plonk::{
-        create_proof, keygen_pk_custom, keygen_vk_custom, verify_proof, Circuit, Error, ErrorBack,
-    },
+    plonk::{create_proof, keygen_pk, keygen_vk_custom, verify_proof, Circuit, Error},
     poly::{
-        commitment::Params as _,
+        commitment::{Params as _, ParamsProver},
         kzg::{
             commitment::{KZGCommitmentScheme, ParamsKZG},
             multiopen::{ProverSHPLONK, VerifierSHPLONK},
@@ -37,7 +35,7 @@ pub type ProvingKey = halo2_proofs::plonk::ProvingKey<G1Affine>;
 pub type VerifyingKey = halo2_proofs::plonk::VerifyingKey<G1Affine>;
 pub type CommitmentScheme = KZGCommitmentScheme<Bn256>;
 pub type Prover<'a> = ProverSHPLONK<'a, Bn256>;
-pub type Verifier = VerifierSHPLONK<Bn256>;
+pub type Verifier<'a> = VerifierSHPLONK<'a, Bn256>;
 
 pub const COMPRESS_SELECTORS: bool = false;
 
@@ -62,7 +60,7 @@ pub fn generate_keys_with_min_k(
         params.downsize(k);
         match keygen_vk_custom(&params, &circuit, COMPRESS_SELECTORS) {
             Ok(vk) => {
-                let pk = keygen_pk_custom(&params, vk.clone(), &circuit, COMPRESS_SELECTORS)
+                let pk = keygen_pk(&params, vk.clone(), &circuit)
                     .expect("pk generation should not fail");
                 return Ok((params, k, pk, vk));
             }
@@ -96,7 +94,7 @@ pub fn generate_proof<C: Circuit<Fr>>(
         params,
         pk,
         &[circuit],
-        &[vec![pub_input.into()]],
+        &[&[pub_input]],
         rng,
         &mut transcript,
     )
@@ -110,14 +108,14 @@ pub fn verify(
     vk: &VerifyingKey,
     transcript: &[u8],
     instance: &[Fr],
-) -> Result<(), ErrorBack> {
+) -> Result<(), Error> {
     let mut transcript = Keccak256Transcript::new(transcript);
 
     verify_proof::<CommitmentScheme, Verifier, _, _, _>(
-        &params.verifier_params(),
+        params.verifier_params(),
         vk,
-        SingleStrategy::new(&params.verifier_params()),
-        &[vec![instance.into()]],
+        SingleStrategy::new(params.verifier_params()),
+        &[&[instance]],
         &mut transcript,
     )
 }

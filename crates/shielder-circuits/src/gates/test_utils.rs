@@ -8,7 +8,7 @@ use std::{
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
     dev::MockProver,
-    plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
@@ -72,7 +72,7 @@ impl<G: Gate + Clone, Input: Embed<Embedded = <G as Gate>::Input> + Default> Cir
         &self,
         (advice_pool, gate): (ColumnPool<Advice, PreSynthesisPhase>, G),
         mut layouter: impl Layouter<Fr>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let pool = advice_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let embedded_input = self.input.embed(&mut synthesizer, "input")?;

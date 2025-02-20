@@ -1,6 +1,6 @@
 use alloc::{format, string::String, vec, vec::Vec};
 
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 
 use crate::{
     curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
@@ -18,7 +18,7 @@ pub trait Embed {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront>;
+    ) -> Result<Self::Embedded, Error>;
 }
 
 impl Embed for Fr {
@@ -28,7 +28,7 @@ impl Embed for Fr {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront> {
+    ) -> Result<Self::Embedded, Error> {
         let value = Value::known(*self);
         value.embed(synthesizer, annotation)
     }
@@ -41,7 +41,7 @@ impl<E: Embed> Embed for &E {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront> {
+    ) -> Result<Self::Embedded, Error> {
         (*self).embed(synthesizer, annotation)
     }
 }
@@ -53,7 +53,7 @@ impl Embed for Value {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront> {
+    ) -> Result<Self::Embedded, Error> {
         synthesizer.assign_value(annotation, *self)
     }
 }
@@ -65,7 +65,7 @@ impl<E: Embed, const N: usize> Embed for [E; N] {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront> {
+    ) -> Result<Self::Embedded, Error> {
         Ok(self
             .iter()
             .collect::<Vec<_>>()
@@ -83,7 +83,7 @@ impl<E: Embed> Embed for Vec<E> {
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront> {
+    ) -> Result<Self::Embedded, Error> {
         let annotation = annotation.into();
         let mut embedded = vec![];
         for (i, item) in self.iter().enumerate() {
@@ -103,7 +103,7 @@ where
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront> {
+    ) -> Result<Self::Embedded, Error> {
         let embedded_arr = [&self.x, &self.y, &self.z].embed(synthesizer, annotation)?;
         Ok(GrumpkinPoint {
             x: embedded_arr[0].clone(),
@@ -123,7 +123,7 @@ where
         &self,
         synthesizer: &mut impl Synthesizer,
         annotation: impl Into<String>,
-    ) -> Result<Self::Embedded, ErrorFront> {
+    ) -> Result<Self::Embedded, Error> {
         let embedded_arr = [&self.x, &self.y].embed(synthesizer, annotation)?;
         Ok(GrumpkinPointAffine {
             x: embedded_arr[0].clone(),

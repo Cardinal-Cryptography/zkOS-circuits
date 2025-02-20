@@ -2,7 +2,7 @@ use alloc::vec;
 
 use halo2_proofs::{
     halo2curves::bn256::Fr,
-    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -80,7 +80,7 @@ impl Gate for PointDoubleGate {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: Self::Input,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {

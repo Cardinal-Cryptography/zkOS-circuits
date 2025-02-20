@@ -1,7 +1,7 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    plonk::{Advice, Column, ConstraintSystem, ErrorFront, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -57,7 +57,7 @@ impl Gate for SumGate {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: Self::Input,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {

@@ -1,6 +1,6 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
-    plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
@@ -35,7 +35,7 @@ impl<const TREE_HEIGHT: usize> Circuit<Fr> for MerkleCircuit<TREE_HEIGHT> {
         &self,
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self.0.embed(&mut synthesizer, "MerkleProverKnowledge")?;

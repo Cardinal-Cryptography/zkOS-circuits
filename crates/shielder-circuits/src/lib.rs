@@ -27,9 +27,9 @@ pub use chips::{
 pub use circuits::*;
 pub use consts::MAX_K;
 pub use curve_arithmetic::*;
-pub use halo2_frontend::dev::CircuitCost;
 pub use halo2_proofs::{
     arithmetic::Field,
+    dev::CircuitCost,
     halo2curves::bn256::{Bn256, Fr, G1Affine, G1},
     plonk::{Circuit, ProvingKey, VerifyingKey},
     poly::{commitment::Params, kzg::commitment::ParamsKZG},

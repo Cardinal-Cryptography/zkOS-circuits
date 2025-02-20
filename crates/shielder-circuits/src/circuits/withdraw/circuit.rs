@@ -1,6 +1,6 @@
 use halo2_proofs::{
     circuit::{floor_planner::V1, Layouter},
-    plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
+    plonk::{Advice, Circuit, ConstraintSystem, Error},
 };
 
 use crate::{
@@ -50,7 +50,7 @@ impl Circuit<Fr> for WithdrawCircuit {
         &self,
         (main_chip, column_pool): Self::Config,
         mut layouter: impl Layouter<Fr>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self.0.embed(&mut synthesizer, "WithdrawProverKnowledge")?;
@@ -305,8 +305,13 @@ mod tests {
         let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
             .expect_err("Verification must fail");
 
-        // We expect two failures: one for the old note and one for the new note.
-        expect_instance_permutation_failures(&failures, "token_address", 2);
+        expect_instance_permutation_failures(
+            &failures,
+            // The returned failure location happens to be in
+            // a `poseidon-gadget` region the token address was copied to.
+            "add input for domain ConstantLength<7>",
+            5,
+        );
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.
