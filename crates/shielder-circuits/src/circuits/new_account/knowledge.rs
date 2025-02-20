@@ -68,12 +68,14 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
 
         // TODO: in production there should be a separate trapdoor field element for the symmetric key encryption
         let trapdoor_le_bits = field_element_to_le_bits(self.trapdoor);
+        let public_key = self.anonymity_revoker_public_key.into();
 
         let (c1, c2) = asymmetric_encryption::off_circuit::encrypt(ElGamalEncryptionInput {
             message: GrumpkinPointAffine::new(symmetric_key, y).into(),
-            public_key: self.anonymity_revoker_public_key,
+            public_key,
             trapdoor_le_bits,
         });
+
         let ciphertext1: GrumpkinPointAffine<Fr> = c1.into();
         let ciphertext2: GrumpkinPointAffine<Fr> = c2.into();
 

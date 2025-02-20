@@ -8,7 +8,7 @@ use halo2_proofs::{
     halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
 
-use crate::chips::sym_key;
+use crate::{chips::sym_key, Value};
 
 mod curve_scalar_field;
 pub mod grumpkin_point;
@@ -170,6 +170,16 @@ pub fn field_element_to_le_bits(value: Fr) -> [Fr; 254] {
         .collect::<Vec<Fr>>();
     bits_vec.try_into().expect("value is not 254 bits long")
 }
+
+// pub fn field_element_to_le_bits(element: Value) -> [Value; 254] {
+//     let bits_vec = to_bits_le(element.to_repr().as_ref())
+//         .to_vec()
+//         .iter()
+//         .take(Fr::NUM_BITS as usize)
+//         .map(|&x| Fr::from(u64::from(x)))
+//         .collect::<Vec<Fr>>();
+//     bits_vec.try_into().expect("value is not 254 bits long")
+// }
 
 fn to_bits_le(num: &[u8]) -> Vec<bool> {
     let len = num.len() * 8;

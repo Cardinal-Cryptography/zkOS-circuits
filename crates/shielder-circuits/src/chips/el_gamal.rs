@@ -19,9 +19,9 @@ use crate::{
     embedded = "ElGamalEncryptionInput<AssignedCell>"
 )]
 pub struct ElGamalEncryptionInput<T> {
-    message: GrumpkinPoint<T>,
-    public_key: GrumpkinPoint<T>,
-    trapdoor_le_bits: [T; 254],
+    pub message: GrumpkinPoint<T>,
+    pub public_key: GrumpkinPoint<T>,
+    pub trapdoor_le_bits: [T; 254],
 }
 
 impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {

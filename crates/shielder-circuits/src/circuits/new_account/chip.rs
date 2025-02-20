@@ -1,21 +1,27 @@
-use halo2_proofs::{arithmetic::Field, plonk::Error};
+use alloc::{vec, vec::Vec};
+
+use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use crate::{
     chips::{
-        asymmetric_encryption::ElGamalEncryptionChip,
+        asymmetric_encryption::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput},
+        el_gamal::ElGamalEncryptionInput,
         is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
+        to_affine::ToAffineChipInput,
+        to_projective::{ToProjectiveChip, ToProjectiveChipInput, ToProjectiveChipOutput},
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
+    field_element_to_le_bits,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
-    AssignedCell,
+    AssignedCell, Value,
 };
 
 #[derive(Clone, Debug)]
@@ -24,6 +30,8 @@ pub struct NewAccountChip {
     pub poseidon: PoseidonChip,
     pub note: NoteChip,
     pub is_point_on_curve: IsPointOnCurveAffineChip,
+    pub el_gamal_encryption: ElGamalEncryptionChip,
+    pub to_projective: ToProjectiveChip,
 }
 
 impl NewAccountChip {
@@ -95,8 +103,41 @@ impl NewAccountChip {
         self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
-        let sym_key_encryption =
-            ElGamalEncryptionChip {}.encrypt(synthesizer, revoker_pkey.clone(), sym_key)?;
+
+        let mut bits_vec: Vec<Value> = vec![];
+
+        knowledge
+            .trapdoor
+            .value()
+            .cloned()
+            .map(|elem| field_element_to_le_bits(elem))
+            .map(|array| {
+                bits_vec = array.into_iter().map(|v| Value::known(v)).collect();
+            });
+
+        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long");
+        let bits = bits_values.embed(synthesizer, "trapdor_le_bits")?;
+
+        let ToProjectiveChipOutput {
+            point_projective: revoker_pkey_projective,
+        } = self.to_projective.to_projective(
+            synthesizer,
+            &ToProjectiveChipInput {
+                point_affine: revoker_pkey,
+            },
+        )?;
+
+        let ElGamalEncryptionChipOutput {
+            ciphertext1,
+            ciphertext2,
+        } = self.el_gamal_encryption.encrypt(
+            synthesizer,
+            &ElGamalEncryptionInput {
+                message: sym_key,
+                public_key: revoker_pkey_projective,
+                trapdoor_le_bits: bits,
+            },
+        )?;
 
         // self.public_inputs.constrain_cells(
         //     synthesizer,
