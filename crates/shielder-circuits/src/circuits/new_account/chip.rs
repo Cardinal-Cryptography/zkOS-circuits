@@ -72,7 +72,8 @@ impl NewAccountChip {
     ) -> Result<(), ErrorFront> {
         let y_squared_value =
             curve_arithmetic::quadratic_residue_given_x_affine(key.value().copied());
-        let y_value = y_squared_value.map(|v| v.sqrt().expect(""));
+        let y_value =
+            y_squared_value.map(|v| v.sqrt().expect("element does not have a square root"));
         let y = y_value.embed(synthesizer, "y")?;
 
         self.is_point_on_curve.is_point_on_curve_affine(
