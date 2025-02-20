@@ -70,8 +70,8 @@ impl NewAccountChip {
         synthesizer: &mut impl Synthesizer,
         key: AssignedCell,
     ) -> Result<(), ErrorFront> {
-        let x_value = key.value().copied();
-        let y_squared_value = curve_arithmetic::quadratic_residue_given_x_affine(x_value);
+        let y_squared_value =
+            curve_arithmetic::quadratic_residue_given_x_affine(key.value().copied());
         let y_squared = y_squared_value.embed(synthesizer, "y^2")?;
 
         self.is_quadratic_residue.check_coordinate(
