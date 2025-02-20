@@ -86,7 +86,6 @@ impl WithdrawChip {
     pub fn check_new_note(
         &self,
         synthesizer: &mut impl Synthesizer,
-
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
     ) -> Result<(), ErrorFront> {
         let new_balance = self.note.decrease_balance(

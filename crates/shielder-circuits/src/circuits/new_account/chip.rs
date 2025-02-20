@@ -1,12 +1,15 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::{arithmetic::Field, plonk::ErrorFront};
 
 use crate::{
     chips::{
         asymmetric_encryption::ElGamalEncryptionChip,
+        is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
+    curve_arithmetic::{self, GrumpkinPointAffine},
+    embed::Embed,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
     poseidon::circuit::{hash, PoseidonChip},
@@ -20,6 +23,7 @@ pub struct NewAccountChip {
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
     pub poseidon: PoseidonChip,
     pub note: NoteChip,
+    pub is_point_on_curve: IsPointOnCurveAffineChip,
 }
 
 impl NewAccountChip {
@@ -59,6 +63,27 @@ impl NewAccountChip {
             .constrain_cells(synthesizer, [(h_id, HashedId)])
     }
 
+    /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve
+    /// y^2 = key^3 - 17
+    fn constrain_symmetric_key(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        key: AssignedCell,
+    ) -> Result<(), ErrorFront> {
+        let y_squared_value =
+            curve_arithmetic::quadratic_residue_given_x_affine(key.value().copied());
+        let y_value =
+            y_squared_value.map(|v| v.sqrt().expect("element does not have a square root"));
+        let y = y_value.embed(synthesizer, "y")?;
+
+        self.is_point_on_curve.is_point_on_curve_affine(
+            synthesizer,
+            &IsPointOnCurveAffineChipInput {
+                point: GrumpkinPointAffine::new(key, y),
+            },
+        )
+    }
+
     pub fn constrain_sym_key_encryption(
         &self,
         synthesizer: &mut impl Synthesizer,
@@ -66,6 +91,8 @@ impl NewAccountChip {
     ) -> Result<(), ErrorFront> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+
+        self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
         let sym_key_encryption =

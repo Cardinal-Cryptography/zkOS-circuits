@@ -8,6 +8,7 @@ use crate::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         NONCE_UPPER_LIMIT,
     },
+    curve_arithmetic,
     deposit::{circuit::DepositCircuit, DepositInstance},
     embed::Embed,
     merkle::generate_example_path_with_given_leaf,
@@ -57,7 +58,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
     /// Creates a random example with correct inputs. All values are random except for the deposit
     /// amount and the old account balances.
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
-        let id = Fr::random(&mut *rng);
+        let id = curve_arithmetic::generate_user_id(Fr::random(&mut *rng).to_bytes());
         let nonce = Fr::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
 
         let nullifier_old = Fr::random(&mut *rng);
