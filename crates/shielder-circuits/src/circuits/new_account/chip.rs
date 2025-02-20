@@ -106,17 +106,29 @@ impl NewAccountChip {
 
         let mut bits_vec: Vec<Value> = vec![];
 
-        knowledge
-            .trapdoor
-            .value()
-            .cloned()
-            .map(field_element_to_le_bits)
-            .map(|array| {
-                bits_vec = array.into_iter().map(Value::known).collect();
-            });
+        // let tmp = knowledge
+        //     .trapdoor
+        //     .value()
+        //     .cloned()
+        //     .map(field_element_to_le_bits);
 
-        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long");
-        let bits = bits_values.embed(synthesizer, "trapdor_le_bits")?;
+        // let tmp2 = tmp.map(|array| {
+        //     println!("@1 {:?}", array.len());
+
+        //     bits_vec = array.into_iter().map(Value::known).collect();
+        // });
+
+        let tmp = knowledge.trapdoor.value().cloned().map(|field_element| {
+            field_element_to_le_bits(field_element)
+                .into_iter()
+                .map(Value::known)
+                .collect::<Vec<Value>>()
+        });
+
+        println!("@2 {}", bits_vec.len());
+
+        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long!");
+        let bits = bits_values.embed(synthesizer, "trapdoor_le_bits")?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
