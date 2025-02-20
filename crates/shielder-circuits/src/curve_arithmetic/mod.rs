@@ -11,7 +11,7 @@ use halo2_proofs::{
 use crate::chips::sym_key;
 
 mod curve_scalar_field;
-mod grumpkin_point;
+pub mod grumpkin_point;
 
 /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
 pub fn points_add<S: CurveScalarField>(

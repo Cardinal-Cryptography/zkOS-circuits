@@ -26,7 +26,7 @@ pub use chips::{
 };
 pub use circuits::*;
 pub use consts::MAX_K;
-pub use curve_arithmetic::*;
+pub use curve_arithmetic::{grumpkin_point::*, *};
 pub use halo2_proofs::{
     arithmetic::Field,
     dev::CircuitCost,
