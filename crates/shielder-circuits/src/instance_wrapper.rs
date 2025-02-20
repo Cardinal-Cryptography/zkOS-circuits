@@ -1,7 +1,7 @@
 use alloc::{collections::BTreeMap, format};
 use core::{borrow::Borrow, fmt::Debug};
 
-use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, ErrorFront, Instance};
+use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Error, Instance};
 use strum::IntoEnumIterator;
 
 use crate::{synthesizer::Synthesizer, AssignedCell, Fr};
@@ -31,7 +31,7 @@ impl<Identifier: IntoEnumIterator + Ord + Debug> InstanceWrapper<Identifier> {
         synthesizer: &mut impl Synthesizer,
         target_column: Column<Advice>,
         instance: impl Borrow<Identifier>,
-    ) -> Result<AssignedCell, ErrorFront> {
+    ) -> Result<AssignedCell, Error> {
         let instance = instance.borrow();
         let ann = || format!("{instance:?} as advice");
         let offset = self.offsets[instance];
@@ -47,7 +47,7 @@ impl<Identifier: IntoEnumIterator + Ord + Debug> InstanceWrapper<Identifier> {
         &self,
         synthesizer: &mut impl Synthesizer,
         cells: impl IntoIterator<Item = (AssignedCell, Identifier)>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         for (assigned_cell, instance_id) in cells {
             let offset = self.offsets[&instance_id];
             synthesizer.constrain_instance(assigned_cell.cell(), self.column, offset)?;

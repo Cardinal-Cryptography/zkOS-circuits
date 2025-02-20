@@ -1,4 +1,4 @@
-use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::ErrorFront};
+use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use super::sum::SumChip;
 use crate::{
@@ -55,7 +55,7 @@ impl ScalarMultiplyChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         point_at_infinity: GrumpkinPoint<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let one = synthesizer.assign_constant("ONE", Fr::ONE)?;
         self.sum_chip
             .constrain_zero(synthesizer, point_at_infinity.x)?;
@@ -72,7 +72,7 @@ impl ScalarMultiplyChip {
         synthesizer: &mut impl Synthesizer,
         left: GrumpkinPoint<AssignedCell>,
         right: GrumpkinPoint<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         self.sum_chip
             .constrain_equal(synthesizer, left.x, right.x)?;
         self.sum_chip
@@ -86,7 +86,7 @@ impl ScalarMultiplyChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         inputs: &ScalarMultiplyChipInput<AssignedCell>,
-    ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, ErrorFront> {
+    ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
         let ScalarMultiplyChipInput { scalar_bits, input } = inputs;
 
         let mut input_value: GrumpkinPoint<Value> = input.clone().into();
@@ -153,7 +153,7 @@ mod tests {
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
         halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
-        plonk::{Advice, Circuit, Column, ConstraintSystem, ErrorFront, Instance},
+        plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
     use super::{ScalarMultiplyChip, ScalarMultiplyChipInput, ScalarMultiplyChipOutput};
@@ -201,7 +201,7 @@ mod tests {
             &self,
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), ErrorFront> {
+        ) -> Result<(), Error> {
             let ScalarMultiplyChipInput { input, scalar_bits } = self.0;
 
             let column_pool = column_pool.start_synthesis();

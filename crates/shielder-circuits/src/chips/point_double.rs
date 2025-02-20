@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 
 use crate::{
     curve_arithmetic::{self, GrumpkinPoint},
@@ -39,7 +39,7 @@ impl PointDoubleChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &PointDoubleChipInput<AssignedCell>,
-    ) -> Result<PointDoubleChipOutput<AssignedCell>, ErrorFront> {
+    ) -> Result<PointDoubleChipOutput<AssignedCell>, Error> {
         let s_value = curve_arithmetic::point_double::<Value>(input.p.clone().into());
 
         let s = s_value.embed(synthesizer, "S")?;
@@ -107,7 +107,7 @@ mod tests {
             &self,
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), ErrorFront> {
+        ) -> Result<(), Error> {
             let PointDoubleChipInput { p } = self.0;
 
             let column_pool = column_pool.start_synthesis();

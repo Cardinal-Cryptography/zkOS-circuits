@@ -1,7 +1,7 @@
 use alloc::vec;
 
 use halo2_proofs::{
-    plonk::{Advice, Column, ConstraintSystem, ErrorFront, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -84,7 +84,7 @@ impl Gate for RangeCheckGate {
         &self,
         synthesizer: &mut impl Synthesizer,
         RangeCheckGateInput { base, shifted }: Self::Input,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         self.table.ensure_initialized(synthesizer)?;
         synthesizer.assign_region(
             || GATE_NAME,

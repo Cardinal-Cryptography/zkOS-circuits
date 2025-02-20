@@ -1,7 +1,6 @@
 use core::ops::{Add, Mul, Sub};
 
-use halo2_frontend::plonk::Expression;
-use halo2_proofs::{arithmetic::CurveExt, halo2curves::grumpkin::G1};
+use halo2_proofs::{arithmetic::CurveExt, halo2curves::grumpkin::G1, plonk::Expression};
 
 use crate::{Field, Fr, Value};
 

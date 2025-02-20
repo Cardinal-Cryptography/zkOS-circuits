@@ -1,4 +1,4 @@
-use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::ErrorFront};
+use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use crate::{
     curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
@@ -30,7 +30,7 @@ impl ToProjectiveChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         ToProjectiveChipInput { point_affine }: &ToProjectiveChipInput<AssignedCell>,
-    ) -> Result<ToProjectiveChipOutput<AssignedCell>, ErrorFront> {
+    ) -> Result<ToProjectiveChipOutput<AssignedCell>, Error> {
         let GrumpkinPointAffine { x, y } = point_affine;
 
         let one = synthesizer.assign_constant("ONE", Fr::ONE)?;
@@ -47,7 +47,6 @@ impl ToProjectiveChip {
 
 #[cfg(test)]
 mod tests {
-
     use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
@@ -101,7 +100,7 @@ mod tests {
             &self,
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), ErrorFront> {
+        ) -> Result<(), Error> {
             let column_pool = column_pool.start_synthesis();
 
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);

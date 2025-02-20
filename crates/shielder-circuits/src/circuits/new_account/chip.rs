@@ -1,4 +1,4 @@
-use halo2_proofs::{arithmetic::Field, plonk::ErrorFront};
+use halo2_proofs::{arithmetic::Field, plonk::Error};
 
 use crate::{
     chips::{
@@ -31,7 +31,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let note = self.note.note_hash(
             synthesizer,
             &Note {
@@ -57,7 +57,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
         self.public_inputs
             .constrain_cells(synthesizer, [(h_id, HashedId)])
@@ -69,7 +69,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         key: AssignedCell,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let y_squared_value =
             curve_arithmetic::quadratic_residue_given_x_affine(key.value().copied());
         let y_value =
@@ -88,7 +88,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 

@@ -1,10 +1,9 @@
 use alloc::format;
 
-use halo2_frontend::plonk::TableError;
 use halo2_proofs::{
     circuit::{Table, Value},
     halo2curves::ff::PrimeField,
-    plonk::{ConstraintSystem, ErrorFront, TableColumn},
+    plonk::{ConstraintSystem, Error, TableColumn, TableError},
 };
 
 use crate::{synthesizer::Synthesizer, Fr};
@@ -33,7 +32,7 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
     }
 
     /// Initializes the range table if it has not been initialized yet. Otherwise, does nothing.
-    pub fn ensure_initialized(&self, synthesizer: &mut impl Synthesizer) -> Result<(), ErrorFront> {
+    pub fn ensure_initialized(&self, synthesizer: &mut impl Synthesizer) -> Result<(), Error> {
         synthesizer.assign_table(
             || "Range table",
             |mut table| {
@@ -52,11 +51,11 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
     }
 
     /// Checks if the table has already been initialized by trying initializing the first cell.
-    fn check_initialization(&self, table: &mut Table<Fr>) -> Result<bool, ErrorFront> {
+    fn check_initialization(&self, table: &mut Table<Fr>) -> Result<bool, Error> {
         match Self::initialize_cell(table, self.column, 0) {
             Ok(_) => Ok(false), // Not yet initialized
-            Err(ErrorFront::TableError(TableError::UsedColumn(_))) => Ok(true), // Already initialized
-            Err(e) => Err(e), // Propagate other errors
+            Err(Error::TableError(TableError::UsedColumn(_))) => Ok(true), // Already initialized
+            Err(e) => Err(e),   // Propagate other errors
         }
     }
 
@@ -64,7 +63,7 @@ impl<const RANGE_LOG: usize> RangeTable<RANGE_LOG> {
         table: &mut Table<Fr>,
         column: TableColumn,
         index: usize,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         table.assign_cell(
             || format!("cell with {index}"),
             column,

@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 use macros::embeddable;
 
 use crate::{embed::Embed, synthesizer::Synthesizer, AssignedCell};
@@ -30,7 +30,7 @@ impl ElGamalEncryptionChip {
         _synthesizer: &mut impl Synthesizer,
         _key: AsymPublicKey<AssignedCell>,
         message: AssignedCell,
-    ) -> Result<AssignedCell, ErrorFront> {
+    ) -> Result<AssignedCell, Error> {
         Ok(message)
     }
 }

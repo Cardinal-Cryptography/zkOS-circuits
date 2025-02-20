@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 use MerkleInstance::MerkleRoot;
 
 use crate::{
@@ -27,7 +27,7 @@ impl MerkleChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &MerkleProverKnowledge<TREE_HEIGHT, AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let mut current_root = knowledge.leaf.clone();
 
         for level in knowledge.path.clone().into_iter() {

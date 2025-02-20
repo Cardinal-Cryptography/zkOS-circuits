@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 
 use crate::{
     curve_arithmetic::{self, GrumpkinPoint, GrumpkinPointAffine},
@@ -37,7 +37,7 @@ impl ToAffineChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         ToAffineChipInput { point_projective }: &ToAffineChipInput<AssignedCell>,
-    ) -> Result<ToAffineChipOutput<AssignedCell>, ErrorFront> {
+    ) -> Result<ToAffineChipOutput<AssignedCell>, Error> {
         let z_inverse_value = point_projective.z.value_field().invert().evaluate();
         let z_inverse = z_inverse_value.embed(synthesizer, "z_inverse")?;
 
@@ -111,7 +111,7 @@ mod tests {
             &self,
             (column_pool, chip, instance): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), ErrorFront> {
+        ) -> Result<(), Error> {
             let ToAffineChipInput { point_projective } = self.0;
 
             let column_pool = column_pool.start_synthesis();

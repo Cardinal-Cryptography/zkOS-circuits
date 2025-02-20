@@ -41,7 +41,7 @@ mod embed;
 ///         &self,
 ///         synthesizer: &mut impl crate::synthesizer::Synthesizer,
 ///         annotation: impl Into<alloc::string::String>,
-///     ) -> Result<Self::Embedded, halo2_proofs::plonk::ErrorFront> {
+///     ) -> Result<Self::Embedded, halo2_proofs::plonk::Error> {
 ///         let mut layouter = layouter.namespace(|| annotation);
 ///         Ok(IntermediateValues {
 ///             account_new_balance: self

@@ -3,7 +3,7 @@ use alloc::vec;
 use halo2_proofs::{
     arithmetic::Field,
     halo2curves::bn256::Fr,
-    plonk::{Advice, Column, ConstraintSystem, Constraints, ErrorFront, Expression, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -105,7 +105,7 @@ impl Gate for ToAffineGate {
             point_affine,
             point_projective_z_inverse: z_inverse,
         }: Self::Input,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
@@ -155,7 +155,6 @@ impl Gate for ToAffineGate {
 
 #[cfg(test)]
 mod tests {
-
     use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{

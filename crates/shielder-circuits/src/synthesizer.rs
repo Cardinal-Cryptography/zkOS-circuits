@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use halo2_proofs::{
     circuit::{Cell, Layouter, NamespacedLayouter, Region, Table},
-    plonk::{Advice, Challenge, Column, ErrorFront, Instance},
+    plonk::{Advice, Challenge, Column, Error, Instance},
 };
 
 use crate::{
@@ -26,14 +26,14 @@ pub trait Synthesizer: Layouter<Fr> + AccessColumn<Advice> {
         &mut self,
         name: impl Into<String>,
         value: Value,
-    ) -> Result<AssignedCell, ErrorFront>;
+    ) -> Result<AssignedCell, Error>;
 
     /// Assign a constant to a cell in a dedicated region.
     fn assign_constant(
         &mut self,
         name: impl Into<String>,
         constant: Fr,
-    ) -> Result<AssignedCell, ErrorFront>;
+    ) -> Result<AssignedCell, Error>;
 }
 
 /// Creates a new synthesizer from a layouter and an advice pool.
@@ -64,7 +64,7 @@ impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
         &mut self,
         name: impl Into<String>,
         value: Value,
-    ) -> Result<AssignedCell, ErrorFront> {
+    ) -> Result<AssignedCell, Error> {
         let name = &name.into();
         let advice = self.get_any_column();
         self.assign_region(
@@ -77,7 +77,7 @@ impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
         &mut self,
         name: impl Into<String>,
         constant: Fr,
-    ) -> Result<AssignedCell, ErrorFront> {
+    ) -> Result<AssignedCell, Error> {
         let name = name.into();
         let advice = self.get_any_column();
         self.assign_region(
@@ -91,18 +91,18 @@ impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
 impl<'a, L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<'a, L> {
     type Root = L::Root;
 
-    fn assign_region<A, AR, N, NR>(&mut self, name: N, assignment: A) -> Result<AR, ErrorFront>
+    fn assign_region<A, AR, N, NR>(&mut self, name: N, assignment: A) -> Result<AR, Error>
     where
-        A: FnMut(Region<'_, Fr>) -> Result<AR, ErrorFront>,
+        A: FnMut(Region<'_, Fr>) -> Result<AR, Error>,
         N: Fn() -> NR,
         NR: Into<String>,
     {
         self.layouter.assign_region(name, assignment)
     }
 
-    fn assign_table<A, N, NR>(&mut self, name: N, assignment: A) -> Result<(), ErrorFront>
+    fn assign_table<A, N, NR>(&mut self, name: N, assignment: A) -> Result<(), Error>
     where
-        A: FnMut(Table<'_, Fr>) -> Result<(), ErrorFront>,
+        A: FnMut(Table<'_, Fr>) -> Result<(), Error>,
         N: Fn() -> NR,
         NR: Into<String>,
     {
@@ -114,7 +114,7 @@ impl<'a, L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<'a, L> {
         cell: Cell,
         column: Column<Instance>,
         row: usize,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         self.layouter.constrain_instance(cell, column, row)
     }
 

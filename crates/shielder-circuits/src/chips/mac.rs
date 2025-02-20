@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
@@ -65,7 +65,7 @@ impl MacChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         input: &MacInput<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         let commitment = hash(
             synthesizer,
             self.poseidon.clone(),
@@ -93,7 +93,7 @@ mod tests {
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
+        plonk::{Advice, Circuit, ConstraintSystem, Error},
     };
 
     use crate::{
@@ -129,7 +129,7 @@ mod tests {
             &self,
             (pool, mac_chip): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), ErrorFront> {
+        ) -> Result<(), Error> {
             let pool = pool.start_synthesis();
             let mut synthesizer = create_synthesizer(&mut layouter, &pool);
             // 1. Embed key and salt.

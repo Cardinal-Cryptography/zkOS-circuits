@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 
 use crate::{
     curve_arithmetic::GrumpkinPointAffine,
@@ -30,7 +30,7 @@ impl IsPointOnCurveAffineChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         IsPointOnCurveAffineChipInput { point }: &IsPointOnCurveAffineChipInput<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         self.gate.apply_in_new_region(
             synthesizer,
             IsPointOnCurveAffineGateInput {
@@ -44,14 +44,13 @@ impl IsPointOnCurveAffineChip {
 
 #[cfg(test)]
 mod tests {
-
     use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
         circuit::{floor_planner::V1, Layouter},
         dev::{MockProver, VerifyFailure},
         halo2curves::{bn256::Fr, ff::PrimeField},
-        plonk::{Advice, Circuit, ConstraintSystem, ErrorFront},
+        plonk::{Advice, Circuit, ConstraintSystem, Error},
     };
 
     use super::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput};
@@ -90,7 +89,7 @@ mod tests {
             &self,
             (column_pool, chip): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), ErrorFront> {
+        ) -> Result<(), Error> {
             let IsPointOnCurveAffineChipInput { point } = self.0;
 
             let column_pool = column_pool.start_synthesis();

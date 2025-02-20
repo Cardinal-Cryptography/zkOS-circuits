@@ -1,4 +1,4 @@
-use halo2_proofs::plonk::ErrorFront;
+use halo2_proofs::plonk::Error;
 
 use crate::{
     curve_arithmetic::GrumpkinPoint,
@@ -30,7 +30,7 @@ impl IsPointOnCurveChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         IsPointOnCurveChipInput { point }: &IsPointOnCurveChipInput<AssignedCell>,
-    ) -> Result<(), ErrorFront> {
+    ) -> Result<(), Error> {
         self.gate.apply_in_new_region(
             synthesizer,
             IsPointOnCurveGateInput {
@@ -44,7 +44,6 @@ impl IsPointOnCurveChip {
 
 #[cfg(test)]
 mod tests {
-
     use alloc::{vec, vec::Vec};
 
     use halo2_proofs::{
@@ -88,7 +87,7 @@ mod tests {
             &self,
             (column_pool, chip): Self::Config,
             mut layouter: impl Layouter<Fr>,
-        ) -> Result<(), halo2_frontend::plonk::Error> {
+        ) -> Result<(), halo2_proofs::plonk::Error> {
             let IsPointOnCurveChipInput { point } = self.0;
 
             let column_pool = column_pool.start_synthesis();
