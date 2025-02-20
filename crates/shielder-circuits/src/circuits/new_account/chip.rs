@@ -110,9 +110,9 @@ impl NewAccountChip {
             .trapdoor
             .value()
             .cloned()
-            .map(|elem| field_element_to_le_bits(elem))
+            .map(field_element_to_le_bits)
             .map(|array| {
-                bits_vec = array.into_iter().map(|v| Value::known(v)).collect();
+                bits_vec = array.into_iter().map(Value::known).collect();
             });
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();

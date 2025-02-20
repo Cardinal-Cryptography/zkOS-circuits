@@ -5,13 +5,9 @@ use super::{
     points_add::{PointsAddChip, PointsAddChipInput, PointsAddChipOutput},
     scalar_multiply::{ScalarMultiplyChip, ScalarMultiplyChipInput, ScalarMultiplyChipOutput},
     sum::SumChip,
-    to_projective::ToProjectiveChip,
 };
 use crate::{
-    curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
-    embed::Embed,
-    synthesizer::Synthesizer,
-    AssignedCell, Value,
+    curve_arithmetic::GrumpkinPoint, embed::Embed, synthesizer::Synthesizer, AssignedCell,
 };
 
 pub mod off_circuit {
@@ -29,9 +25,7 @@ pub mod off_circuit {
         }: ElGamalEncryptionInput<Fr>,
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
         let generator = GrumpkinPoint::generator();
-        let public_key_projective = public_key.into();
-        let shared_secret =
-            curve_arithmetic::scalar_multiply(public_key_projective, trapdoor_le_bits);
+        let shared_secret = curve_arithmetic::scalar_multiply(public_key, trapdoor_le_bits);
         let ciphertext1 = curve_arithmetic::scalar_multiply(generator, trapdoor_le_bits);
         let ciphertext2 = curve_arithmetic::points_add(message, shared_secret);
 
@@ -80,7 +74,6 @@ pub struct ElGamalEncryptionChip {
     pub multiply_chip: ScalarMultiplyChip,
     pub add_chip: PointsAddChip,
     pub sum_chip: SumChip,
-    // pub to_projective: ToProjectiveChip,
 }
 
 impl ElGamalEncryptionChip {
@@ -88,13 +81,11 @@ impl ElGamalEncryptionChip {
         multiply_chip: ScalarMultiplyChip,
         add_chip: PointsAddChip,
         sum_chip: SumChip,
-        // to_projective: ToProjectiveChip,
     ) -> Self {
         Self {
             multiply_chip,
             add_chip,
             sum_chip,
-            // to_projective,
         }
     }
 

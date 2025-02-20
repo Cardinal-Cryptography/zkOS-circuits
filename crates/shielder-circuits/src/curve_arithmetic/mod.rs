@@ -8,7 +8,7 @@ use halo2_proofs::{
     halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
 
-use crate::{chips::sym_key, Value};
+use crate::chips::sym_key;
 
 mod curve_scalar_field;
 pub mod grumpkin_point;

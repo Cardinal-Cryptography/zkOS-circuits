@@ -6,7 +6,7 @@ use crate::{
         asymmetric_encryption::{self, ElGamalEncryptionInput},
         sym_key,
     },
-    curve_arithmetic::{self, field_element_to_le_bits, GrumpkinPoint, GrumpkinPointAffine},
+    curve_arithmetic::{self, field_element_to_le_bits, GrumpkinPointAffine},
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,

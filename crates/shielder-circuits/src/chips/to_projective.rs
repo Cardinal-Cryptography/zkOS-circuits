@@ -11,14 +11,13 @@ pub struct ToProjectiveChipInput<T> {
     pub point_affine: GrumpkinPointAffine<T>,
 }
 
-#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct ToProjectiveChipOutput<T> {
     pub point_projective: GrumpkinPoint<T>,
 }
 
 /// Chip that converts between a point in affine to a point in projective coordinates
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ToProjectiveChip;
 
 impl ToProjectiveChip {
