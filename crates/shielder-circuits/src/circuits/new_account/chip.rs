@@ -1,4 +1,4 @@
-use alloc::{vec, vec::Vec};
+use alloc::vec::Vec;
 
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
@@ -104,22 +104,16 @@ impl NewAccountChip {
 
         self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
-        let mut bits_vec: Vec<Value> = vec![];
-
-        let trap = knowledge.trapdoor.value().cloned();
-
-        println!("@0 {trap:?}");
-
-        trap.map(|field_element| {
-            bits_vec = field_element_to_le_bits(field_element)
+        let mut bits_values: [Value; 254] = [Value::default(); 254];
+        knowledge.trapdoor.value().cloned().map(|field_element| {
+            bits_values = field_element_to_le_bits(field_element)
                 .into_iter()
                 .map(Value::known)
-                .collect::<Vec<Value>>();
+                .collect::<Vec<Value>>()
+                .try_into()
+                .expect("value is not 254 bits long!");
         });
 
-        println!("@2 {}", bits_vec.len());
-
-        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long!");
         let bits = bits_values.embed(synthesizer, "trapdoor_le_bits")?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
