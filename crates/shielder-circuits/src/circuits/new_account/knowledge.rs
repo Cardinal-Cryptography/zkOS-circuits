@@ -66,7 +66,7 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             .sqrt()
             .expect("element has a square root");
 
-        // TODO: in production there should be a separate trapdoor field element for the symmetric key encryption
+        // NOTE: should we use a separate trapdoor for the symmetric encryption?
         let trapdoor_le_bits = field_element_to_le_bits(self.trapdoor);
         let public_key = self.anonymity_revoker_public_key.into();
 

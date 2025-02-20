@@ -171,16 +171,6 @@ pub fn field_element_to_le_bits(value: Fr) -> [Fr; 254] {
     bits_vec.try_into().expect("value is not 254 bits long")
 }
 
-// pub fn field_element_to_le_bits(element: Value) -> [Value; 254] {
-//     let bits_vec = to_bits_le(element.to_repr().as_ref())
-//         .to_vec()
-//         .iter()
-//         .take(Fr::NUM_BITS as usize)
-//         .map(|&x| Fr::from(u64::from(x)))
-//         .collect::<Vec<Fr>>();
-//     bits_vec.try_into().expect("value is not 254 bits long")
-// }
-
 fn to_bits_le(num: &[u8]) -> Vec<bool> {
     let len = num.len() * 8;
     let mut bits = Vec::new();

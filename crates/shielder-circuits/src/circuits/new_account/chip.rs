@@ -4,8 +4,9 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use crate::{
     chips::{
-        asymmetric_encryption::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput},
-        el_gamal::ElGamalEncryptionInput,
+        asymmetric_encryption::{
+            ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput,
+        },
         is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
@@ -21,7 +22,7 @@ use crate::{
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
-    AssignedCell, Value,
+    AssignedCell, GrumpkinPoint, Value,
 };
 
 #[derive(Clone, Debug)]
@@ -102,8 +103,6 @@ impl NewAccountChip {
 
         self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
-        let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
-
         let mut bits_vec: Vec<Value> = vec![];
 
         knowledge
@@ -115,8 +114,7 @@ impl NewAccountChip {
                 bits_vec = array.into_iter().map(|v| Value::known(v)).collect();
             });
 
-        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long");
-        let bits = bits_values.embed(synthesizer, "trapdor_le_bits")?;
+        let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
         let ToProjectiveChipOutput {
             point_projective: revoker_pkey_projective,
@@ -127,13 +125,21 @@ impl NewAccountChip {
             },
         )?;
 
+        let bits_values: [Value; 254] = bits_vec.try_into().expect("value is not 254 bits long");
+        let bits = bits_values.embed(synthesizer, "trapdor_le_bits")?;
+
+        let y_value = curve_arithmetic::quadratic_residue_given_x_affine(sym_key.value().copied())
+            .map(|elem| elem.sqrt().expect("element has a square root"));
+        let y = y_value.embed(synthesizer, "y")?;
+        let z = synthesizer.assign_constant("ONE", Fr::ONE)?;
+
         let ElGamalEncryptionChipOutput {
             ciphertext1,
             ciphertext2,
         } = self.el_gamal_encryption.encrypt(
             synthesizer,
             &ElGamalEncryptionInput {
-                message: sym_key,
+                message: GrumpkinPoint::new(sym_key, y, z),
                 public_key: revoker_pkey_projective,
                 trapdoor_le_bits: bits,
             },
