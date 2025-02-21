@@ -4,9 +4,7 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use crate::{
     chips::{
-        asymmetric_encryption::{
-            ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput,
-        },
+        el_gamal::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput},
         is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,

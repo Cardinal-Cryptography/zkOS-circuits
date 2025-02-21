@@ -3,7 +3,7 @@ use rand_core::RngCore;
 
 use crate::{
     chips::{
-        asymmetric_encryption::{self, ElGamalEncryptionInput},
+        el_gamal::{self, ElGamalEncryptionInput},
         sym_key,
     },
     curve_arithmetic::{self, field_element_to_le_bits, GrumpkinPointAffine},
@@ -70,7 +70,7 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
         let trapdoor_le_bits = field_element_to_le_bits(self.trapdoor);
         let public_key = self.anonymity_revoker_public_key.into();
 
-        let (c1, c2) = asymmetric_encryption::off_circuit::encrypt(ElGamalEncryptionInput {
+        let (c1, c2) = el_gamal::off_circuit::encrypt(ElGamalEncryptionInput {
             message: GrumpkinPointAffine::new(symmetric_key, y).into(),
             public_key,
             trapdoor_le_bits,

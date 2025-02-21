@@ -2,7 +2,7 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
-        asymmetric_encryption::ElGamalEncryptionChip,
+        el_gamal::ElGamalEncryptionChip,
         is_point_on_curve::IsPointOnCurveChip,
         is_point_on_curve_affine::IsPointOnCurveAffineChip,
         note::{NoteChip, NoteInstance},

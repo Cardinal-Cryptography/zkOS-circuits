@@ -21,7 +21,7 @@ mod version;
 use alloc::{fmt::Debug, vec::Vec};
 
 pub use chips::{
-    asymmetric_encryption::off_circuit::{decrypt, encrypt},
+    el_gamal::off_circuit::{decrypt, encrypt},
     note::{off_circuit::note_hash, Note},
 };
 pub use circuits::*;

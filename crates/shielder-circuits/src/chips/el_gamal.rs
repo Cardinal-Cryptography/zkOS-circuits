@@ -37,8 +37,8 @@ impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct ElGamalEncryptionChipOutput<T> {
-    ciphertext1: GrumpkinPoint<T>,
-    ciphertext2: GrumpkinPoint<T>,
+    pub ciphertext1: GrumpkinPoint<T>,
+    pub ciphertext2: GrumpkinPoint<T>,
 }
 
 #[derive(Clone, Debug)]
