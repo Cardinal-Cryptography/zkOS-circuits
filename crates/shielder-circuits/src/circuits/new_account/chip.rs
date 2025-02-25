@@ -12,6 +12,7 @@ use crate::{
         to_projective::{ToProjectiveChip, ToProjectiveChipInput, ToProjectiveChipOutput},
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
+    consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
     field_element_to_le_bits,
@@ -102,14 +103,14 @@ impl NewAccountChip {
 
         self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
-        let mut bits_values: [Value; 254] = [Value::default(); 254];
+        let mut bits_values: [Value; FIELD_BITS] = [Value::default(); FIELD_BITS];
         knowledge.trapdoor.value().cloned().map(|field_element| {
             bits_values = field_element_to_le_bits(field_element)
                 .into_iter()
                 .map(Value::known)
                 .collect::<Vec<Value>>()
                 .try_into()
-                .expect("value is not 254 bits long!");
+                .unwrap_or_else(|_| panic!("value is not {FIELD_BITS} bits long!"));
         });
 
         let bits = bits_values.embed(synthesizer, "trapdoor_le_bits")?;

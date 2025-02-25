@@ -21,7 +21,6 @@ pub enum NewAccountInstance {
     SymKeyEncryptionCiphertext1Y,
     SymKeyEncryptionCiphertext2X,
     SymKeyEncryptionCiphertext2Y,
-    // SymKeyEncryption
 }
 
 impl TryFrom<NewAccountInstance> for NoteInstance {

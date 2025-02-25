@@ -7,6 +7,7 @@ use crate::{
         points_add::{PointsAddChipInput, PointsAddChipOutput},
         scalar_multiply::{ScalarMultiplyChipInput, ScalarMultiplyChipOutput},
     },
+    consts::FIELD_BITS,
     curve_arithmetic::GrumpkinPoint,
     embed::Embed,
     synthesizer::Synthesizer,
@@ -21,7 +22,7 @@ use crate::{
 pub struct ElGamalEncryptionInput<T> {
     pub message: GrumpkinPoint<T>,
     pub public_key: GrumpkinPoint<T>,
-    pub trapdoor_le_bits: [T; 254],
+    pub trapdoor_le_bits: [T; FIELD_BITS],
 }
 
 impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
@@ -29,7 +30,7 @@ impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
         Self {
             message: GrumpkinPoint::default(),
             public_key: GrumpkinPoint::default(),
-            trapdoor_le_bits: [T::default(); 254],
+            trapdoor_le_bits: [T::default(); FIELD_BITS],
         }
     }
 }
@@ -136,7 +137,10 @@ pub mod off_circuit {
     use halo2_proofs::halo2curves::bn256::Fr;
 
     use super::ElGamalEncryptionInput;
-    use crate::curve_arithmetic::{self, GrumpkinPoint};
+    use crate::{
+        consts::FIELD_BITS,
+        curve_arithmetic::{self, GrumpkinPoint},
+    };
 
     pub fn encrypt(
         ElGamalEncryptionInput {
@@ -159,7 +163,7 @@ pub mod off_circuit {
     pub fn decrypt(
         ciphertext1: GrumpkinPoint<Fr>,
         ciphertext2: GrumpkinPoint<Fr>,
-        private_key_le_bits: [Fr; 254],
+        private_key_le_bits: [Fr; FIELD_BITS],
     ) -> GrumpkinPoint<Fr> {
         let shared_secret = curve_arithmetic::scalar_multiply(ciphertext1, private_key_le_bits);
         ciphertext2 - shared_secret
@@ -188,6 +192,7 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
+        consts::FIELD_BITS,
         curve_arithmetic::{self, field_element_to_le_bits, normalize_point, GrumpkinPoint},
         embed::Embed,
         rng,
@@ -258,7 +263,7 @@ mod tests {
         }
     }
 
-    fn generate_keys() -> ([Fr; 254], GrumpkinPoint<Fr>) {
+    fn generate_keys() -> ([Fr; FIELD_BITS], GrumpkinPoint<Fr>) {
         let rng = rng();
 
         let generator = G1::generator();
@@ -273,7 +278,7 @@ mod tests {
     fn input(
         message: GrumpkinPoint<Fr>,
         public_key: GrumpkinPoint<Fr>,
-        trapdoor_le_bits: [Fr; 254],
+        trapdoor_le_bits: [Fr; FIELD_BITS],
     ) -> ElGamalEncryptionInput<Fr> {
         ElGamalEncryptionInput {
             message,

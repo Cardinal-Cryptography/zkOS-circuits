@@ -22,6 +22,9 @@ static_assertions::const_assert_eq!(
     RANGE_PROOF_CHUNK_SIZE * NONCE_RANGE_PROOF_NUM_WORDS
 );
 
+/// The number of bits needed to encode a field element.
+pub const FIELD_BITS: usize = Fr::NUM_BITS as usize;
+
 pub mod merkle_constants {
     // Merkle tree arity.
     pub const ARITY: usize = 7;
