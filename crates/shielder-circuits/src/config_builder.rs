@@ -2,6 +2,7 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
+        el_gamal::ElGamalEncryptionChip,
         is_point_on_curve::IsPointOnCurveChip,
         is_point_on_curve_affine::IsPointOnCurveAffineChip,
         note::{NoteChip, NoteInstance},
@@ -42,6 +43,7 @@ pub struct ConfigsBuilder<'cs> {
     to_projective: Option<ToProjectiveChip>,
     is_point_on_curve: Option<IsPointOnCurveChip>,
     is_point_on_curve_affine: Option<IsPointOnCurveAffineChip>,
+    el_gamal_encryption: Option<ElGamalEncryptionChip>,
     note: Option<NoteChip>,
 }
 
@@ -71,6 +73,7 @@ impl<'cs> ConfigsBuilder<'cs> {
             to_projective: None,
             is_point_on_curve: None,
             is_point_on_curve_affine: None,
+            el_gamal_encryption: None,
             note: None,
         }
     }
@@ -260,6 +263,26 @@ impl<'cs> ConfigsBuilder<'cs> {
 
     pub fn note_chip(&self) -> NoteChip {
         self.note.clone().expect("Note not configured")
+    }
+
+    pub fn with_el_gamal_encryption_chip(mut self) -> Self {
+        check_if_cached!(self, el_gamal_encryption);
+        self = self.with_sum();
+        self = self.with_points_add_chip();
+        self = self.with_scalar_multiply_chip();
+
+        self.el_gamal_encryption = Some(ElGamalEncryptionChip {
+            multiply_chip: self.scalar_multiply_chip(),
+            add_chip: self.points_add_chip(),
+            sum_chip: self.sum_chip(),
+        });
+        self
+    }
+
+    pub fn el_gamal_encryption_chip(&self) -> ElGamalEncryptionChip {
+        self.el_gamal_encryption
+            .clone()
+            .expect("ElGamalEncryptionChip not configured")
     }
 
     pub fn advice_pool_with_capacity(

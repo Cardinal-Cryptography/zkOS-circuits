@@ -1,11 +1,13 @@
-use halo2_proofs::{arithmetic::Field, plonk::Error};
+use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use crate::{
     chips::{
-        asymmetric_encryption::ElGamalEncryptionChip,
+        el_gamal::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput},
         is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
+        to_affine::{ToAffineChip, ToAffineChipInput, ToAffineChipOutput},
+        to_projective::{ToProjectiveChip, ToProjectiveChipInput, ToProjectiveChipOutput},
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     curve_arithmetic::{self, GrumpkinPointAffine},
@@ -15,7 +17,7 @@ use crate::{
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
-    AssignedCell,
+    AssignedCell, GrumpkinPoint,
 };
 
 #[derive(Clone, Debug)]
@@ -24,6 +26,9 @@ pub struct NewAccountChip {
     pub poseidon: PoseidonChip,
     pub note: NoteChip,
     pub is_point_on_curve: IsPointOnCurveAffineChip,
+    pub el_gamal_encryption: ElGamalEncryptionChip,
+    pub to_projective: ToProjectiveChip,
+    pub to_affine: ToAffineChip,
 }
 
 impl NewAccountChip {
@@ -95,15 +100,68 @@ impl NewAccountChip {
         self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
-        let sym_key_encryption =
-            ElGamalEncryptionChip {}.encrypt(synthesizer, revoker_pkey.clone(), sym_key)?;
+
+        let ToProjectiveChipOutput {
+            point_projective: revoker_pkey_projective,
+        } = self.to_projective.to_projective(
+            synthesizer,
+            &ToProjectiveChipInput {
+                point_affine: revoker_pkey.clone(),
+            },
+        )?;
+
+        let y_value = curve_arithmetic::quadratic_residue_given_x_affine(sym_key.value().copied())
+            .map(|elem| elem.sqrt().expect("element has a square root"));
+        let y = y_value.embed(synthesizer, "y")?;
+
+        self.is_point_on_curve.is_point_on_curve_affine(
+            synthesizer,
+            &IsPointOnCurveAffineChipInput {
+                point: GrumpkinPointAffine::new(sym_key.clone(), y.clone()),
+            },
+        )?;
+
+        let z = synthesizer.assign_constant("ONE", Fr::ONE)?;
+
+        let ElGamalEncryptionChipOutput {
+            ciphertext1: c1_projective,
+            ciphertext2: c2_projective,
+        } = self.el_gamal_encryption.encrypt(
+            synthesizer,
+            &ElGamalEncryptionInput {
+                message: GrumpkinPoint::new(sym_key, y, z),
+                public_key: revoker_pkey_projective,
+                salt_le_bits: knowledge.encryption_salt.clone(),
+            },
+        )?;
+
+        let ToAffineChipOutput {
+            point_affine: c1_affine,
+        } = self.to_affine.to_affine(
+            synthesizer,
+            &ToAffineChipInput {
+                point_projective: c1_projective,
+            },
+        )?;
+
+        let ToAffineChipOutput {
+            point_affine: c2_affine,
+        } = self.to_affine.to_affine(
+            synthesizer,
+            &ToAffineChipInput {
+                point_projective: c2_projective,
+            },
+        )?;
 
         self.public_inputs.constrain_cells(
             synthesizer,
             [
                 (revoker_pkey.x, AnonymityRevokerPublicKeyX),
                 (revoker_pkey.y, AnonymityRevokerPublicKeyY),
-                (sym_key_encryption, SymKeyEncryption),
+                (c1_affine.x, SymKeyEncryptionCiphertext1X),
+                (c1_affine.y, SymKeyEncryptionCiphertext1Y),
+                (c2_affine.x, SymKeyEncryptionCiphertext2X),
+                (c2_affine.y, SymKeyEncryptionCiphertext2Y),
             ],
         )
     }

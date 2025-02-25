@@ -3,10 +3,11 @@ use rand_core::RngCore;
 
 use crate::{
     chips::{
-        asymmetric_encryption::{self, AsymPublicKey},
+        el_gamal::{self, ElGamalEncryptionInput},
         sym_key,
     },
-    curve_arithmetic,
+    consts::FIELD_BITS,
+    curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
@@ -15,7 +16,7 @@ use crate::{
     Field, Fr, Note, ProverKnowledge, PublicInputProvider, Value,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[embeddable(
     receiver = "NewAccountProverKnowledge<Value>",
     embedded = "NewAccountProverKnowledge<crate::AssignedCell>"
@@ -26,7 +27,22 @@ pub struct NewAccountProverKnowledge<T> {
     pub trapdoor: T,
     pub initial_deposit: T,
     pub token_address: T,
-    pub anonymity_revoker_public_key: AsymPublicKey<T>,
+    pub encryption_salt: [T; FIELD_BITS],
+    pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
+}
+
+impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
+    fn default() -> Self {
+        Self {
+            id: T::default(),
+            nullifier: T::default(),
+            trapdoor: T::default(),
+            initial_deposit: T::default(),
+            token_address: T::default(),
+            encryption_salt: [T::default(); FIELD_BITS],
+            anonymity_revoker_public_key: GrumpkinPointAffine::default(),
+        }
+    }
 }
 
 impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
@@ -40,10 +56,8 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
             token_address: Fr::ZERO,
-            anonymity_revoker_public_key: AsymPublicKey {
-                x: Fr::random(&mut *rng),
-                y: Fr::random(rng),
-            },
+            encryption_salt: core::array::from_fn(|_| Fr::ONE),
+            anonymity_revoker_public_key: GrumpkinPointAffine::random(rng),
         }
     }
 
@@ -54,16 +68,31 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
             token_address: Value::known(self.token_address),
-            anonymity_revoker_public_key: AsymPublicKey {
-                x: Value::known(self.anonymity_revoker_public_key.x),
-                y: Value::known(self.anonymity_revoker_public_key.y),
-            },
+            encryption_salt: self.encryption_salt.map(Value::known),
+            anonymity_revoker_public_key: GrumpkinPointAffine::new(
+                Value::known(self.anonymity_revoker_public_key.x),
+                Value::known(self.anonymity_revoker_public_key.y),
+            ),
         })
     }
 }
 
 impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: NewAccountInstance) -> Fr {
+        let symmetric_key = sym_key::off_circuit::derive(self.id);
+        let y = curve_arithmetic::quadratic_residue_given_x_affine(symmetric_key)
+            .sqrt()
+            .expect("element has a square root");
+
+        let (c1, c2) = el_gamal::off_circuit::encrypt(ElGamalEncryptionInput {
+            message: GrumpkinPointAffine::new(symmetric_key, y).into(),
+            public_key: self.anonymity_revoker_public_key.into(),
+            salt_le_bits: self.encryption_salt,
+        });
+
+        let ciphertext1: GrumpkinPointAffine<Fr> = c1.into();
+        let ciphertext2: GrumpkinPointAffine<Fr> = c2.into();
+
         match instance_id {
             NewAccountInstance::HashedNote => note_hash(&Note {
                 version: NOTE_VERSION,
@@ -78,10 +107,10 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             NewAccountInstance::TokenAddress => self.token_address,
             NewAccountInstance::AnonymityRevokerPublicKeyX => self.anonymity_revoker_public_key.x,
             NewAccountInstance::AnonymityRevokerPublicKeyY => self.anonymity_revoker_public_key.y,
-            NewAccountInstance::SymKeyEncryption => asymmetric_encryption::off_circuit::encrypt(
-                self.anonymity_revoker_public_key,
-                sym_key::off_circuit::derive(self.id),
-            ),
+            NewAccountInstance::SymKeyEncryptionCiphertext1X => ciphertext1.x,
+            NewAccountInstance::SymKeyEncryptionCiphertext1Y => ciphertext1.y,
+            NewAccountInstance::SymKeyEncryptionCiphertext2X => ciphertext2.x,
+            NewAccountInstance::SymKeyEncryptionCiphertext2Y => ciphertext2.y,
         }
     }
 }

@@ -1,4 +1,3 @@
-pub mod asymmetric_encryption;
 pub mod el_gamal;
 pub mod id_hiding;
 pub mod is_point_on_curve;

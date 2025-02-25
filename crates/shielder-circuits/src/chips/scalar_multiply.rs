@@ -2,6 +2,7 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use super::sum::SumChip;
 use crate::{
+    consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
@@ -17,14 +18,14 @@ pub struct ScalarMultiplyChipInput<T> {
     /// point on the Grumpkin curve
     pub input: GrumpkinPoint<T>,
     /// scalar bits in LE representation
-    pub scalar_bits: [T; 254],
+    pub scalar_bits: [T; FIELD_BITS],
 }
 
 impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
     fn default() -> Self {
         Self {
             input: GrumpkinPoint::default(),
-            scalar_bits: [T::default(); 254],
+            scalar_bits: [T::default(); FIELD_BITS],
         }
     }
 }
@@ -160,6 +161,7 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
+        consts::FIELD_BITS,
         curve_arithmetic::{self, field_element_to_le_bits},
         embed::Embed,
         rng,
@@ -223,7 +225,7 @@ mod tests {
         }
     }
 
-    fn input(p: G1, scalar_bits: [Fr; 254]) -> ScalarMultiplyChipInput<Fr> {
+    fn input(p: G1, scalar_bits: [Fr; FIELD_BITS]) -> ScalarMultiplyChipInput<Fr> {
         ScalarMultiplyChipInput {
             input: p.into(),
             scalar_bits: scalar_bits.into(),

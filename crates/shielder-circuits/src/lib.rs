@@ -21,12 +21,12 @@ mod version;
 use alloc::{fmt::Debug, vec::Vec};
 
 pub use chips::{
-    asymmetric_encryption::{off_circuit::encrypt, AsymPublicKey},
+    el_gamal::off_circuit::{decrypt, encrypt},
     note::{off_circuit::note_hash, Note},
 };
 pub use circuits::*;
 pub use consts::MAX_K;
-pub use curve_arithmetic::*;
+pub use curve_arithmetic::{grumpkin_point::*, *};
 pub use halo2_proofs::{
     arithmetic::Field,
     dev::CircuitCost,

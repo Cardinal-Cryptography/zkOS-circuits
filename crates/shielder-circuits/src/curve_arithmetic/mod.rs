@@ -8,10 +8,10 @@ use halo2_proofs::{
     halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
 
-use crate::chips::sym_key;
+use crate::{chips::sym_key, consts::FIELD_BITS};
 
 mod curve_scalar_field;
-mod grumpkin_point;
+pub mod grumpkin_point;
 
 /// Algorithm 7 https://eprint.iacr.org/2015/1060.pdf
 pub fn points_add<S: CurveScalarField>(
@@ -101,7 +101,7 @@ pub fn normalize_point<T: Field>(p: GrumpkinPoint<T>) -> GrumpkinPoint<T> {
 
 pub fn scalar_multiply<S: CurveScalarField + PartialEq>(
     input: GrumpkinPoint<S>,
-    scalar_bits: [S; 254],
+    scalar_bits: [S; FIELD_BITS],
 ) -> GrumpkinPoint<S> {
     let mut result = GrumpkinPoint::zero();
 
@@ -160,15 +160,17 @@ pub fn generate_user_id(start_from: [u8; 32]) -> Fr {
 
 /// Converts given field element to the individual LE bit representation
 ///
-/// panics if value is not 254 bits
-pub fn field_element_to_le_bits(value: Fr) -> [Fr; 254] {
+/// panics if value is not `FIELD_BITS` bits
+pub fn field_element_to_le_bits(value: Fr) -> [Fr; FIELD_BITS] {
     let bits_vec = to_bits_le(value.to_repr().as_ref())
         .to_vec()
         .iter()
-        .take(Fr::NUM_BITS as usize)
+        .take(FIELD_BITS)
         .map(|&x| Fr::from(u64::from(x)))
         .collect::<Vec<Fr>>();
-    bits_vec.try_into().expect("value is not 254 bits long")
+    bits_vec
+        .try_into()
+        .unwrap_or_else(|_| panic!("value is not {FIELD_BITS} bits long!"))
 }
 
 fn to_bits_le(num: &[u8]) -> Vec<bool> {
