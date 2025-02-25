@@ -139,7 +139,7 @@ impl NewAccountChip {
             &ElGamalEncryptionInput {
                 message: GrumpkinPoint::new(sym_key, y, z),
                 public_key: revoker_pkey_projective,
-                trapdoor_le_bits: bits,
+                salt_le_bits: bits,
             },
         )?;
 

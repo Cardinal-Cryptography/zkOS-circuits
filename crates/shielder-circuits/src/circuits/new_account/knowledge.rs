@@ -26,6 +26,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub trapdoor: T,
     pub initial_deposit: T,
     pub token_address: T,
+    pub encryption_salt: T,
     pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
 }
 
@@ -40,6 +41,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
             token_address: Fr::ZERO,
+            encryption_salt: Fr::random(&mut *rng),
             anonymity_revoker_public_key: GrumpkinPointAffine::random(rng),
         }
     }
@@ -51,6 +53,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
             token_address: Value::known(self.token_address),
+            encryption_salt: Value::known(self.encryption_salt),
             anonymity_revoker_public_key: GrumpkinPointAffine::new(
                 Value::known(self.anonymity_revoker_public_key.x),
                 Value::known(self.anonymity_revoker_public_key.y),
@@ -66,14 +69,12 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             .sqrt()
             .expect("element has a square root");
 
-        // NOTE: should we use a separate trapdoor for the symmetric encryption?
-        let trapdoor_le_bits = field_element_to_le_bits(self.trapdoor);
-        let public_key = self.anonymity_revoker_public_key.into();
+        let encryption_salt_bits = field_element_to_le_bits(self.encryption_salt);
 
         let (c1, c2) = el_gamal::off_circuit::encrypt(ElGamalEncryptionInput {
             message: GrumpkinPointAffine::new(symmetric_key, y).into(),
-            public_key,
-            trapdoor_le_bits,
+            public_key: self.anonymity_revoker_public_key.into(),
+            salt_le_bits: encryption_salt_bits,
         });
 
         let ciphertext1: GrumpkinPointAffine<Fr> = c1.into();

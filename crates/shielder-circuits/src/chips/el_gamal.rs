@@ -22,7 +22,7 @@ use crate::{
 pub struct ElGamalEncryptionInput<T> {
     pub message: GrumpkinPoint<T>,
     pub public_key: GrumpkinPoint<T>,
-    pub trapdoor_le_bits: [T; FIELD_BITS],
+    pub salt_le_bits: [T; FIELD_BITS],
 }
 
 impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
@@ -30,7 +30,7 @@ impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
         Self {
             message: GrumpkinPoint::default(),
             public_key: GrumpkinPoint::default(),
-            trapdoor_le_bits: [T::default(); FIELD_BITS],
+            salt_le_bits: [T::default(); FIELD_BITS],
         }
     }
 }
@@ -89,7 +89,7 @@ impl ElGamalEncryptionChip {
         ElGamalEncryptionInput {
             message,
             public_key,
-            trapdoor_le_bits: trapdoor,
+            salt_le_bits,
         }: &ElGamalEncryptionInput<AssignedCell>,
     ) -> Result<ElGamalEncryptionChipOutput<AssignedCell>, Error> {
         let generator_value = GrumpkinPoint::generator();
@@ -103,7 +103,7 @@ impl ElGamalEncryptionChip {
             synthesizer,
             &ScalarMultiplyChipInput {
                 input: public_key.clone(),
-                scalar_bits: trapdoor.clone(),
+                scalar_bits: salt_le_bits.clone(),
             },
         )?;
 
@@ -113,7 +113,7 @@ impl ElGamalEncryptionChip {
             synthesizer,
             &ScalarMultiplyChipInput {
                 input: generator,
-                scalar_bits: trapdoor.clone(),
+                scalar_bits: salt_le_bits.clone(),
             },
         )?;
 
@@ -146,14 +146,14 @@ pub mod off_circuit {
         ElGamalEncryptionInput {
             message,
             public_key,
-            trapdoor_le_bits,
+            salt_le_bits,
         }: ElGamalEncryptionInput<Fr>,
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
         let generator = GrumpkinPoint::generator();
 
-        let shared_secret = curve_arithmetic::scalar_multiply(public_key, trapdoor_le_bits);
+        let shared_secret = curve_arithmetic::scalar_multiply(public_key, salt_le_bits);
 
-        let ciphertext1 = curve_arithmetic::scalar_multiply(generator, trapdoor_le_bits);
+        let ciphertext1 = curve_arithmetic::scalar_multiply(generator, salt_le_bits);
 
         let ciphertext2 = curve_arithmetic::points_add(message, shared_secret);
 
@@ -278,12 +278,12 @@ mod tests {
     fn input(
         message: GrumpkinPoint<Fr>,
         public_key: GrumpkinPoint<Fr>,
-        trapdoor_le_bits: [Fr; FIELD_BITS],
+        salt_le_bits: [Fr; FIELD_BITS],
     ) -> ElGamalEncryptionInput<Fr> {
         ElGamalEncryptionInput {
             message,
             public_key,
-            trapdoor_le_bits,
+            salt_le_bits,
         }
     }
 
@@ -320,12 +320,12 @@ mod tests {
         let (private_key_bits, public_key) = generate_keys();
 
         let message = GrumpkinPoint::random(&mut rng);
-        let trapdoor_le_bits = field_element_to_le_bits(Fr::random(rng));
+        let salt_le_bits = field_element_to_le_bits(Fr::random(rng));
 
         let (ciphertext1, ciphertext2) = off_circuit::encrypt(ElGamalEncryptionInput {
             message,
             public_key,
-            trapdoor_le_bits,
+            salt_le_bits,
         });
 
         let recovered_message = off_circuit::decrypt(ciphertext1, ciphertext2, private_key_bits);
@@ -340,15 +340,15 @@ mod tests {
         let (_, public_key) = generate_keys();
 
         let message = GrumpkinPoint::random(&mut rng);
-        let trapdoor_le_bits = field_element_to_le_bits(Fr::random(rng));
+        let salt_le_bits = field_element_to_le_bits(Fr::random(rng));
 
         let (ciphertext1, ciphertext2) = off_circuit::encrypt(ElGamalEncryptionInput {
             message,
             public_key,
-            trapdoor_le_bits,
+            salt_le_bits,
         });
 
-        let input = input(message, public_key, trapdoor_le_bits);
+        let input = input(message, public_key, salt_le_bits);
         let output = ElGamalEncryptionChipOutput {
             ciphertext1,
             ciphertext2,
