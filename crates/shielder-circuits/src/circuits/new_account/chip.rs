@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use crate::{
@@ -12,16 +10,14 @@ use crate::{
         to_projective::{ToProjectiveChip, ToProjectiveChipInput, ToProjectiveChipOutput},
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
-    consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
-    field_element_to_le_bits,
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
-    AssignedCell, GrumpkinPoint, Value,
+    AssignedCell, GrumpkinPoint,
 };
 
 #[derive(Clone, Debug)]
@@ -103,18 +99,6 @@ impl NewAccountChip {
 
         self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
 
-        let mut bits_values: [Value; FIELD_BITS] = [Value::default(); FIELD_BITS];
-        knowledge.trapdoor.value().cloned().map(|field_element| {
-            bits_values = field_element_to_le_bits(field_element)
-                .into_iter()
-                .map(Value::known)
-                .collect::<Vec<Value>>()
-                .try_into()
-                .unwrap_or_else(|_| panic!("value is not {FIELD_BITS} bits long!"));
-        });
-
-        let bits = bits_values.embed(synthesizer, "trapdoor_le_bits")?;
-
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
         let ToProjectiveChipOutput {
@@ -139,7 +123,7 @@ impl NewAccountChip {
             &ElGamalEncryptionInput {
                 message: GrumpkinPoint::new(sym_key, y, z),
                 public_key: revoker_pkey_projective,
-                salt_le_bits: bits,
+                salt_le_bits: knowledge.encryption_salt.clone(),
             },
         )?;
 

@@ -6,7 +6,8 @@ use crate::{
         el_gamal::{self, ElGamalEncryptionInput},
         sym_key,
     },
-    curve_arithmetic::{self, field_element_to_le_bits, GrumpkinPointAffine},
+    consts::FIELD_BITS,
+    curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
@@ -15,7 +16,7 @@ use crate::{
     Field, Fr, Note, ProverKnowledge, PublicInputProvider, Value,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[embeddable(
     receiver = "NewAccountProverKnowledge<Value>",
     embedded = "NewAccountProverKnowledge<crate::AssignedCell>"
@@ -26,8 +27,22 @@ pub struct NewAccountProverKnowledge<T> {
     pub trapdoor: T,
     pub initial_deposit: T,
     pub token_address: T,
-    pub encryption_salt: T,
+    pub encryption_salt: [T; FIELD_BITS],
     pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
+}
+
+impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
+    fn default() -> Self {
+        Self {
+            id: T::default(),
+            nullifier: T::default(),
+            trapdoor: T::default(),
+            initial_deposit: T::default(),
+            token_address: T::default(),
+            encryption_salt: [T::default(); FIELD_BITS],
+            anonymity_revoker_public_key: GrumpkinPointAffine::default(),
+        }
+    }
 }
 
 impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
@@ -41,7 +56,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
             token_address: Fr::ZERO,
-            encryption_salt: Fr::random(&mut *rng),
+            encryption_salt: core::array::from_fn(|_| Fr::ONE),
             anonymity_revoker_public_key: GrumpkinPointAffine::random(rng),
         }
     }
@@ -53,7 +68,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
             token_address: Value::known(self.token_address),
-            encryption_salt: Value::known(self.encryption_salt),
+            encryption_salt: self.encryption_salt.map(Value::known),
             anonymity_revoker_public_key: GrumpkinPointAffine::new(
                 Value::known(self.anonymity_revoker_public_key.x),
                 Value::known(self.anonymity_revoker_public_key.y),
@@ -69,12 +84,10 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             .sqrt()
             .expect("element has a square root");
 
-        let encryption_salt_bits = field_element_to_le_bits(self.encryption_salt);
-
         let (c1, c2) = el_gamal::off_circuit::encrypt(ElGamalEncryptionInput {
             message: GrumpkinPointAffine::new(symmetric_key, y).into(),
             public_key: self.anonymity_revoker_public_key.into(),
-            salt_le_bits: encryption_salt_bits,
+            salt_le_bits: self.encryption_salt,
         });
 
         let ciphertext1: GrumpkinPointAffine<Fr> = c1.into();
