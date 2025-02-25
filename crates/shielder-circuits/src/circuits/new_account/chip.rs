@@ -113,6 +113,14 @@ impl NewAccountChip {
         let y_value = curve_arithmetic::quadratic_residue_given_x_affine(sym_key.value().copied())
             .map(|elem| elem.sqrt().expect("element has a square root"));
         let y = y_value.embed(synthesizer, "y")?;
+
+        self.is_point_on_curve.is_point_on_curve_affine(
+            synthesizer,
+            &IsPointOnCurveAffineChipInput {
+                point: GrumpkinPointAffine::new(sym_key.clone(), y.clone()),
+            },
+        )?;
+
         let z = synthesizer.assign_constant("ONE", Fr::ONE)?;
 
         let ElGamalEncryptionChipOutput {
