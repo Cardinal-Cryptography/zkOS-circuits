@@ -3,10 +3,7 @@ use macros::embeddable;
 
 use super::{points_add::PointsAddChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip};
 use crate::{
-    chips::{
-        points_add::{PointsAddChipInput, PointsAddChipOutput},
-        scalar_multiply::{ScalarMultiplyChipInput, ScalarMultiplyChipOutput},
-    },
+    chips::scalar_multiply::{ScalarMultiplyChipInput, ScalarMultiplyChipOutput},
     consts::FIELD_BITS,
     curve_arithmetic::GrumpkinPoint,
     embed::Embed,
@@ -117,13 +114,9 @@ impl ElGamalEncryptionChip {
             },
         )?;
 
-        let PointsAddChipOutput { s: ciphertext2 } = self.add_chip.points_add(
-            synthesizer,
-            &PointsAddChipInput {
-                p: message.clone(),
-                q: shared_secret,
-            },
-        )?;
+        let ciphertext2 = self
+            .add_chip
+            .points_add(synthesizer, message, &shared_secret)?;
 
         Ok(ElGamalEncryptionChipOutput {
             ciphertext1,
