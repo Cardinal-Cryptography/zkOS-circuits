@@ -1,10 +1,7 @@
 pub mod el_gamal;
 pub mod id_hiding;
-pub mod is_point_on_curve;
-pub mod is_point_on_curve_affine;
 pub mod mac;
 pub mod note;
-pub mod point_double;
 pub mod points_add;
 pub mod range_check;
 pub mod scalar_multiply;

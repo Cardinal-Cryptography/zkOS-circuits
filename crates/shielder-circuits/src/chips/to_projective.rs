@@ -6,16 +6,6 @@ use crate::{
     AssignedCell,
 };
 
-#[derive(Copy, Clone, Debug, Default)]
-pub struct ToProjectiveChipInput<T> {
-    pub point_affine: GrumpkinPointAffine<T>,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct ToProjectiveChipOutput<T> {
-    pub point_projective: GrumpkinPoint<T>,
-}
-
 /// Chip that converts between a point in affine to a point in projective coordinates
 #[derive(Clone, Debug, Default)]
 pub struct ToProjectiveChip;
@@ -28,18 +18,15 @@ impl ToProjectiveChip {
     pub fn to_projective(
         &self,
         synthesizer: &mut impl Synthesizer,
-        ToProjectiveChipInput { point_affine }: &ToProjectiveChipInput<AssignedCell>,
-    ) -> Result<ToProjectiveChipOutput<AssignedCell>, Error> {
+        point_affine: &GrumpkinPointAffine<AssignedCell>,
+    ) -> Result<GrumpkinPoint<AssignedCell>, Error> {
         let GrumpkinPointAffine { x, y } = point_affine;
-
         let one = synthesizer.assign_constant("ONE", Fr::ONE)?;
 
-        Ok(ToProjectiveChipOutput {
-            point_projective: GrumpkinPoint {
-                x: x.clone(),
-                y: y.clone(),
-                z: one,
-            },
+        Ok(GrumpkinPoint {
+            x: x.clone(),
+            y: y.clone(),
+            z: one,
         })
     }
 }
@@ -66,7 +53,7 @@ mod tests {
     };
 
     #[derive(Clone, Debug, Default)]
-    struct ToProjectiveCircuit(ToProjectiveChipInput<Fr>);
+    struct ToProjectiveCircuit(GrumpkinPointAffine<Fr>);
 
     impl Circuit<Fr> for ToProjectiveCircuit {
         type Config = (
@@ -104,11 +91,8 @@ mod tests {
 
             let mut synthesizer = create_synthesizer(&mut layouter, &column_pool);
 
-            let ToProjectiveChipInput { point_affine } = self.0;
-            let point_affine = point_affine.embed(&mut synthesizer, "point_affine")?;
-
-            let ToProjectiveChipOutput { point_projective } =
-                chip.to_projective(&mut synthesizer, &ToProjectiveChipInput { point_affine })?;
+            let point_affine = self.0.embed(&mut synthesizer, "point_affine")?;
+            let point_projective = chip.to_projective(&mut synthesizer, &point_affine)?;
 
             synthesizer.constrain_instance(point_projective.x.cell(), instance, 0)?;
             synthesizer.constrain_instance(point_projective.y.cell(), instance, 1)?;
@@ -118,26 +102,14 @@ mod tests {
         }
     }
 
-    fn input(point_affine: GrumpkinPointAffine<Fr>) -> ToProjectiveChipInput<Fr> {
-        ToProjectiveChipInput { point_affine }
-    }
-
     fn verify(
-        input: ToProjectiveChipInput<Fr>,
-        expected: ToProjectiveChipOutput<Fr>,
+        input: GrumpkinPointAffine<Fr>,
+        expected: GrumpkinPoint<Fr>,
     ) -> Result<(), Vec<VerifyFailure>> {
         let circuit = ToProjectiveCircuit(input);
-        MockProver::run(
-            4,
-            &circuit,
-            vec![vec![
-                expected.point_projective.x,
-                expected.point_projective.y,
-                expected.point_projective.z,
-            ]],
-        )
-        .expect("Mock prover should run")
-        .verify()
+        MockProver::run(4, &circuit, vec![vec![expected.x, expected.y, expected.z]])
+            .expect("Mock prover should run")
+            .verify()
     }
 
     #[test]
@@ -147,11 +119,7 @@ mod tests {
         let point_affine: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng).into();
         let point_projective = point_affine.clone().into();
 
-        assert!(verify(
-            input(point_affine),
-            ToProjectiveChipOutput { point_projective }
-        )
-        .is_ok());
+        assert!(verify(point_affine, point_projective).is_ok());
     }
 
     #[test]
@@ -163,10 +131,6 @@ mod tests {
             point_affine.clone().into(),
         ));
 
-        assert!(verify(
-            input(point_affine),
-            ToProjectiveChipOutput { point_projective }
-        )
-        .is_err());
+        assert!(verify(point_affine, point_projective).is_err());
     }
 }

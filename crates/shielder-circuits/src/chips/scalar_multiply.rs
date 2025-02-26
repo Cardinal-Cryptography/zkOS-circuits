@@ -30,11 +30,6 @@ impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct ScalarMultiplyChipOutput<T> {
-    pub result: GrumpkinPoint<T>,
-}
-
 /// Chip that computes the result of adding a point P on the Grumpkin curve to itself n times.
 ///
 /// n * P = S
@@ -87,7 +82,7 @@ impl ScalarMultiplyChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         inputs: &ScalarMultiplyChipInput<AssignedCell>,
-    ) -> Result<ScalarMultiplyChipOutput<AssignedCell>, Error> {
+    ) -> Result<GrumpkinPoint<AssignedCell>, Error> {
         let ScalarMultiplyChipInput { scalar_bits, input } = inputs;
 
         let mut input_value: GrumpkinPoint<Value> = input.clone().into();
@@ -136,9 +131,7 @@ impl ScalarMultiplyChip {
             }
         }
 
-        Ok(ScalarMultiplyChipOutput {
-            result: last_result.expect("last result is returned"),
-        })
+        Ok(last_result.expect("last result is returned"))
     }
 }
 
@@ -157,7 +150,7 @@ mod tests {
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
-    use super::{ScalarMultiplyChip, ScalarMultiplyChipInput, ScalarMultiplyChipOutput};
+    use super::{ScalarMultiplyChip, ScalarMultiplyChipInput};
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
@@ -166,6 +159,7 @@ mod tests {
         embed::Embed,
         rng,
         synthesizer::create_synthesizer,
+        GrumpkinPoint,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -212,7 +206,7 @@ mod tests {
             let input = input.embed(&mut synthesizer, "input")?;
             let scalar_bits = scalar_bits.embed(&mut synthesizer, "scalar_bits")?;
 
-            let ScalarMultiplyChipOutput { result } = chip.scalar_multiply(
+            let result = chip.scalar_multiply(
                 &mut synthesizer,
                 &ScalarMultiplyChipInput { input, scalar_bits },
             )?;
@@ -234,16 +228,12 @@ mod tests {
 
     fn verify(
         input: ScalarMultiplyChipInput<Fr>,
-        expected: ScalarMultiplyChipOutput<Fr>,
+        expected: GrumpkinPoint<Fr>,
     ) -> Result<(), Vec<String>> {
         MockProver::run(
             10,
             &ScalarMultiplyCircuit(input),
-            vec![vec![
-                expected.result.x,
-                expected.result.y,
-                expected.result.z,
-            ]],
+            vec![vec![expected.x, expected.y, expected.z]],
         )
         .expect("Mock prover should run successfully")
         .verify()
@@ -265,8 +255,7 @@ mod tests {
         let expected = curve_arithmetic::scalar_multiply(p.into(), bits.clone());
 
         let input = input(p, bits);
-        let output = ScalarMultiplyChipOutput { result: expected };
 
-        assert!(verify(input, output).is_ok());
+        assert!(verify(input, expected).is_ok());
     }
 }

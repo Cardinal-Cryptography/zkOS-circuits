@@ -3,15 +3,8 @@ use macros::embeddable;
 
 use super::{points_add::PointsAddChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip};
 use crate::{
-    chips::{
-        points_add::{PointsAddChipInput, PointsAddChipOutput},
-        scalar_multiply::{ScalarMultiplyChipInput, ScalarMultiplyChipOutput},
-    },
-    consts::FIELD_BITS,
-    curve_arithmetic::GrumpkinPoint,
-    embed::Embed,
-    synthesizer::Synthesizer,
-    AssignedCell,
+    chips::scalar_multiply::ScalarMultiplyChipInput, consts::FIELD_BITS,
+    curve_arithmetic::GrumpkinPoint, embed::Embed, synthesizer::Synthesizer, AssignedCell,
 };
 
 #[derive(Clone, Debug)]
@@ -97,9 +90,7 @@ impl ElGamalEncryptionChip {
 
         self.constrain_generator(synthesizer, generator.clone())?;
 
-        let ScalarMultiplyChipOutput {
-            result: shared_secret,
-        } = self.multiply_chip.scalar_multiply(
+        let shared_secret = self.multiply_chip.scalar_multiply(
             synthesizer,
             &ScalarMultiplyChipInput {
                 input: public_key.clone(),
@@ -107,9 +98,7 @@ impl ElGamalEncryptionChip {
             },
         )?;
 
-        let ScalarMultiplyChipOutput {
-            result: ciphertext1,
-        } = self.multiply_chip.scalar_multiply(
+        let ciphertext1 = self.multiply_chip.scalar_multiply(
             synthesizer,
             &ScalarMultiplyChipInput {
                 input: generator,
@@ -117,13 +106,9 @@ impl ElGamalEncryptionChip {
             },
         )?;
 
-        let PointsAddChipOutput { s: ciphertext2 } = self.add_chip.points_add(
-            synthesizer,
-            &PointsAddChipInput {
-                p: message.clone(),
-                q: shared_secret,
-            },
-        )?;
+        let ciphertext2 = self
+            .add_chip
+            .points_add(synthesizer, message, &shared_secret)?;
 
         Ok(ElGamalEncryptionChipOutput {
             ciphertext1,
