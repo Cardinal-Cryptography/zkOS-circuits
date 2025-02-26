@@ -107,10 +107,10 @@ impl Gate for ScalarMultiplyGate {
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
-                    // next_result = input + result (if bit == 1) else next_result = result
-                    ("x: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_x - bit.clone () * (added_x - result_x.clone ()) - result_x),
-                    ("y: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_y - bit.clone () * (added_y - result_y.clone ()) - result_y),
-                    ("z: next_result = input + result if bit == 1; next_result = result if bit == 0", next_result_z - bit.clone () * (added_z - result_z.clone ()) - result_z),
+                    // next_result = input + result (if bit == 1) else result
+                    ("x: next_result = input + result if bit == 1 else result", next_result_x - bit.clone () * (added_x - result_x.clone ()) - result_x),
+                    ("y: next_result = input + result if bit == 1 else result", next_result_y - bit.clone () * (added_y - result_y.clone ()) - result_y),
+                    ("z: next_result = input + result if bit == 1 else result", next_result_z - bit.clone () * (added_z - result_z.clone ()) - result_z),
                     // next_input = 2 * input
                     ("x: next_input = 2 * input", next_input_x - doubled_x),
                     ("y: next_input = 2 * input", next_input_y - doubled_y),
