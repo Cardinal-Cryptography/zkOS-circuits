@@ -6,13 +6,11 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-use macros::embeddable;
 
 use super::copy_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     curve_arithmetic::GrumpkinPoint,
-    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -24,21 +22,12 @@ pub struct IsPointOnCurveGate {
     pub point: [Column<Advice>; 3],
 }
 
-#[derive(Clone, Debug, Default)]
-#[embeddable(
-    receiver = "IsPointOnCurveGateInput<Fr>",
-    embedded = "IsPointOnCurveGateInput<crate::AssignedCell>"
-)]
-pub struct IsPointOnCurveGateInput<T> {
-    pub point: GrumpkinPoint<T>,
-}
-
 const SELECTOR_OFFSET: i32 = 0;
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "IsPointOnCurveGate";
 
 impl Gate for IsPointOnCurveGate {
-    type Input = IsPointOnCurveGateInput<AssignedCell>;
+    type Input = GrumpkinPoint<AssignedCell>;
 
     type Advice = [Column<Advice>; 3];
 
@@ -71,7 +60,7 @@ impl Gate for IsPointOnCurveGate {
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        IsPointOnCurveGateInput { point }: Self::Input,
+        point: Self::Input,
     ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
@@ -111,14 +100,10 @@ mod tests {
         halo2curves::{bn256::Fr, ff::PrimeField},
     };
 
-    use super::{IsPointOnCurveGate, IsPointOnCurveGateInput};
+    use super::IsPointOnCurveGate;
     use crate::{curve_arithmetic::GrumpkinPoint, gates::test_utils::OneGateCircuit, rng};
 
-    fn input(point: GrumpkinPoint<Fr>) -> IsPointOnCurveGateInput<Fr> {
-        IsPointOnCurveGateInput { point }
-    }
-
-    fn verify(input: IsPointOnCurveGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+    fn verify(input: GrumpkinPoint<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<IsPointOnCurveGate, _>::new(input);
         MockProver::run(4, &circuit, vec![])
             .expect("Mock prover should run")
@@ -129,13 +114,13 @@ mod tests {
     fn is_random_point_on_curve() {
         let mut rng = rng();
         let point: GrumpkinPoint<Fr> = GrumpkinPoint::random(&mut rng);
-        assert!(verify(input(point)).is_ok());
+        assert!(verify(point).is_ok());
     }
 
     #[test]
     fn incorrect_inputs() {
         let point: GrumpkinPoint<Fr> =
             GrumpkinPoint::new(Fr::from_u128(1), Fr::from_u128(2), Fr::ONE);
-        assert!(verify(input(point)).is_err());
+        assert!(verify(point).is_err());
     }
 }

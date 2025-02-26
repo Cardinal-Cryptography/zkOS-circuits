@@ -3,7 +3,6 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 use crate::{
     chips::{
         el_gamal::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput},
-        is_point_on_curve_affine::{IsPointOnCurveAffineChip, IsPointOnCurveAffineChipInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
         to_affine::{ToAffineChip, ToAffineChipInput, ToAffineChipOutput},
@@ -12,6 +11,7 @@ use crate::{
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
+    gates::{is_point_on_curve_affine::IsPointOnCurveAffineGate, Gate},
     instance_wrapper::InstanceWrapper,
     new_account::NewAccountInstance::{self, *},
     poseidon::circuit::{hash, PoseidonChip},
@@ -25,7 +25,7 @@ pub struct NewAccountChip {
     pub public_inputs: InstanceWrapper<NewAccountInstance>,
     pub poseidon: PoseidonChip,
     pub note: NoteChip,
-    pub is_point_on_curve: IsPointOnCurveAffineChip,
+    pub is_point_on_curve: IsPointOnCurveAffineGate,
     pub el_gamal_encryption: ElGamalEncryptionChip,
     pub to_projective: ToProjectiveChip,
     pub to_affine: ToAffineChip,
@@ -81,12 +81,8 @@ impl NewAccountChip {
             y_squared_value.map(|v| v.sqrt().expect("element does not have a square root"));
         let y = y_value.embed(synthesizer, "y")?;
 
-        self.is_point_on_curve.is_point_on_curve_affine(
-            synthesizer,
-            &IsPointOnCurveAffineChipInput {
-                point: GrumpkinPointAffine::new(key, y),
-            },
-        )
+        self.is_point_on_curve
+            .apply_in_new_region(synthesizer, GrumpkinPointAffine::new(key, y))
     }
 
     pub fn constrain_sym_key_encryption(
@@ -114,11 +110,9 @@ impl NewAccountChip {
             .map(|elem| elem.sqrt().expect("element has a square root"));
         let y = y_value.embed(synthesizer, "y")?;
 
-        self.is_point_on_curve.is_point_on_curve_affine(
+        self.is_point_on_curve.apply_in_new_region(
             synthesizer,
-            &IsPointOnCurveAffineChipInput {
-                point: GrumpkinPointAffine::new(sym_key.clone(), y.clone()),
-            },
+            GrumpkinPointAffine::new(sym_key.clone(), y.clone()),
         )?;
 
         let z = synthesizer.assign_constant("ONE", Fr::ONE)?;

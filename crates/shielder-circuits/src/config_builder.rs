@@ -3,8 +3,6 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 use crate::{
     chips::{
         el_gamal::ElGamalEncryptionChip,
-        is_point_on_curve::IsPointOnCurveChip,
-        is_point_on_curve_affine::IsPointOnCurveAffineChip,
         note::{NoteChip, NoteInstance},
         point_double::PointDoubleChip,
         points_add::PointsAddChip,
@@ -41,8 +39,8 @@ pub struct ConfigsBuilder<'cs> {
     scalar_multiply: Option<ScalarMultiplyChip>,
     to_affine: Option<ToAffineChip>,
     to_projective: Option<ToProjectiveChip>,
-    is_point_on_curve: Option<IsPointOnCurveChip>,
-    is_point_on_curve_affine: Option<IsPointOnCurveAffineChip>,
+    is_point_on_curve: Option<IsPointOnCurveGate>,
+    is_point_on_curve_affine: Option<IsPointOnCurveAffineGate>,
     el_gamal_encryption: Option<ElGamalEncryptionChip>,
     note: Option<NoteChip>,
 }
@@ -219,33 +217,32 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("ToProjective chip is not configured")
     }
 
-    pub fn with_is_point_on_curve_chip(mut self) -> Self {
+    pub fn with_is_point_on_curve(mut self) -> Self {
         check_if_cached!(self, is_point_on_curve);
-        self.is_point_on_curve = Some(IsPointOnCurveChip::new(IsPointOnCurveGate::create_gate(
+        self.is_point_on_curve = Some(IsPointOnCurveGate::create_gate(
             self.system,
             &mut self.advice_pool,
-        )));
-        self
-    }
-
-    pub fn is_point_on_curve_chip(&self) -> IsPointOnCurveChip {
-        self.is_point_on_curve
-            .clone()
-            .expect("IsPointOnCurveChip is not configured")
-    }
-
-    pub fn with_is_point_on_curve_affine_chip(mut self) -> Self {
-        check_if_cached!(self, is_point_on_curve_affine);
-        self.is_point_on_curve_affine = Some(IsPointOnCurveAffineChip::new(
-            IsPointOnCurveAffineGate::create_gate(self.system, &mut self.advice_pool),
         ));
         self
     }
 
-    pub fn is_point_on_curve_affine_chip(&self) -> IsPointOnCurveAffineChip {
+    pub fn is_point_on_curve_gate(&self) -> IsPointOnCurveGate {
+        self.is_point_on_curve
+            .expect("IsPointOnCurveGate is not configured")
+    }
+
+    pub fn with_is_point_on_curve_affine(mut self) -> Self {
+        check_if_cached!(self, is_point_on_curve_affine);
+        self.is_point_on_curve_affine = Some(IsPointOnCurveAffineGate::create_gate(
+            self.system,
+            &mut self.advice_pool,
+        ));
+        self
+    }
+
+    pub fn is_point_on_curve_affine_gate(&self) -> IsPointOnCurveAffineGate {
         self.is_point_on_curve_affine
-            .clone()
-            .expect("IsPointOnCurveAffineChip is not configured")
+            .expect("IsPointOnCurveAffineGate is not configured")
     }
 
     pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {

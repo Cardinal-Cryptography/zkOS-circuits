@@ -6,13 +6,11 @@ use halo2_proofs::{
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-use macros::embeddable;
 
 use super::copy_affine_grumpkin_advices;
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     curve_arithmetic::GrumpkinPointAffine,
-    embed::Embed,
     gates::{ensure_unique_columns, Gate},
     synthesizer::Synthesizer,
     AssignedCell,
@@ -24,21 +22,12 @@ pub struct IsPointOnCurveAffineGate {
     pub point: [Column<Advice>; 2],
 }
 
-#[derive(Clone, Debug, Default)]
-#[embeddable(
-    receiver = "IsPointOnCurveAffineGateInput<Fr>",
-    embedded = "IsPointOnCurveAffineGateInput<crate::AssignedCell>"
-)]
-pub struct IsPointOnCurveAffineGateInput<T> {
-    pub point: GrumpkinPointAffine<T>,
-}
-
 const SELECTOR_OFFSET: i32 = 0;
 const ADVICE_OFFSET: i32 = 0;
 const GATE_NAME: &str = "IsPointOnCurveAffine";
 
 impl Gate for IsPointOnCurveAffineGate {
-    type Input = IsPointOnCurveAffineGateInput<AssignedCell>;
+    type Input = GrumpkinPointAffine<AssignedCell>;
 
     type Advice = [Column<Advice>; 2];
 
@@ -68,7 +57,7 @@ impl Gate for IsPointOnCurveAffineGate {
     fn apply_in_new_region(
         &self,
         synthesizer: &mut impl Synthesizer,
-        IsPointOnCurveAffineGateInput { point }: Self::Input,
+        point: Self::Input,
     ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
@@ -107,14 +96,10 @@ mod tests {
         halo2curves::{bn256::Fr, ff::PrimeField},
     };
 
-    use super::{IsPointOnCurveAffineGate, IsPointOnCurveAffineGateInput};
+    use super::IsPointOnCurveAffineGate;
     use crate::{curve_arithmetic::GrumpkinPointAffine, gates::test_utils::OneGateCircuit, rng};
 
-    fn input(point: GrumpkinPointAffine<Fr>) -> IsPointOnCurveAffineGateInput<Fr> {
-        IsPointOnCurveAffineGateInput { point }
-    }
-
-    fn verify(input: IsPointOnCurveAffineGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
+    fn verify(input: GrumpkinPointAffine<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<IsPointOnCurveAffineGate, _>::new(input);
         MockProver::run(4, &circuit, vec![])
             .expect("Mock prover should run")
@@ -125,13 +110,13 @@ mod tests {
     fn is_random_point_on_curve() {
         let mut rng = rng();
         let point: GrumpkinPointAffine<Fr> = GrumpkinPointAffine::random(&mut rng);
-        assert!(verify(input(point)).is_ok());
+        assert!(verify(point).is_ok());
     }
 
     #[test]
     fn incorrect_inputs() {
         let point: GrumpkinPointAffine<Fr> =
             GrumpkinPointAffine::new(Fr::from_u128(1), Fr::from_u128(2));
-        assert!(verify(input(point)).is_err());
+        assert!(verify(point).is_err());
     }
 }
