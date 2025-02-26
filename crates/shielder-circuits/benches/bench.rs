@@ -137,5 +137,5 @@ criterion_group! {
 }
 
 criterion_main! {
-    merkle, deposit, new_account, withdraw
+    new_account
 }

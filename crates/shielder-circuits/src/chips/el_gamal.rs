@@ -37,19 +37,22 @@ pub struct ElGamalEncryptionChipOutput<T> {
 
 #[derive(Clone, Debug)]
 pub struct ElGamalEncryptionChip {
-    pub multiply_chip: ScalarMultiplyChip,
+    pub multiply_chip_1: ScalarMultiplyChip,
+    pub multiply_chip_2: ScalarMultiplyChip,
     pub add_chip: PointsAddChip,
     pub sum_chip: SumChip,
 }
 
 impl ElGamalEncryptionChip {
     pub fn new(
-        multiply_chip: ScalarMultiplyChip,
+        multiply_chip_1: ScalarMultiplyChip,
+        multiply_chip_2: ScalarMultiplyChip,
         add_chip: PointsAddChip,
         sum_chip: SumChip,
     ) -> Self {
         Self {
-            multiply_chip,
+            multiply_chip_1,
+            multiply_chip_2,
             add_chip,
             sum_chip,
         }
@@ -90,7 +93,7 @@ impl ElGamalEncryptionChip {
 
         self.constrain_generator(synthesizer, generator.clone())?;
 
-        let shared_secret = self.multiply_chip.scalar_multiply(
+        let shared_secret = self.multiply_chip_1.scalar_multiply(
             synthesizer,
             &ScalarMultiplyChipInput {
                 input: public_key.clone(),
@@ -98,7 +101,7 @@ impl ElGamalEncryptionChip {
             },
         )?;
 
-        let ciphertext1 = self.multiply_chip.scalar_multiply(
+        let ciphertext1 = self.multiply_chip_2.scalar_multiply(
             synthesizer,
             &ScalarMultiplyChipInput {
                 input: generator,
@@ -204,16 +207,8 @@ mod tests {
             let fixed = meta.fixed_column();
             meta.enable_constant(fixed);
 
-            let configs_builder = ConfigsBuilder::new(meta)
-                .with_scalar_multiply_chip()
-                .with_points_add_chip()
-                .with_sum();
-
-            let chip = ElGamalEncryptionChip {
-                multiply_chip: configs_builder.scalar_multiply_chip(),
-                add_chip: configs_builder.points_add_chip(),
-                sum_chip: configs_builder.sum_chip(),
-            };
+            let configs_builder = ConfigsBuilder::new(meta).with_el_gamal_encryption_chip();
+            let chip = configs_builder.el_gamal_encryption_chip();
 
             (configs_builder.finish(), chip, instance)
         }
