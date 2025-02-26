@@ -5,7 +5,7 @@ use crate::{
         el_gamal::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
-        to_affine::{ToAffineChip, ToAffineChipInput, ToAffineChipOutput},
+        to_affine::ToAffineChip,
         to_projective::{ToProjectiveChip, ToProjectiveChipInput, ToProjectiveChipOutput},
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
@@ -129,23 +129,8 @@ impl NewAccountChip {
             },
         )?;
 
-        let ToAffineChipOutput {
-            point_affine: c1_affine,
-        } = self.to_affine.to_affine(
-            synthesizer,
-            &ToAffineChipInput {
-                point_projective: c1_projective,
-            },
-        )?;
-
-        let ToAffineChipOutput {
-            point_affine: c2_affine,
-        } = self.to_affine.to_affine(
-            synthesizer,
-            &ToAffineChipInput {
-                point_projective: c2_projective,
-            },
-        )?;
+        let c1_affine = self.to_affine.to_affine(synthesizer, &c1_projective)?;
+        let c2_affine = self.to_affine.to_affine(synthesizer, &c2_projective)?;
 
         self.public_inputs.constrain_cells(
             synthesizer,
