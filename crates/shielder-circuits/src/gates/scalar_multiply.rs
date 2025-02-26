@@ -1,5 +1,6 @@
 use alloc::vec;
 
+use halo2_proofs::plonk::Expression;
 use halo2_proofs::{
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Selector},
@@ -107,6 +108,8 @@ impl Gate for ScalarMultiplyGate {
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
+                    // `bit` is a valid bit
+                    ("bit is a binary value", bit.clone() * (Expression::Constant(Fr::one()) - bit.clone())),
                     // next_result = input + result (if bit == 1) else result
                     ("x: next_result = input + result if bit == 1 else result", next_result_x - bit.clone () * (added_x - result_x.clone ()) - result_x),
                     ("y: next_result = input + result if bit == 1 else result", next_result_y - bit.clone () * (added_y - result_y.clone ()) - result_y),
