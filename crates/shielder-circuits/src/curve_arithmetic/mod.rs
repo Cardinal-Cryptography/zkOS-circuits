@@ -101,7 +101,7 @@ pub fn normalize_point<T: Field>(p: GrumpkinPoint<T>) -> GrumpkinPoint<T> {
 
 pub fn scalar_multiply<S: CurveScalarField + PartialEq>(
     input: GrumpkinPoint<S>,
-    scalar_bits: [S; FIELD_BITS],
+    scalar_bits: [S; 127],
 ) -> GrumpkinPoint<S> {
     let mut result = GrumpkinPoint::zero();
 

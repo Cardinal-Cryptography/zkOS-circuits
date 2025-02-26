@@ -3,7 +3,7 @@ use macros::embeddable;
 
 use super::{points_add::PointsAddChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip};
 use crate::{
-    chips::scalar_multiply::ScalarMultiplyChipInput, consts::FIELD_BITS,
+    chips::scalar_multiply::ScalarMultiplyChipInput,
     curve_arithmetic::GrumpkinPoint, embed::Embed, synthesizer::Synthesizer, AssignedCell,
 };
 
@@ -15,7 +15,7 @@ use crate::{
 pub struct ElGamalEncryptionInput<T> {
     pub message: GrumpkinPoint<T>,
     pub public_key: GrumpkinPoint<T>,
-    pub salt_le_bits: [T; FIELD_BITS],
+    pub salt_le_bits: [T; 127],
 }
 
 impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
@@ -23,7 +23,7 @@ impl<T: Default + Copy> Default for ElGamalEncryptionInput<T> {
         Self {
             message: GrumpkinPoint::default(),
             public_key: GrumpkinPoint::default(),
-            salt_le_bits: [T::default(); FIELD_BITS],
+            salt_le_bits: [T::default(); 127],
         }
     }
 }
@@ -122,10 +122,7 @@ pub mod off_circuit {
     use halo2_proofs::halo2curves::bn256::Fr;
 
     use super::ElGamalEncryptionInput;
-    use crate::{
-        consts::FIELD_BITS,
-        curve_arithmetic::{self, GrumpkinPoint},
-    };
+    use crate::curve_arithmetic::{self, GrumpkinPoint};
 
     pub fn encrypt(
         ElGamalEncryptionInput {
@@ -148,7 +145,7 @@ pub mod off_circuit {
     pub fn decrypt(
         ciphertext1: GrumpkinPoint<Fr>,
         ciphertext2: GrumpkinPoint<Fr>,
-        private_key_le_bits: [Fr; FIELD_BITS],
+        private_key_le_bits: [Fr; 127],
     ) -> GrumpkinPoint<Fr> {
         let shared_secret = curve_arithmetic::scalar_multiply(ciphertext1, private_key_le_bits);
         ciphertext2 - shared_secret

@@ -2,7 +2,6 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use super::sum::SumChip;
 use crate::{
-    consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
@@ -18,14 +17,14 @@ pub struct ScalarMultiplyChipInput<T> {
     /// point on the Grumpkin curve
     pub input: GrumpkinPoint<T>,
     /// scalar bits in LE representation
-    pub scalar_bits: [T; FIELD_BITS],
+    pub scalar_bits: [T; 127],
 }
 
 impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
     fn default() -> Self {
         Self {
             input: GrumpkinPoint::default(),
-            scalar_bits: [T::default(); FIELD_BITS],
+            scalar_bits: [T::default(); 127],
         }
     }
 }
@@ -115,7 +114,7 @@ impl ScalarMultiplyChip {
             self.multiply_gate.apply_in_new_region(
                 synthesizer,
                 ScalarMultiplyGateInput {
-                    bit: bit.clone(),
+                    dibit: bit.clone(),
                     input,
                     result,
                     next_input,
@@ -153,8 +152,8 @@ mod tests {
     use super::{ScalarMultiplyChip, ScalarMultiplyChipInput};
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
-        config_builder::ConfigsBuilder,
-        consts::FIELD_BITS,
+        config_builder::ConfigsBuilder
+        ,
         curve_arithmetic::{self, field_element_to_le_bits},
         embed::Embed,
         rng,
@@ -219,7 +218,7 @@ mod tests {
         }
     }
 
-    fn input(p: G1, scalar_bits: [Fr; FIELD_BITS]) -> ScalarMultiplyChipInput<Fr> {
+    fn input(p: G1, scalar_bits: [Fr; 127]) -> ScalarMultiplyChipInput<Fr> {
         ScalarMultiplyChipInput {
             input: p.into(),
             scalar_bits: scalar_bits.into(),

@@ -20,7 +20,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ScalarMultiplyGate {
     pub selector: Selector,
-    pub scalar_bits: Column<Advice>,
+    pub scalar_dibits: Column<Advice>,
     pub result: [Column<Advice>; 3],
     pub input: [Column<Advice>; 3],
 }
@@ -31,7 +31,7 @@ pub struct ScalarMultiplyGate {
     embedded = "ScalarMultiplyGateInput<crate::AssignedCell>"
 )]
 pub struct ScalarMultiplyGateInput<T> {
-    pub bit: T,
+    pub dibit: T,
     pub input: GrumpkinPoint<T>,
     pub result: GrumpkinPoint<T>,
     pub next_input: GrumpkinPoint<T>,
@@ -51,24 +51,26 @@ impl Gate for ScalarMultiplyGate {
         [Column<Advice>; 3], // result
     );
 
-    /// The gate operates on an advice column `scalar_bit`, a triplet (representing projective coordinates of a point on an EC) of `input` advice columns
+    /// The gate operates on an advice column `scalar_dibit`, a triplet (representing projective coordinates of a point on an EC) of `input` advice columns
     /// and a triplet of `result` columns.
     ///
     /// It is the kernel of the double-and-add algorithm for point by scalar multiplication on an EC.
     /// Constraints:
     ///
-    /// result[i + 1] = input[i] + result[i] if bit == 1
-    ///               = result[i]            if bit == 0
-    /// input[i + 1] = 2 * input[i]
+    /// result[i + 1] = 3 * input[i] + result[i]  if dibit == 11
+    ///               = 2 * input[i] + result[i]  if dibit == 10
+    ///               =     input[i] + result[i]  if dibit == 01
+    ///               =                result[i]  if dibit == 00
+    /// input[i + 1]  = 4 * input[i]
     fn create_gate_custom(
         cs: &mut ConstraintSystem<Fr>,
-        (scalar_bits, input, result): Self::Advice,
+        (scalar_dibits, input, result): Self::Advice,
     ) -> Self {
-        ensure_unique_columns(&[vec![scalar_bits], input.to_vec(), result.to_vec()].concat());
+        ensure_unique_columns(&[vec![scalar_dibits], input.to_vec(), result.to_vec()].concat());
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
-            let bit = vc.query_advice(scalar_bits, Rotation(ADVICE_OFFSET));
+            let dibit = vc.query_advice(scalar_dibits, Rotation(ADVICE_OFFSET));
 
             let input_x = vc.query_advice(input[0], Rotation(ADVICE_OFFSET));
             let input_y = vc.query_advice(input[1], Rotation(ADVICE_OFFSET));
@@ -86,53 +88,114 @@ impl Gate for ScalarMultiplyGate {
             let next_result_y = vc.query_advice(result[1], Rotation(ADVICE_OFFSET + 1));
             let next_result_z = vc.query_advice(result[2], Rotation(ADVICE_OFFSET + 1));
 
+            // INPUT MULTIPLIES ----------------------------------------------------------------------
             let input = GrumpkinPoint::new(input_x, input_y, input_z);
+            let input_2 = curve_arithmetic::point_double(input.clone());
+            let input_3 = curve_arithmetic::points_add(input.clone(), input_2.clone());
+            let input_4 = curve_arithmetic::points_add(input_2.clone(), input_2.clone());
+            // ----------------------------------------------------------------------------------------
+
+            // RESULT-INPUT VARIANTS ------------------------------------------------------------------
             let result = GrumpkinPoint::new(result_x.clone(), result_y.clone(), result_z.clone());
+            let result_input_1 = curve_arithmetic::points_add(input.clone(), result.clone());
+            let result_input_2 = curve_arithmetic::points_add(input_2.clone(), result.clone());
+            let result_input_3 = curve_arithmetic::points_add(input_3.clone(), result.clone());
+            // ----------------------------------------------------------------------------------------
 
-            let GrumpkinPoint {
-                x: added_x,
-                y: added_y,
-                z: added_z,
-            } = curve_arithmetic::points_add(result, input.clone());
-
-            let GrumpkinPoint {
-                x: doubled_x,
-                y: doubled_y,
-                z: doubled_z,
-            } = curve_arithmetic::point_double(input);
+            // DIBIT CHECKS ---------------------------------------------------------------------------
+            let dibit_is_zero = (Expression::Constant(Fr::from(1)) - dibit.clone())
+                * (Expression::Constant(Fr::from(2)) - dibit.clone())
+                * (Expression::Constant(Fr::from(3)) - dibit.clone());
+            let dibit_is_one = dibit.clone()
+                * (Expression::Constant(Fr::from(2)) - dibit.clone())
+                * (Expression::Constant(Fr::from(3)) - dibit.clone());
+            let dibit_is_two = dibit.clone()
+                * (Expression::Constant(Fr::from(1)) - dibit.clone())
+                * (Expression::Constant(Fr::from(3)) - dibit.clone());
+            let dibit_is_three = dibit.clone()
+                * (Expression::Constant(Fr::from(1)) - dibit.clone())
+                * (Expression::Constant(Fr::from(2)) - dibit.clone());
+            // ----------------------------------------------------------------------------------------
 
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
                     // `bit` is a valid bit
                     (
-                        "bit is a binary value",
-                        bit.clone() * (Expression::Constant(Fr::one()) - bit.clone()),
+                        "bit is a {0, 1, 2, 3} value",
+                        dibit.clone()
+                            * (Expression::Constant(Fr::from(1)) - dibit.clone())
+                            * (Expression::Constant(Fr::from(2)) - dibit.clone())
+                            * (Expression::Constant(Fr::from(3)) - dibit.clone()),
                     ),
-                    // next_result = input + result (if bit == 1) else result
+                    // --------------------------------------------------------------------------------
+                    // if dibit == 0: next_result = result
                     (
-                        "x: next_result = input + result if bit == 1 else result",
-                        next_result_x - bit.clone() * (added_x - result_x.clone()) - result_x,
+                        "dibit=0 [x]",
+                        dibit_is_zero.clone() * (next_result_x.clone() - result_x),
                     ),
                     (
-                        "y: next_result = input + result if bit == 1 else result",
-                        next_result_y - bit.clone() * (added_y - result_y.clone()) - result_y,
+                        "dibit=0 [y]",
+                        dibit_is_zero.clone() * (next_result_y.clone() - result_y),
                     ),
                     (
-                        "z: next_result = input + result if bit == 1 else result",
-                        next_result_z - bit.clone() * (added_z - result_z.clone()) - result_z,
+                        "dibit=0 [z]",
+                        dibit_is_zero.clone() * (next_result_z.clone() - result_z),
                     ),
-                    // next_input = 2 * input
-                    ("x: next_input = 2 * input", next_input_x - doubled_x),
-                    ("y: next_input = 2 * input", next_input_y - doubled_y),
-                    ("z: next_input = 2 * input", next_input_z - doubled_z),
+                    // --------------------------------------------------------------------------------
+                    // if dibit == 1: next_result = result + input
+                    (
+                        "dibit=1 [x]",
+                        dibit_is_one.clone() * (next_result_x.clone() - result_input_1.x),
+                    ),
+                    (
+                        "dibit=1 [y]",
+                        dibit_is_one.clone() * (next_result_y.clone() - result_input_1.y),
+                    ),
+                    (
+                        "dibit=1 [z]",
+                        dibit_is_one.clone() * (next_result_z.clone() - result_input_1.z),
+                    ),
+                    // --------------------------------------------------------------------------------
+                    // if dibit == 2: next_result = result + 2 * input
+                    (
+                        "dibit=2 [x]",
+                        dibit_is_two.clone() * (next_result_x.clone() - result_input_2.x),
+                    ),
+                    (
+                        "dibit=2 [y]",
+                        dibit_is_two.clone() * (next_result_y.clone() - result_input_2.y),
+                    ),
+                    (
+                        "dibit=2 [z]",
+                        dibit_is_two.clone() * (next_result_z.clone() - result_input_2.z),
+                    ),
+                    // --------------------------------------------------------------------------------
+                    // if dibit == 3: next_result = result + 3 * input
+                    (
+                        "dibit=3 [x]",
+                        dibit_is_three.clone() * (next_result_x.clone() - result_input_3.x),
+                    ),
+                    (
+                        "dibit=3 [y]",
+                        dibit_is_three.clone() * (next_result_y.clone() - result_input_3.y),
+                    ),
+                    (
+                        "dibit=3 [z]",
+                        dibit_is_three.clone() * (next_result_z.clone() - result_input_3.z),
+                    ),
+                    // --------------------------------------------------------------------------------
+                    // next_input = 4 * input
+                    ("x: next_input = 4 * input", next_input_x - input_4.x),
+                    ("y: next_input = 4 * input", next_input_y - input_4.y),
+                    ("z: next_input = 4 * input", next_input_z - input_4.z),
                 ],
             )
         });
 
         Self {
             selector,
-            scalar_bits,
+            scalar_dibits,
             input,
             result,
         }
@@ -142,7 +205,7 @@ impl Gate for ScalarMultiplyGate {
         &self,
         synthesizer: &mut impl Synthesizer,
         ScalarMultiplyGateInput {
-            bit,
+            dibit,
             input,
             result,
             next_input,
@@ -155,10 +218,10 @@ impl Gate for ScalarMultiplyGate {
                 self.selector
                     .enable(&mut region, SELECTOR_OFFSET as usize)?;
 
-                bit.copy_advice(
-                    || "bit",
+                dibit.copy_advice(
+                    || "dibit",
                     &mut region,
-                    self.scalar_bits,
+                    self.scalar_dibits,
                     ADVICE_OFFSET as usize,
                 )?;
 

@@ -6,7 +6,6 @@ use crate::{
         el_gamal::{self, ElGamalEncryptionInput},
         sym_key,
     },
-    consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
@@ -27,7 +26,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub trapdoor: T,
     pub initial_deposit: T,
     pub token_address: T,
-    pub encryption_salt: [T; FIELD_BITS],
+    pub encryption_salt: [T; 127],
     pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
 }
 
@@ -39,7 +38,7 @@ impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
             trapdoor: T::default(),
             initial_deposit: T::default(),
             token_address: T::default(),
-            encryption_salt: [T::default(); FIELD_BITS],
+            encryption_salt: [T::default(); 127],
             anonymity_revoker_public_key: GrumpkinPointAffine::default(),
         }
     }
