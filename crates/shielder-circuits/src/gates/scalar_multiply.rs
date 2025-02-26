@@ -1,9 +1,8 @@
 use alloc::vec;
 
-use halo2_proofs::plonk::Expression;
 use halo2_proofs::{
     halo2curves::bn256::Fr,
-    plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Selector},
+    plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
@@ -88,16 +87,13 @@ impl Gate for ScalarMultiplyGate {
             let next_result_z = vc.query_advice(result[2], Rotation(ADVICE_OFFSET + 1));
 
             let input = GrumpkinPoint::new(input_x, input_y, input_z);
-            let result = GrumpkinPoint::new(result_x.clone (), result_y.clone (), result_z.clone ());
+            let result = GrumpkinPoint::new(result_x.clone(), result_y.clone(), result_z.clone());
 
             let GrumpkinPoint {
                 x: added_x,
                 y: added_y,
                 z: added_z,
-            } = curve_arithmetic::points_add(
-                result,
-                input.clone(),
-            );
+            } = curve_arithmetic::points_add(result, input.clone());
 
             let GrumpkinPoint {
                 x: doubled_x,
@@ -109,11 +105,23 @@ impl Gate for ScalarMultiplyGate {
                 vc.query_selector(selector),
                 vec![
                     // `bit` is a valid bit
-                    ("bit is a binary value", bit.clone() * (Expression::Constant(Fr::one()) - bit.clone())),
+                    (
+                        "bit is a binary value",
+                        bit.clone() * (Expression::Constant(Fr::one()) - bit.clone()),
+                    ),
                     // next_result = input + result (if bit == 1) else result
-                    ("x: next_result = input + result if bit == 1 else result", next_result_x - bit.clone () * (added_x - result_x.clone ()) - result_x),
-                    ("y: next_result = input + result if bit == 1 else result", next_result_y - bit.clone () * (added_y - result_y.clone ()) - result_y),
-                    ("z: next_result = input + result if bit == 1 else result", next_result_z - bit.clone () * (added_z - result_z.clone ()) - result_z),
+                    (
+                        "x: next_result = input + result if bit == 1 else result",
+                        next_result_x - bit.clone() * (added_x - result_x.clone()) - result_x,
+                    ),
+                    (
+                        "y: next_result = input + result if bit == 1 else result",
+                        next_result_y - bit.clone() * (added_y - result_y.clone()) - result_y,
+                    ),
+                    (
+                        "z: next_result = input + result if bit == 1 else result",
+                        next_result_z - bit.clone() * (added_z - result_z.clone()) - result_z,
+                    ),
                     // next_input = 2 * input
                     ("x: next_input = 2 * input", next_input_x - doubled_x),
                     ("y: next_input = 2 * input", next_input_y - doubled_y),
@@ -263,5 +271,26 @@ mod tests {
             next_result
         })
         .is_ok());
+    }
+
+    #[test]
+    fn bit_is_invalid() {
+        let rng = rng();
+        let bit = Fr::from_u128(2);
+
+        let input = G1::random(rng.clone()).into();
+        let result = G1::random(rng.clone()).into();
+
+        let next_input = curve_arithmetic::point_double(input);
+        let next_result = curve_arithmetic::points_add(input, result);
+
+        assert!(verify(ScalarMultiplyGateInput {
+            bit,
+            input,
+            result,
+            next_input,
+            next_result
+        })
+        .is_err());
     }
 }
