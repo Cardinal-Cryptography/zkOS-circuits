@@ -249,10 +249,65 @@ impl<'cs> ConfigsBuilder<'cs> {
         check_if_cached!(self, el_gamal_encryption);
         self = self.with_sum();
         self = self.with_points_add_chip();
-        self = self.with_scalar_multiply_chip();
+
+        let cols_so_far = self.advice_pool.capacity();
+        let pool = self.advice_pool_with_capacity(cols_so_far + 20);
+
+        let multiply_gate_advice_1 = (
+            pool.get_column(cols_so_far),
+            [
+                pool.get_column(cols_so_far + 1),
+                pool.get_column(cols_so_far + 2),
+                pool.get_column(cols_so_far + 3),
+            ],
+            [
+                pool.get_column(cols_so_far + 4),
+                pool.get_column(cols_so_far + 5),
+                pool.get_column(cols_so_far + 6),
+            ],
+        );
+        let multiply_gate_advice_2 = (
+            pool.get_column(cols_so_far + 10),
+            [
+                pool.get_column(cols_so_far + 10 + 1),
+                pool.get_column(cols_so_far + 10 + 2),
+                pool.get_column(cols_so_far + 10 + 3),
+            ],
+            [
+                pool.get_column(cols_so_far + 10 + 4),
+                pool.get_column(cols_so_far + 10 + 5),
+                pool.get_column(cols_so_far + 10 + 6),
+            ],
+        );
+        let sum_chip_advice_1 = [
+            pool.get_column(cols_so_far + 7),
+            pool.get_column(cols_so_far + 8),
+            pool.get_column(cols_so_far + 9),
+        ];
+        let sum_chip_advice_2 = [
+            pool.get_column(cols_so_far + 10 + 7),
+            pool.get_column(cols_so_far + 10 + 8),
+            pool.get_column(cols_so_far + 10 + 9),
+        ];
+
+        let multiply_chip_1 = ScalarMultiplyChip {
+            multiply_gate: ScalarMultiplyGate::create_gate_custom(
+                self.system,
+                multiply_gate_advice_1,
+            ),
+            sum_chip: SumChip::new(SumGate::create_gate_custom(self.system, sum_chip_advice_1)),
+        };
+        let multiply_chip_2 = ScalarMultiplyChip {
+            multiply_gate: ScalarMultiplyGate::create_gate_custom(
+                self.system,
+                multiply_gate_advice_2,
+            ),
+            sum_chip: SumChip::new(SumGate::create_gate_custom(self.system, sum_chip_advice_2)),
+        };
 
         self.el_gamal_encryption = Some(ElGamalEncryptionChip {
-            multiply_chip: self.scalar_multiply_chip(),
+            multiply_chip_1,
+            multiply_chip_2,
             add_chip: self.points_add_chip(),
             sum_chip: self.sum_chip(),
         });

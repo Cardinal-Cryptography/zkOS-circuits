@@ -50,6 +50,10 @@ impl<C: ColumnType> ColumnPool<C, ConfigPhase> {
             _phantom: Default::default(),
         }
     }
+
+    pub fn capacity(&self) -> usize {
+        self.pool.len()
+    }
 }
 
 // ===================== PHASE TRANSITIONS ====================================================== //
