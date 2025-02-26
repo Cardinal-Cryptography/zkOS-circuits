@@ -6,7 +6,7 @@ use crate::{
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
         to_affine::ToAffineChip,
-        to_projective::{ToProjectiveChip, ToProjectiveChipInput, ToProjectiveChipOutput},
+        to_projective::ToProjectiveChip,
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     curve_arithmetic::{self, GrumpkinPointAffine},
@@ -97,14 +97,9 @@ impl NewAccountChip {
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
-        let ToProjectiveChipOutput {
-            point_projective: revoker_pkey_projective,
-        } = self.to_projective.to_projective(
-            synthesizer,
-            &ToProjectiveChipInput {
-                point_affine: revoker_pkey.clone(),
-            },
-        )?;
+        let revoker_pkey_projective = self
+            .to_projective
+            .to_projective(synthesizer, &revoker_pkey)?;
 
         let y_value = curve_arithmetic::quadratic_residue_given_x_affine(sym_key.value().copied())
             .map(|elem| elem.sqrt().expect("element has a square root"));
