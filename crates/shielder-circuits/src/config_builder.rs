@@ -4,7 +4,6 @@ use crate::{
     chips::{
         el_gamal::ElGamalEncryptionChip,
         note::{NoteChip, NoteInstance},
-        point_double::PointDoubleChip,
         points_add::PointsAddChip,
         range_check::RangeCheckChip,
         scalar_multiply::ScalarMultiplyChip,
@@ -16,8 +15,8 @@ use crate::{
     consts::merkle_constants::WIDTH,
     gates::{
         is_point_on_curve::IsPointOnCurveGate, is_point_on_curve_affine::IsPointOnCurveAffineGate,
-        membership::MembershipGate, point_double::PointDoubleGate, points_add::PointsAddGate,
-        scalar_multiply::ScalarMultiplyGate, sum::SumGate, to_affine::ToAffineGate, Gate,
+        membership::MembershipGate, points_add::PointsAddGate, scalar_multiply::ScalarMultiplyGate,
+        sum::SumGate, to_affine::ToAffineGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -35,7 +34,6 @@ pub struct ConfigsBuilder<'cs> {
     range_check: Option<RangeCheckChip>,
     sum: Option<SumChip>,
     points_add: Option<PointsAddChip>,
-    point_double: Option<PointDoubleChip>,
     scalar_multiply: Option<ScalarMultiplyChip>,
     to_affine: Option<ToAffineChip>,
     to_projective: Option<ToProjectiveChip>,
@@ -65,7 +63,6 @@ impl<'cs> ConfigsBuilder<'cs> {
             range_check: None,
             sum: None,
             points_add: None,
-            point_double: None,
             scalar_multiply: None,
             to_affine: None,
             to_projective: None,
@@ -159,20 +156,6 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.points_add
             .clone()
             .expect("PointAddChip not configured")
-    }
-
-    pub fn with_point_double_chip(mut self) -> Self {
-        check_if_cached!(self, points_add);
-        self.point_double = Some(PointDoubleChip {
-            gate: PointDoubleGate::create_gate(self.system, &mut self.advice_pool),
-        });
-        self
-    }
-
-    pub fn point_double_chip(&self) -> PointDoubleChip {
-        self.point_double
-            .clone()
-            .expect("PointDoubleChip not configured")
     }
 
     pub fn with_scalar_multiply_chip(mut self) -> Self {
