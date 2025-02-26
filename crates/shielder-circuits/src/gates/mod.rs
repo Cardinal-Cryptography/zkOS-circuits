@@ -15,7 +15,6 @@ use crate::{
 pub mod is_point_on_curve;
 pub mod is_point_on_curve_affine;
 pub mod membership;
-pub mod point_double;
 pub mod points_add;
 pub mod scalar_multiply;
 pub mod sum;
