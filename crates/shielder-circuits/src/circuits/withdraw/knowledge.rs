@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use halo2_proofs::halo2curves::ff::PrimeField;
 use macros::embeddable;
 use rand::Rng;
@@ -15,7 +17,7 @@ use crate::{
     note_hash,
     poseidon::off_circuit::hash,
     version::NOTE_VERSION,
-    withdraw::{circuit::WithdrawCircuit, WithdrawInstance},
+    withdraw::{circuit::WithdrawCircuit, WithdrawFullInstance},
     Field, Fr, Note, ProverKnowledge, PublicInputProvider, Value,
 };
 
@@ -52,7 +54,7 @@ pub struct WithdrawProverKnowledge<T> {
 
 impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
     type Circuit = WithdrawCircuit;
-    type PublicInput = WithdrawInstance;
+    type PublicInput = WithdrawFullInstance;
 
     /// TODO: Refactor this test. Having `MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK` as the only
     /// non-random, non-trivial value is inconsistent with the function name and easy to overlook.
@@ -121,15 +123,15 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
     }
 }
 
-impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
-    fn compute_public_input(&self, instance_id: WithdrawInstance) -> Fr {
+impl PublicInputProvider<WithdrawFullInstance> for WithdrawProverKnowledge<Fr> {
+    fn compute_public_input(&self, instance_id: WithdrawFullInstance) -> Fr {
         let sym_key = sym_key::off_circuit::derive(self.id);
 
         match instance_id {
-            WithdrawInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
-            WithdrawInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
-            WithdrawInstance::HashedOldNullifier => hash(&[self.nullifier_old]),
-            WithdrawInstance::HashedNewNote => note_hash(&Note {
+            WithdrawFullInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
+            WithdrawFullInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
+            WithdrawFullInstance::HashedOldNullifier => hash(&[self.nullifier_old]),
+            WithdrawFullInstance::HashedNewNote => note_hash(&Note {
                 version: NOTE_VERSION,
                 id: self.id,
                 nullifier: self.nullifier_new,
@@ -137,11 +139,35 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
                 account_balance: self.account_old_balance - self.withdrawal_value,
                 token_address: self.token_address,
             }),
-            WithdrawInstance::WithdrawalValue => self.withdrawal_value,
-            WithdrawInstance::Commitment => self.commitment,
-            WithdrawInstance::TokenAddress => self.token_address,
-            WithdrawInstance::MacSalt => self.mac_salt,
-            WithdrawInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
+            WithdrawFullInstance::WithdrawalValue => self.withdrawal_value,
+            WithdrawFullInstance::Commitment => self.commitment,
+            WithdrawFullInstance::TokenAddress => self.token_address,
+            WithdrawFullInstance::MacSalt => self.mac_salt,
+            WithdrawFullInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
         }
+    }
+
+    fn serialize_public_input(&self) -> Vec<Fr> {
+        let inner_hash = hash(&[
+            self.compute_public_input(WithdrawFullInstance::Commitment),
+            self.compute_public_input(WithdrawFullInstance::MacSalt),
+            self.compute_public_input(WithdrawFullInstance::MacCommitment),
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+        ]);
+
+        let outer_hash = hash(&[
+            self.compute_public_input(WithdrawFullInstance::IdHiding),
+            self.compute_public_input(WithdrawFullInstance::MerkleRoot),
+            self.compute_public_input(WithdrawFullInstance::HashedOldNullifier),
+            self.compute_public_input(WithdrawFullInstance::HashedNewNote),
+            self.compute_public_input(WithdrawFullInstance::WithdrawalValue),
+            self.compute_public_input(WithdrawFullInstance::TokenAddress),
+            inner_hash,
+        ]);
+
+        alloc::vec![outer_hash]
     }
 }

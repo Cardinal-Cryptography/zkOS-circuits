@@ -1,5 +1,6 @@
+use alloc::collections::BTreeMap;
+
 use halo2_proofs::plonk::Error;
-use DepositInstance::DepositValue;
 
 use crate::{
     chips::{
@@ -13,7 +14,11 @@ use crate::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
     },
-    deposit::DepositInstance::{self, HashedNewNote, HashedOldNullifier, *},
+    deposit::{
+        DepositFullInstance,
+        DepositFullInstance::*,
+        DepositInstance::{self},
+    },
     instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
@@ -35,6 +40,7 @@ impl DepositChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<DepositFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let old_note = self.note.note_hash(
             synthesizer,
@@ -48,16 +54,19 @@ impl DepositChip {
             },
         )?;
 
-        self.merkle.synthesize(
+        let root = self.merkle.synthesize(
             synthesizer,
             &MerkleProverKnowledge::new(old_note, &knowledge.path),
-        )
+        )?;
+        assert!(instance.insert(MerkleRoot, root).is_none());
+        Ok(())
     }
 
     pub fn check_old_nullifier(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<DepositFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
             synthesizer,
@@ -65,31 +74,30 @@ impl DepositChip {
             [knowledge.nullifier_old.clone()],
         )?;
 
-        self.public_inputs
-            .constrain_cells(synthesizer, [(hashed_old_nullifier, HashedOldNullifier)])
+        assert!(instance
+            .insert(HashedOldNullifier, hashed_old_nullifier)
+            .is_none());
+        Ok(())
     }
 
     pub fn check_id_hiding(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<DepositFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
             .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
-        self.public_inputs
-            .constrain_cells(synthesizer, [(id_hiding, IdHiding)])
+        assert!(instance.insert(IdHiding, id_hiding).is_none());
+        Ok(())
     }
 
     pub fn check_new_note(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<DepositFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
-        self.public_inputs.constrain_cells(
-            synthesizer,
-            [(knowledge.deposit_value.clone(), DepositValue)],
-        )?;
-
         let account_balance_new = self.note.increase_balance(
             synthesizer,
             knowledge.account_old_balance.clone(),
@@ -108,25 +116,36 @@ impl DepositChip {
             },
         )?;
 
-        self.public_inputs
-            .constrain_cells(synthesizer, [(new_note, HashedNewNote)])
+        assert!(instance.insert(HashedNewNote, new_note).is_none());
+        assert!(instance
+            .insert(DepositValue, knowledge.deposit_value.clone())
+            .is_none());
+        assert!(instance
+            .insert(TokenAddress, knowledge.token_address.clone())
+            .is_none());
+        Ok(())
     }
 
     pub fn check_mac(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<DepositFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 
-        MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
+        let mac = MacChip::new(self.poseidon.clone()).mac(
             synthesizer,
             &MacInput {
                 key: sym_key,
                 salt: knowledge.mac_salt.clone(),
             },
         )?;
+
+        assert!(instance.insert(MacCommitment, mac.commitment).is_none());
+        assert!(instance.insert(MacSalt, mac.salt).is_none());
+
         Ok(())
     }
 }

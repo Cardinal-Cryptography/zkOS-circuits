@@ -12,9 +12,7 @@ pub use circuit::MerkleCircuit;
 pub use knowledge::MerkleProverKnowledge;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
-pub enum MerkleInstance {
-    MerkleRoot,
-}
+pub enum MerkleInstance {}
 
 pub fn generate_example_path_with_given_leaf<const TREE_HEIGHT: usize>(
     leaf: Fr,
@@ -31,20 +29,4 @@ pub fn generate_example_path_with_given_leaf<const TREE_HEIGHT: usize>(
     let root = hash(&path[TREE_HEIGHT - 1]);
 
     (root, path)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{vec, vec::Vec};
-
-    use strum::IntoEnumIterator;
-
-    use super::{MerkleInstance, MerkleInstance::*};
-
-    #[test]
-    fn instance_order() {
-        // This is the order used in other parts of the codebase (e.g., in contracts).
-        let expected_order = vec![MerkleRoot];
-        assert_eq!(expected_order, MerkleInstance::iter().collect::<Vec<_>>());
-    }
 }

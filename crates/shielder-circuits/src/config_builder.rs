@@ -2,14 +2,9 @@ use halo2_proofs::plonk::{Advice, ConstraintSystem, Fixed};
 
 use crate::{
     chips::{
-        el_gamal::ElGamalEncryptionChip,
-        note::{NoteChip, NoteInstance},
-        points_add::PointsAddChip,
-        range_check::RangeCheckChip,
-        scalar_multiply::ScalarMultiplyChip,
-        sum::SumChip,
-        to_affine::ToAffineChip,
-        to_projective::ToProjectiveChip,
+        el_gamal::ElGamalEncryptionChip, note::NoteChip, points_add::PointsAddChip,
+        range_check::RangeCheckChip, scalar_multiply::ScalarMultiplyChip, sum::SumChip,
+        to_affine::ToAffineChip, to_projective::ToProjectiveChip,
     },
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::WIDTH,
@@ -18,8 +13,7 @@ use crate::{
         membership::MembershipGate, points_add::PointsAddGate, scalar_multiply::ScalarMultiplyGate,
         sum::SumGate, to_affine::ToAffineGate, Gate,
     },
-    instance_wrapper::InstanceWrapper,
-    merkle::{MerkleChip, MerkleInstance},
+    merkle::MerkleChip,
     poseidon::{circuit::PoseidonChip, spec::PoseidonSpec},
     Fr,
 };
@@ -98,13 +92,12 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.poseidon.clone().expect("Poseidon not configured")
     }
 
-    pub fn with_merkle(mut self, public_inputs: InstanceWrapper<MerkleInstance>) -> Self {
+    pub fn with_merkle(mut self) -> Self {
         check_if_cached!(self, merkle);
         self = self.with_poseidon();
 
         self.merkle = Some(MerkleChip {
             membership_gate: MembershipGate::create_gate(self.system, &mut self.advice_pool),
-            public_inputs,
             poseidon: self.poseidon_chip(),
         });
         self
@@ -228,13 +221,12 @@ impl<'cs> ConfigsBuilder<'cs> {
             .expect("IsPointOnCurveAffineGate is not configured")
     }
 
-    pub fn with_note(mut self, public_inputs: InstanceWrapper<NoteInstance>) -> Self {
+    pub fn with_note(mut self) -> Self {
         check_if_cached!(self, note);
         self = self.with_sum();
         self = self.with_poseidon();
 
         self.note = Some(NoteChip {
-            public_inputs,
             sum: self.sum_chip(),
             poseidon: self.poseidon_chip(),
         });

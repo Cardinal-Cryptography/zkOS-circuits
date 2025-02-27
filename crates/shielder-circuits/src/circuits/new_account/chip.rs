@@ -1,3 +1,5 @@
+use alloc::collections::BTreeMap;
+
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use crate::{
@@ -13,7 +15,11 @@ use crate::{
     embed::Embed,
     gates::{is_point_on_curve_affine::IsPointOnCurveAffineGate, Gate},
     instance_wrapper::InstanceWrapper,
-    new_account::NewAccountInstance::{self, *},
+    new_account::{
+        NewAccountFullInstance,
+        NewAccountFullInstance::*,
+        NewAccountInstance::{self},
+    },
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
@@ -36,6 +42,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<NewAccountFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let note = self.note.note_hash(
             synthesizer,
@@ -48,24 +55,38 @@ impl NewAccountChip {
                 token_address: knowledge.token_address.clone(),
             },
         )?;
+        assert!(instance.insert(HashedNote, note).is_none());
+        assert!(instance
+            .insert(InitialDeposit, knowledge.initial_deposit.clone())
+            .is_none());
+        assert!(instance
+            .insert(TokenAddress, knowledge.token_address.clone())
+            .is_none());
+        assert!(instance
+            .insert(
+                AnonymityRevokerPublicKeyX,
+                knowledge.anonymity_revoker_public_key.x.clone()
+            )
+            .is_none());
+        assert!(instance
+            .insert(
+                AnonymityRevokerPublicKeyY,
+                knowledge.anonymity_revoker_public_key.y.clone()
+            )
+            .is_none());
 
-        self.public_inputs.constrain_cells(
-            synthesizer,
-            [
-                (note, HashedNote),
-                (knowledge.initial_deposit.clone(), InitialDeposit),
-            ],
-        )
+        Ok(())
     }
 
     pub fn constrain_hashed_id(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<NewAccountFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
-        let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
-        self.public_inputs
-            .constrain_cells(synthesizer, [(h_id, HashedId)])
+        let hashed_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
+        assert!(instance.insert(HashedId, hashed_id).is_none());
+        Ok(())
     }
 
     /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve
@@ -89,6 +110,7 @@ impl NewAccountChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<NewAccountFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
@@ -127,16 +149,19 @@ impl NewAccountChip {
         let c1_affine = self.to_affine.to_affine(synthesizer, &c1_projective)?;
         let c2_affine = self.to_affine.to_affine(synthesizer, &c2_projective)?;
 
-        self.public_inputs.constrain_cells(
-            synthesizer,
-            [
-                (revoker_pkey.x, AnonymityRevokerPublicKeyX),
-                (revoker_pkey.y, AnonymityRevokerPublicKeyY),
-                (c1_affine.x, SymKeyEncryptionCiphertext1X),
-                (c1_affine.y, SymKeyEncryptionCiphertext1Y),
-                (c2_affine.x, SymKeyEncryptionCiphertext2X),
-                (c2_affine.y, SymKeyEncryptionCiphertext2Y),
-            ],
-        )
+        assert!(instance
+            .insert(SymKeyEncryptionCiphertext1X, c1_affine.x)
+            .is_none());
+        assert!(instance
+            .insert(SymKeyEncryptionCiphertext1Y, c1_affine.y)
+            .is_none());
+        assert!(instance
+            .insert(SymKeyEncryptionCiphertext2X, c2_affine.x)
+            .is_none());
+        assert!(instance
+            .insert(SymKeyEncryptionCiphertext2Y, c2_affine.y)
+            .is_none());
+
+        Ok(())
     }
 }

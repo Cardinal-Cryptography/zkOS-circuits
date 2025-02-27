@@ -1,3 +1,5 @@
+use alloc::{vec, vec::Vec};
+
 use macros::embeddable;
 use rand::Rng;
 use rand_core::RngCore;
@@ -9,7 +11,7 @@ use crate::{
         NONCE_UPPER_LIMIT,
     },
     curve_arithmetic,
-    deposit::{circuit::DepositCircuit, DepositInstance},
+    deposit::{circuit::DepositCircuit, DepositFullInstance},
     embed::Embed,
     merkle::generate_example_path_with_given_leaf,
     note_hash,
@@ -53,7 +55,7 @@ pub struct DepositProverKnowledge<T> {
 
 impl ProverKnowledge for DepositProverKnowledge<Fr> {
     type Circuit = DepositCircuit;
-    type PublicInput = DepositInstance;
+    type PublicInput = DepositFullInstance;
 
     /// Creates a random example with correct inputs. All values are random except for the deposit
     /// amount and the old account balances.
@@ -106,15 +108,15 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
     }
 }
 
-impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
-    fn compute_public_input(&self, instance_id: DepositInstance) -> Fr {
+impl PublicInputProvider<DepositFullInstance> for DepositProverKnowledge<Fr> {
+    fn compute_public_input(&self, instance_id: DepositFullInstance) -> Fr {
         let sym_key = sym_key::off_circuit::derive(self.id);
 
         match instance_id {
-            DepositInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
-            DepositInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
-            DepositInstance::HashedOldNullifier => hash(&[self.nullifier_old]),
-            DepositInstance::HashedNewNote => note_hash(&Note {
+            DepositFullInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
+            DepositFullInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
+            DepositFullInstance::HashedOldNullifier => hash(&[self.nullifier_old]),
+            DepositFullInstance::HashedNewNote => note_hash(&Note {
                 version: NOTE_VERSION,
                 id: self.id,
                 nullifier: self.nullifier_new,
@@ -122,10 +124,32 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
                 account_balance: self.account_old_balance + self.deposit_value,
                 token_address: self.token_address,
             }),
-            DepositInstance::DepositValue => self.deposit_value,
-            DepositInstance::TokenAddress => self.token_address,
-            DepositInstance::MacSalt => self.mac_salt,
-            DepositInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
+            DepositFullInstance::DepositValue => self.deposit_value,
+            DepositFullInstance::TokenAddress => self.token_address,
+            DepositFullInstance::MacSalt => self.mac_salt,
+            DepositFullInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
         }
+    }
+
+    fn serialize_public_input(&self) -> Vec<Fr> {
+        let inner_hash = hash(&[
+            self.compute_public_input(DepositFullInstance::MacSalt),
+            self.compute_public_input(DepositFullInstance::MacCommitment),
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+            Fr::ZERO,
+        ]);
+        let outer_hash = hash(&[
+            self.compute_public_input(DepositFullInstance::IdHiding),
+            self.compute_public_input(DepositFullInstance::MerkleRoot),
+            self.compute_public_input(DepositFullInstance::HashedOldNullifier),
+            self.compute_public_input(DepositFullInstance::HashedNewNote),
+            self.compute_public_input(DepositFullInstance::DepositValue),
+            self.compute_public_input(DepositFullInstance::TokenAddress),
+            inner_hash,
+        ]);
+        vec![outer_hash]
     }
 }

@@ -8,8 +8,7 @@ use crate::{
     column_pool::{ColumnPool, PreSynthesisPhase},
     config_builder::ConfigsBuilder,
     embed::Embed,
-    instance_wrapper::InstanceWrapper,
-    merkle::{chip::MerkleChip, MerkleInstance},
+    merkle::chip::MerkleChip,
     synthesizer::create_synthesizer,
     Fr, Value,
 };
@@ -26,8 +25,7 @@ impl<const TREE_HEIGHT: usize> Circuit<Fr> for MerkleCircuit<TREE_HEIGHT> {
     }
 
     fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
-        let public_inputs = InstanceWrapper::<MerkleInstance>::new(meta);
-        let configs_builder = ConfigsBuilder::new(meta).with_merkle(public_inputs);
+        let configs_builder = ConfigsBuilder::new(meta).with_merkle();
         (configs_builder.merkle_chip(), configs_builder.finish())
     }
 
@@ -39,7 +37,8 @@ impl<const TREE_HEIGHT: usize> Circuit<Fr> for MerkleCircuit<TREE_HEIGHT> {
         let pool = column_pool.start_synthesis();
         let mut synthesizer = create_synthesizer(&mut layouter, &pool);
         let knowledge = self.0.embed(&mut synthesizer, "MerkleProverKnowledge")?;
-        main_chip.synthesize(&mut synthesizer, &knowledge)
+        main_chip.synthesize(&mut synthesizer, &knowledge)?;
+        Ok(())
     }
 }
 

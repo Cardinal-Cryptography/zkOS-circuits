@@ -65,9 +65,7 @@ impl<const TREE_HEIGHT: usize> ProverKnowledge for MerkleProverKnowledge<TREE_HE
 impl<const TREE_HEIGHT: usize> PublicInputProvider<MerkleInstance>
     for MerkleProverKnowledge<TREE_HEIGHT, Fr>
 {
-    fn compute_public_input(&self, instance_id: MerkleInstance) -> Fr {
-        match instance_id {
-            MerkleInstance::MerkleRoot => hash(&self.path[TREE_HEIGHT - 1]),
-        }
+    fn compute_public_input(&self, _instance_id: MerkleInstance) -> Fr {
+        Fr::ZERO
     }
 }

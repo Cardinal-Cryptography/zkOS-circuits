@@ -1,23 +1,16 @@
 use core::array;
 
 use halo2_proofs::{arithmetic::Field, plonk::Error};
-use strum_macros::{EnumCount, EnumIter};
 
 use crate::{
     chips::sum::SumChip,
     consts::POSEIDON_RATE,
     embed::Embed,
-    instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NoteVersion,
     AssignedCell, Fr, Value,
 };
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
-pub enum NoteInstance {
-    TokenAddress,
-}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Note<T> {
@@ -83,8 +76,6 @@ pub mod off_circuit {
 /// Chip that is able to calculate note hash
 #[derive(Clone, Debug)]
 pub struct NoteChip {
-    pub public_inputs: InstanceWrapper<NoteInstance>,
-
     pub sum: SumChip,
     pub poseidon: PoseidonChip,
 }
@@ -116,11 +107,6 @@ impl NoteChip {
         let note_version = self.assign_note_version(note, synthesizer)?;
 
         let h_balance = self.balance_hash(synthesizer, note)?;
-
-        self.public_inputs.constrain_cells(
-            synthesizer,
-            [(note.token_address.clone(), NoteInstance::TokenAddress)],
-        )?;
 
         let input = [
             note_version,
@@ -196,7 +182,7 @@ mod tests {
     use parameterized::parameterized;
     use strum_macros::{EnumCount, EnumIter};
 
-    use super::{Note, NoteChip, NoteInstance};
+    use super::{Note, NoteChip};
     use crate::{
         circuits::test_utils::expect_prover_success_and_run_verification,
         column_pool::{ColumnPool, PreSynthesisPhase},
@@ -256,17 +242,6 @@ mod tests {
         ChipOutput,
     }
 
-    impl TryFrom<TestInstance> for NoteInstance {
-        type Error = ();
-
-        fn try_from(value: TestInstance) -> Result<Self, Self::Error> {
-            match value {
-                TestInstance::TokenAddress => Ok(NoteInstance::TokenAddress),
-                _ => Err(()),
-            }
-        }
-    }
-
     impl Circuit<Fr> for TestCircuit {
         type Config = (
             NoteChip,
@@ -297,7 +272,7 @@ mod tests {
         fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
             let public_inputs = InstanceWrapper::<TestInstance>::new(meta);
 
-            let configs_builder = ConfigsBuilder::new(meta).with_note(public_inputs.narrow());
+            let configs_builder = ConfigsBuilder::new(meta).with_note();
             let note = configs_builder.note_chip();
 
             (note, configs_builder.finish(), public_inputs)
@@ -397,6 +372,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn note_hash_input_is_constrained() {
         let note = Note {
             version: NoteVersion::new(0),

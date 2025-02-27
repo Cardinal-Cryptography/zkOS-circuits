@@ -1,3 +1,5 @@
+use alloc::collections::BTreeMap;
+
 use halo2_proofs::plonk::Error;
 
 use crate::{
@@ -18,7 +20,11 @@ use crate::{
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     version::NOTE_VERSION,
-    withdraw::WithdrawInstance::{self, *},
+    withdraw::{
+        WithdrawFullInstance,
+        WithdrawFullInstance::{HashedOldNullifier, MerkleRoot},
+        WithdrawInstance::{self},
+    },
     AssignedCell,
 };
 
@@ -37,6 +43,7 @@ impl WithdrawChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<WithdrawFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let old_note = self.note.note_hash(
             synthesizer,
@@ -50,16 +57,20 @@ impl WithdrawChip {
             },
         )?;
 
-        self.merkle.synthesize(
+        let root = self.merkle.synthesize(
             synthesizer,
             &MerkleProverKnowledge::new(old_note, &knowledge.path),
-        )
+        )?;
+        assert!(instance.insert(MerkleRoot, root).is_none());
+
+        Ok(())
     }
 
     pub fn check_old_nullifier(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<WithdrawFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let hashed_old_nullifier = hash(
             synthesizer,
@@ -67,8 +78,10 @@ impl WithdrawChip {
             [knowledge.nullifier_old.clone()],
         )?;
 
-        self.public_inputs
-            .constrain_cells(synthesizer, [(hashed_old_nullifier, HashedOldNullifier)])
+        assert!(instance
+            .insert(HashedOldNullifier, hashed_old_nullifier)
+            .is_none());
+        Ok(())
     }
 
     pub fn check_id_hiding(
@@ -76,17 +89,21 @@ impl WithdrawChip {
         synthesizer: &mut impl Synthesizer,
 
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<WithdrawFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
             .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
-        self.public_inputs
-            .constrain_cells(synthesizer, [(id_hiding, IdHiding)])
+        assert!(instance
+            .insert(WithdrawFullInstance::IdHiding, id_hiding)
+            .is_none());
+        Ok(())
     }
 
     pub fn check_new_note(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<WithdrawFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let new_balance = self.note.decrease_balance(
             synthesizer,
@@ -96,11 +113,6 @@ impl WithdrawChip {
 
         self.range_check
             .constrain_value::<RANGE_PROOF_NUM_WORDS>(synthesizer, new_balance.clone())?;
-
-        self.public_inputs.constrain_cells(
-            synthesizer,
-            [(knowledge.withdrawal_value.clone(), WithdrawalValue)],
-        )?;
 
         let new_note = self.note.note_hash(
             synthesizer,
@@ -114,34 +126,63 @@ impl WithdrawChip {
             },
         )?;
 
-        self.public_inputs
-            .constrain_cells(synthesizer, [(new_note, HashedNewNote)])
+        assert!(instance
+            .insert(WithdrawFullInstance::HashedNewNote, new_note)
+            .is_none());
+        assert!(instance
+            .insert(
+                WithdrawFullInstance::TokenAddress,
+                knowledge.token_address.clone()
+            )
+            .is_none());
+        assert!(instance
+            .insert(
+                WithdrawFullInstance::WithdrawalValue,
+                knowledge.withdrawal_value.clone()
+            )
+            .is_none());
+
+        Ok(())
     }
 
     pub fn check_commitment(
         &self,
-        synthesizer: &mut impl Synthesizer,
+        _synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<WithdrawFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
-        self.public_inputs
-            .constrain_cells(synthesizer, [(knowledge.commitment.clone(), Commitment)])
+        assert!(instance
+            .insert(
+                WithdrawFullInstance::Commitment,
+                knowledge.commitment.clone()
+            )
+            .is_none());
+        Ok(())
     }
 
     pub fn check_mac(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
+        instance: &mut BTreeMap<WithdrawFullInstance, AssignedCell>,
     ) -> Result<(), Error> {
         let sym_key =
             SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
 
-        MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
+        let mac = MacChip::new(self.poseidon.clone()).mac(
             synthesizer,
             &MacInput {
                 key: sym_key,
                 salt: knowledge.mac_salt.clone(),
             },
         )?;
+
+        assert!(instance
+            .insert(WithdrawFullInstance::MacCommitment, mac.commitment)
+            .is_none());
+        assert!(instance
+            .insert(WithdrawFullInstance::MacSalt, knowledge.mac_salt.clone())
+            .is_none());
 
         Ok(())
     }
