@@ -37,7 +37,7 @@ pub type CommitmentScheme = KZGCommitmentScheme<Bn256>;
 pub type Prover<'a> = ProverSHPLONK<'a, Bn256>;
 pub type Verifier<'a> = VerifierSHPLONK<'a, Bn256>;
 
-pub const COMPRESS_SELECTORS: bool = false;
+pub const COMPRESS_SELECTORS: bool = true;
 
 // Generates setup parameters with given `k`. This restricts the circuit to at most `2^k` rows.
 pub fn generate_setup_params<R: RngCore>(k: u32, rng: &mut R) -> Params {
