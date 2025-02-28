@@ -1,6 +1,7 @@
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use super::sum::SumChip;
+use crate::gates::scalar_multiply::TransitionPair;
 use crate::{
     consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPoint},
@@ -84,7 +85,7 @@ impl ScalarMultiplyChip {
         &self,
         synthesizer: &mut impl Synthesizer,
         inputs: &ScalarMultiplyChipInput<AssignedCell>,
-    ) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+    ) -> Result<(GrumpkinPoint<AssignedCell>, GrumpkinPoint<AssignedCell>), Error> {
         let ScalarMultiplyChipInput { scalar_bits, input1, input2 } = inputs;
 
         let mut input1_value: GrumpkinPoint<Value> = input1.clone().into();
@@ -96,11 +97,16 @@ impl ScalarMultiplyChip {
         let mut last_result2 = None;
 
         for (i, bit) in scalar_bits.iter().enumerate() {
-            let input = input_value.embed(synthesizer, "input")?;
-            let result = result_value.embed(synthesizer, "result")?;
+            let input1 = input1_value.embed(synthesizer, "input1")?;
+            let input2 = input2_value.embed(synthesizer, "input2")?;
+            let result1 = result1_value.embed(synthesizer, "result1")?;
+            let result2 = result2_value.embed(synthesizer, "result2")?;
+
             if i.eq(&0) {
-                self.constrain_point_at_infinity(synthesizer, result.clone())?;
-                self.constrain_points_equality(synthesizer, input.clone(), inputs.input.clone())?;
+                self.constrain_point_at_infinity(synthesizer, result1.clone())?;
+                self.constrain_point_at_infinity(synthesizer, result2.clone())?;
+                self.constrain_points_equality(synthesizer, input1.clone(), inputs.input1.clone())?;
+                self.constrain_points_equality(synthesizer, input2.clone(), inputs.input2.clone())?;
             }
 
             let mut is_one = false;
@@ -108,36 +114,56 @@ impl ScalarMultiplyChip {
                 is_one = Fr::ONE == *f;
             });
 
-            let mut next_result_value = result_value;
+            let mut next_result1_value = result1_value;
+            let mut next_result2_value = result2_value;
             if is_one {
-                next_result_value = curve_arithmetic::points_add(result_value, input_value);
+                next_result1_value = curve_arithmetic::points_add(result1_value, input1_value);
+                next_result2_value = curve_arithmetic::points_add(result2_value, input2_value);
             }
 
-            let next_result = next_result_value.embed(synthesizer, "next_result")?;
+            let next_result1 = next_result1_value.embed(synthesizer, "next_result")?;
+            let next_result2 = next_result2_value.embed(synthesizer, "next_result")?;
 
-            let next_input_value = curve_arithmetic::point_double(input_value);
-            let next_input = next_input_value.embed(synthesizer, "next_input")?;
+            let next_input1_value = curve_arithmetic::point_double(input1_value);
+            let next_input2_value = curve_arithmetic::point_double(input2_value);
+            let next_input1 = next_input1_value.embed(synthesizer, "next_input1")?;
+            let next_input2 = next_input2_value.embed(synthesizer, "next_input2")?;
 
             self.multiply_gate.apply_in_new_region(
                 synthesizer,
                 ScalarMultiplyGateInput {
                     bit: bit.clone(),
-                    input,
-                    result,
-                    next_input,
-                    next_result: next_result.clone(),
+                    input1: TransitionPair {
+                        current: input1,
+                        next: next_input1,
+                    },
+                    input2: TransitionPair {
+                        current: input2,
+                        next: next_input2,
+                    },
+                    result1: TransitionPair {
+                        current: result1,
+                        next: next_result1.clone(),
+                    },
+                    result2: TransitionPair {
+                        current: result2,
+                        next: next_result2.clone(),
+                    },
                 },
             )?;
 
-            input_value = next_input_value;
-            result_value = next_result_value;
+            input1_value = next_input1_value;
+            input2_value = next_input2_value;
+            result1_value = next_result1_value;
+            result2_value = next_result2_value;
 
             if i.eq(&(scalar_bits.len() - 1)) {
-                last_result = Some(next_result);
+                last_result1 = Some(next_result1);
+                last_result2 = Some(next_result2);
             }
         }
 
-        Ok(last_result.expect("last result is returned"))
+        Ok((last_result1.expect("last result is returned"), last_result2.expect("last result is returned")))
     }
 }
 
@@ -241,14 +267,14 @@ mod tests {
             &ScalarMultiplyCircuit(input),
             vec![vec![expected.x, expected.y, expected.z]],
         )
-        .expect("Mock prover should run successfully")
-        .verify()
-        .map_err(|errors| {
-            errors
-                .into_iter()
-                .map(|failure| failure.to_string())
-                .collect()
-        })
+            .expect("Mock prover should run successfully")
+            .verify()
+            .map_err(|errors| {
+                errors
+                    .into_iter()
+                    .map(|failure| failure.to_string())
+                    .collect()
+            })
     }
 
     #[test]

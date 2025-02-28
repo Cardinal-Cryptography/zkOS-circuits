@@ -99,7 +99,7 @@ impl Gate for ScalarMultiplyGate {
         cs.create_gate(GATE_NAME, |vc| {
             let bit = vc.query_advice(advice.bit, Rotation(BIT_OFFSET));
 
-            let read_point = |cols, offset| {
+            let mut read_point = |cols: [Column<Advice>; 3], offset| {
                 GrumpkinPoint::new(
                     vc.query_advice(cols[0], Rotation(offset)),
                     vc.query_advice(cols[1], Rotation(offset)),
@@ -119,8 +119,8 @@ impl Gate for ScalarMultiplyGate {
             let result2 = read_point(advice.result2, CURRENT_VALUE_OFFSET);
             let next_result2 = read_point(advice.result2, NEXT_VALUE_OFFSET);
 
-            let input_plus_result1 = curve_arithmetic::points_add(input1.clone(), result1);
-            let input_plus_result2 = curve_arithmetic::points_add(input2.clone(), result2);
+            let input_plus_result1 = curve_arithmetic::points_add(input1.clone(), result1.clone());
+            let input_plus_result2 = curve_arithmetic::points_add(input2.clone(), result2.clone());
 
             let doubled_input1 = curve_arithmetic::point_double(input1);
             let doubled_input2 = curve_arithmetic::point_double(input2);
@@ -244,7 +244,7 @@ impl Gate for ScalarMultiplyGate {
                     )?;
                     copy_grumpkin_advices(
                         &cells.next,
-                        alloc::format!("{ann} next"),
+                        &alloc::format!("{ann} next"),
                         &mut region,
                         cols,
                         NEXT_VALUE_OFFSET as usize,
@@ -265,7 +265,7 @@ impl Gate for ScalarMultiplyGate {
             bit: pool.get_column(0),
             input1: [pool.get_column(1), pool.get_column(2), pool.get_column(3)],
             input2: [pool.get_column(4), pool.get_column(5), pool.get_column(6)],
-            resul1: [pool.get_column(7), pool.get_column(8), pool.get_column(9)],
+            result1: [pool.get_column(7), pool.get_column(8), pool.get_column(9)],
             result2: [
                 pool.get_column(10),
                 pool.get_column(11),

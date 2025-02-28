@@ -90,18 +90,11 @@ impl ElGamalEncryptionChip {
 
         self.constrain_generator(synthesizer, generator.clone())?;
 
-        let shared_secret = self.multiply_chip.scalar_multiply(
+        let (shared_secret, ciphertext1) = self.multiply_chip.scalar_multiply(
             synthesizer,
             &ScalarMultiplyChipInput {
-                input: public_key.clone(),
-                scalar_bits: salt_le_bits.clone(),
-            },
-        )?;
-
-        let ciphertext1 = self.multiply_chip.scalar_multiply(
-            synthesizer,
-            &ScalarMultiplyChipInput {
-                input: generator,
+                input1: public_key.clone(),
+                input2: generator,
                 scalar_bits: salt_le_bits.clone(),
             },
         )?;
