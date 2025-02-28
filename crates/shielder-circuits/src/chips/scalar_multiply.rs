@@ -1,13 +1,12 @@
 use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 
 use super::sum::SumChip;
-use crate::gates::scalar_multiply::TransitionPair;
 use crate::{
     consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{
-        scalar_multiply::{ScalarMultiplyGate, ScalarMultiplyGateInput},
+        scalar_multiply::{ScalarMultiplyGate, ScalarMultiplyGateInput, TransitionPair},
         Gate,
     },
     synthesizer::Synthesizer,
@@ -86,7 +85,11 @@ impl ScalarMultiplyChip {
         synthesizer: &mut impl Synthesizer,
         inputs: &ScalarMultiplyChipInput<AssignedCell>,
     ) -> Result<(GrumpkinPoint<AssignedCell>, GrumpkinPoint<AssignedCell>), Error> {
-        let ScalarMultiplyChipInput { scalar_bits, input1, input2 } = inputs;
+        let ScalarMultiplyChipInput {
+            scalar_bits,
+            input1,
+            input2,
+        } = inputs;
 
         let mut input1_value: GrumpkinPoint<Value> = input1.clone().into();
         let mut input2_value: GrumpkinPoint<Value> = input2.clone().into();
@@ -163,7 +166,10 @@ impl ScalarMultiplyChip {
             }
         }
 
-        Ok((last_result1.expect("last result is returned"), last_result2.expect("last result is returned")))
+        Ok((
+            last_result1.expect("last result is returned"),
+            last_result2.expect("last result is returned"),
+        ))
     }
 }
 
@@ -267,14 +273,14 @@ mod tests {
             &ScalarMultiplyCircuit(input),
             vec![vec![expected.x, expected.y, expected.z]],
         )
-            .expect("Mock prover should run successfully")
-            .verify()
-            .map_err(|errors| {
-                errors
-                    .into_iter()
-                    .map(|failure| failure.to_string())
-                    .collect()
-            })
+        .expect("Mock prover should run successfully")
+        .verify()
+        .map_err(|errors| {
+            errors
+                .into_iter()
+                .map(|failure| failure.to_string())
+                .collect()
+        })
     }
 
     #[test]
