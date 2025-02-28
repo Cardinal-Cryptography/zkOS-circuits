@@ -20,9 +20,21 @@ use crate::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ScalarMultiplyGate {
     pub selector: Selector,
-    pub scalar_bits: Column<Advice>,
-    pub result: [Column<Advice>; 3],
-    pub input: [Column<Advice>; 3],
+    pub bit: Column<Advice>,
+    pub input1: [Column<Advice>; 3],
+    pub input2: [Column<Advice>; 3],
+    pub result1: [Column<Advice>; 3],
+    pub result2: [Column<Advice>; 3],
+}
+
+#[derive(Clone, Debug, Default)]
+#[embeddable(
+    receiver = "TransitionPair<Fr>",
+    embedded = "TransitionPair<crate::AssignedCell>"
+)]
+pub struct TransitionPair<T> {
+    pub current: GrumpkinPoint<T>,
+    pub next: GrumpkinPoint<T>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -32,109 +44,169 @@ pub struct ScalarMultiplyGate {
 )]
 pub struct ScalarMultiplyGateInput<T> {
     pub bit: T,
-    pub input: GrumpkinPoint<T>,
-    pub result: GrumpkinPoint<T>,
-    pub next_input: GrumpkinPoint<T>,
-    pub next_result: GrumpkinPoint<T>,
+
+    pub input1: TransitionPair<T>,
+    pub input2: TransitionPair<T>,
+
+    pub result1: TransitionPair<T>,
+    pub result2: TransitionPair<T>,
 }
 
 const SELECTOR_OFFSET: i32 = 0;
-const ADVICE_OFFSET: i32 = 0;
-const GATE_NAME: &str = "Scalar multiply gate";
+const BIT_OFFSET: i32 = 0;
+const CURRENT_VALUE_OFFSET: i32 = 0;
+const NEXT_VALUE_OFFSET: i32 = 1;
+const GATE_NAME: &str = "Tandem scalar multiply gate";
+
+pub struct ScalarMultiplyGateAdvice {
+    bit: Column<Advice>,
+    input1: [Column<Advice>; 3],
+    input2: [Column<Advice>; 3],
+    result1: [Column<Advice>; 3],
+    result2: [Column<Advice>; 3],
+}
 
 impl Gate for ScalarMultiplyGate {
     type Input = ScalarMultiplyGateInput<AssignedCell>;
 
-    type Advice = (
-        Column<Advice>,      // scalar_bit
-        [Column<Advice>; 3], // input
-        [Column<Advice>; 3], // result
-    );
+    type Advice = ScalarMultiplyGateAdvice;
 
-    /// The gate operates on an advice column `scalar_bit`, a triplet (representing projective coordinates of a point on an EC) of `input` advice columns
-    /// and a triplet of `result` columns.
+    /// The gate operates on an advice column `scalar_bit`, a triplet (representing projective coordinates of a point on an EC)
+    /// of two `input` advice columns  and a triplet of corresponing `result` columns.
     ///
     /// It is the kernel of the double-and-add algorithm for point by scalar multiplication on an EC.
-    /// Constraints:
     ///
-    /// result[i + 1] = input[i] + result[i] if bit == 1
-    ///               = result[i]            if bit == 0
-    /// input[i + 1] = 2 * input[i]
-    fn create_gate_custom(
-        cs: &mut ConstraintSystem<Fr>,
-        (scalar_bits, input, result): Self::Advice,
-    ) -> Self {
-        ensure_unique_columns(&[vec![scalar_bits], input.to_vec(), result.to_vec()].concat());
+    /// Constraints (for j in {1, 2}):
+    ///
+    ///   - result_j[i + 1] = result_j[i] + input_j[i]  if bit == 1
+    ///                     = result_j[i]               if bit == 0
+    ///   - input_j[i + 1]  = 2 * input_j[i]
+    ///   - bit is a valid binary value
+    fn create_gate_custom(cs: &mut ConstraintSystem<Fr>, advice: Self::Advice) -> Self {
+        ensure_unique_columns(
+            &[
+                vec![advice.bit],
+                advice.input1.to_vec(),
+                advice.input2.to_vec(),
+                advice.result1.to_vec(),
+                advice.result2.to_vec(),
+            ]
+            .concat(),
+        );
+
         let selector = cs.selector();
 
         cs.create_gate(GATE_NAME, |vc| {
-            let bit = vc.query_advice(scalar_bits, Rotation(ADVICE_OFFSET));
+            let bit = vc.query_advice(advice.bit, Rotation(BIT_OFFSET));
 
-            let input_x = vc.query_advice(input[0], Rotation(ADVICE_OFFSET));
-            let input_y = vc.query_advice(input[1], Rotation(ADVICE_OFFSET));
-            let input_z = vc.query_advice(input[2], Rotation(ADVICE_OFFSET));
+            let read_point = |cols, offset| {
+                GrumpkinPoint::new(
+                    vc.query_advice(cols[0], Rotation(offset)),
+                    vc.query_advice(cols[1], Rotation(offset)),
+                    vc.query_advice(cols[2], Rotation(offset)),
+                )
+            };
 
-            let result_x = vc.query_advice(result[0], Rotation(ADVICE_OFFSET));
-            let result_y = vc.query_advice(result[1], Rotation(ADVICE_OFFSET));
-            let result_z = vc.query_advice(result[2], Rotation(ADVICE_OFFSET));
+            let input1 = read_point(advice.input1, CURRENT_VALUE_OFFSET);
+            let next_input1 = read_point(advice.input1, NEXT_VALUE_OFFSET);
 
-            let next_input_x = vc.query_advice(input[0], Rotation(ADVICE_OFFSET + 1));
-            let next_input_y = vc.query_advice(input[1], Rotation(ADVICE_OFFSET + 1));
-            let next_input_z = vc.query_advice(input[2], Rotation(ADVICE_OFFSET + 1));
+            let input2 = read_point(advice.input2, CURRENT_VALUE_OFFSET);
+            let next_input2 = read_point(advice.input1, NEXT_VALUE_OFFSET);
 
-            let next_result_x = vc.query_advice(result[0], Rotation(ADVICE_OFFSET + 1));
-            let next_result_y = vc.query_advice(result[1], Rotation(ADVICE_OFFSET + 1));
-            let next_result_z = vc.query_advice(result[2], Rotation(ADVICE_OFFSET + 1));
+            let result1 = read_point(advice.result1, CURRENT_VALUE_OFFSET);
+            let next_result1 = read_point(advice.result1, NEXT_VALUE_OFFSET);
 
-            let input = GrumpkinPoint::new(input_x, input_y, input_z);
-            let result = GrumpkinPoint::new(result_x.clone(), result_y.clone(), result_z.clone());
+            let result2 = read_point(advice.result2, CURRENT_VALUE_OFFSET);
+            let next_result2 = read_point(advice.result2, NEXT_VALUE_OFFSET);
 
-            let GrumpkinPoint {
-                x: added_x,
-                y: added_y,
-                z: added_z,
-            } = curve_arithmetic::points_add(result, input.clone());
+            let input_plus_result1 = curve_arithmetic::points_add(input1.clone(), result1);
+            let input_plus_result2 = curve_arithmetic::points_add(input2.clone(), result2);
 
-            let GrumpkinPoint {
-                x: doubled_x,
-                y: doubled_y,
-                z: doubled_z,
-            } = curve_arithmetic::point_double(input);
+            let doubled_input1 = curve_arithmetic::point_double(input1);
+            let doubled_input2 = curve_arithmetic::point_double(input2);
 
             Constraints::with_selector(
                 vc.query_selector(selector),
                 vec![
-                    // `bit` is a valid bit
                     (
-                        "bit is a binary value",
+                        "bit is a valid binary value",
                         bit.clone() * (Expression::Constant(Fr::one()) - bit.clone()),
                     ),
                     // next_result = input + result (if bit == 1) else result
                     (
-                        "x: next_result = input + result if bit == 1 else result",
-                        next_result_x - bit.clone() * (added_x - result_x.clone()) - result_x,
+                        "next_result = input + result if bit == 1 else result (1st set, x coord)",
+                        next_result1.x
+                            - bit.clone() * (input_plus_result1.x - result1.x.clone())
+                            - result1.x,
                     ),
                     (
-                        "y: next_result = input + result if bit == 1 else result",
-                        next_result_y - bit.clone() * (added_y - result_y.clone()) - result_y,
+                        "next_result = input + result if bit == 1 else result (1st set, y coord)",
+                        next_result1.y
+                            - bit.clone() * (input_plus_result1.y - result1.y.clone())
+                            - result1.y,
                     ),
                     (
-                        "z: next_result = input + result if bit == 1 else result",
-                        next_result_z - bit.clone() * (added_z - result_z.clone()) - result_z,
+                        "next_result = input + result if bit == 1 else result (1st set, z coord)",
+                        next_result1.z
+                            - bit.clone() * (input_plus_result1.z - result1.z.clone())
+                            - result1.z,
+                    ),
+                    // second set
+                    (
+                        "next_result = input + result if bit == 1 else result (2nd set, x coord)",
+                        next_result2.x
+                            - bit.clone() * (input_plus_result2.x - result2.x.clone())
+                            - result2.x,
+                    ),
+                    (
+                        "next_result = input + result if bit == 1 else result (2nd set, y coord)",
+                        next_result2.y
+                            - bit.clone() * (input_plus_result2.y - result2.y.clone())
+                            - result2.y,
+                    ),
+                    (
+                        "next_result = input + result if bit == 1 else result (2nd set, z coord)",
+                        next_result2.z
+                            - bit.clone() * (input_plus_result2.z - result2.z.clone())
+                            - result2.z,
                     ),
                     // next_input = 2 * input
-                    ("x: next_input = 2 * input", next_input_x - doubled_x),
-                    ("y: next_input = 2 * input", next_input_y - doubled_y),
-                    ("z: next_input = 2 * input", next_input_z - doubled_z),
+                    (
+                        "next_input = 2 * input (1st set, x coord)",
+                        next_input1.x - doubled_input1.x,
+                    ),
+                    (
+                        "next_input = 2 * input (1st set, y coord)",
+                        next_input1.y - doubled_input1.y,
+                    ),
+                    (
+                        "next_input = 2 * input (1st set, z coord)",
+                        next_input1.z - doubled_input1.z,
+                    ),
+                    // second set
+                    (
+                        "next_input = 2 * input (2nd set, x coord)",
+                        next_input2.x - doubled_input2.x,
+                    ),
+                    (
+                        "next_input = 2 * input (2nd set, y coord)",
+                        next_input2.y - doubled_input2.y,
+                    ),
+                    (
+                        "next_input = 2 * input (2nd set, z coord)",
+                        next_input2.z - doubled_input2.z,
+                    ),
                 ],
             )
         });
 
         Self {
             selector,
-            scalar_bits,
-            input,
-            result,
+            bit: advice.bit,
+            input1: advice.input1,
+            input2: advice.input2,
+            result1: advice.result1,
+            result2: advice.result2,
         }
     }
 
@@ -143,10 +215,10 @@ impl Gate for ScalarMultiplyGate {
         synthesizer: &mut impl Synthesizer,
         ScalarMultiplyGateInput {
             bit,
-            input,
-            result,
-            next_input,
-            next_result,
+            input1,
+            input2,
+            result1,
+            result2,
         }: Self::Input,
     ) -> Result<(), Error> {
         synthesizer.assign_region(
@@ -155,44 +227,29 @@ impl Gate for ScalarMultiplyGate {
                 self.selector
                     .enable(&mut region, SELECTOR_OFFSET as usize)?;
 
-                bit.copy_advice(
-                    || "bit",
-                    &mut region,
-                    self.scalar_bits,
-                    ADVICE_OFFSET as usize,
-                )?;
+                bit.copy_advice(|| "bit", &mut region, self.bit, BIT_OFFSET as usize)?;
 
-                copy_grumpkin_advices(
-                    &input,
-                    "input",
-                    &mut region,
-                    self.input,
-                    ADVICE_OFFSET as usize,
-                )?;
-
-                copy_grumpkin_advices(
-                    &result,
-                    "result",
-                    &mut region,
-                    self.result,
-                    ADVICE_OFFSET as usize,
-                )?;
-
-                copy_grumpkin_advices(
-                    &next_input,
-                    "next_input",
-                    &mut region,
-                    self.input,
-                    ADVICE_OFFSET as usize + 1,
-                )?;
-
-                copy_grumpkin_advices(
-                    &next_result,
-                    "next_result",
-                    &mut region,
-                    self.result,
-                    ADVICE_OFFSET as usize + 1,
-                )?;
+                for (cells, ann, cols) in [
+                    (&input1, "input1", self.input1),
+                    (&input2, "input2", self.input2),
+                    (&result1, "result1", self.result1),
+                    (&result2, "result2", self.result2),
+                ] {
+                    copy_grumpkin_advices(
+                        &cells.current,
+                        ann,
+                        &mut region,
+                        cols,
+                        CURRENT_VALUE_OFFSET as usize,
+                    )?;
+                    copy_grumpkin_advices(
+                        &cells.next,
+                        alloc::format!("{ann} next"),
+                        &mut region,
+                        cols,
+                        NEXT_VALUE_OFFSET as usize,
+                    )?;
+                }
 
                 Ok(())
             },
@@ -203,12 +260,18 @@ impl Gate for ScalarMultiplyGate {
         pool: &mut ColumnPool<Advice, ConfigPhase>,
         cs: &mut ConstraintSystem<Fr>,
     ) -> Self::Advice {
-        pool.ensure_capacity(cs, 7);
-        (
-            pool.get_column(0),                                           // scalar_bits
-            [pool.get_column(1), pool.get_column(2), pool.get_column(3)], // input
-            [pool.get_column(4), pool.get_column(5), pool.get_column(6)], // result
-        )
+        pool.ensure_capacity(cs, 13);
+        ScalarMultiplyGateAdvice {
+            bit: pool.get_column(0),
+            input1: [pool.get_column(1), pool.get_column(2), pool.get_column(3)],
+            input2: [pool.get_column(4), pool.get_column(5), pool.get_column(6)],
+            resul1: [pool.get_column(7), pool.get_column(8), pool.get_column(9)],
+            result2: [
+                pool.get_column(10),
+                pool.get_column(11),
+                pool.get_column(12),
+            ],
+        }
     }
 }
 
