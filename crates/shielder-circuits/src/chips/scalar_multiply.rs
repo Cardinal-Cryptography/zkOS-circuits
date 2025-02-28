@@ -15,8 +15,9 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct ScalarMultiplyChipInput<T> {
-    /// point on the Grumpkin curve
-    pub input: GrumpkinPoint<T>,
+    /// points on the Grumpkin curve to be multiplied
+    pub input1: GrumpkinPoint<T>,
+    pub input2: GrumpkinPoint<T>,
     /// scalar bits in LE representation
     pub scalar_bits: [T; FIELD_BITS],
 }
@@ -24,7 +25,8 @@ pub struct ScalarMultiplyChipInput<T> {
 impl<T: Default + Copy> Default for ScalarMultiplyChipInput<T> {
     fn default() -> Self {
         Self {
-            input: GrumpkinPoint::default(),
+            input1: GrumpkinPoint::default(),
+            input2: GrumpkinPoint::default(),
             scalar_bits: [T::default(); FIELD_BITS],
         }
     }
@@ -83,11 +85,15 @@ impl ScalarMultiplyChip {
         synthesizer: &mut impl Synthesizer,
         inputs: &ScalarMultiplyChipInput<AssignedCell>,
     ) -> Result<GrumpkinPoint<AssignedCell>, Error> {
-        let ScalarMultiplyChipInput { scalar_bits, input } = inputs;
+        let ScalarMultiplyChipInput { scalar_bits, input1, input2 } = inputs;
 
-        let mut input_value: GrumpkinPoint<Value> = input.clone().into();
-        let mut result_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
-        let mut last_result = None;
+        let mut input1_value: GrumpkinPoint<Value> = input1.clone().into();
+        let mut input2_value: GrumpkinPoint<Value> = input2.clone().into();
+
+        let mut result1_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
+        let mut result2_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
+        let mut last_result1 = None;
+        let mut last_result2 = None;
 
         for (i, bit) in scalar_bits.iter().enumerate() {
             let input = input_value.embed(synthesizer, "input")?;
