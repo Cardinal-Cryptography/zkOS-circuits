@@ -176,8 +176,6 @@ impl Gate for ScalarMultiplyGate {
                     ADVICE_OFFSET as usize,
                 )?;
 
-                // TODO: constrain initial cells
-
                 for (i, bit) in scalar_bits.iter().enumerate() {
                     self.selector
                         .enable(&mut region, SELECTOR_OFFSET as usize + i)?;
