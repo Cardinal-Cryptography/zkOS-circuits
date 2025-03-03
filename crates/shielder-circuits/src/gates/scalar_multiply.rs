@@ -178,7 +178,6 @@ impl Gate for ScalarMultiplyGate {
                 )?;
 
                 // TODO: constrain initial cells
-                // TODO : constrain final result
 
                 for (i, bit) in scalar_bits.iter().enumerate() {
                     self.selector
@@ -191,40 +190,49 @@ impl Gate for ScalarMultiplyGate {
                         i,
                     )?;
 
-                    let doubled = curve_arithmetic::point_double(input.clone().into());
-
                     let mut is_one = false;
                     bit.value().map(|f| {
                         is_one = Fr::ONE == *f;
                     });
 
-                    if is_one {
-                        let added = curve_arithmetic::points_add(
-                            result.clone().into(),
-                            input.clone().into(),
-                        );
-
-                        result = assign_grumpkin_advices(
-                            &added,
-                            "result",
+                    if i.eq(&(FIELD_BITS - 1)) {
+                        copy_grumpkin_advices(
+                            &final_result,
+                            "final result",
                             &mut region,
                             self.result,
-                            SELECTOR_OFFSET as usize + i + 1,
-                        )?
+                            (ADVICE_OFFSET + (i + 1) as i32) as usize,
+                        )?;
                     } else {
-                        result = assign_grumpkin_advices(
-                            &GrumpkinPoint::new(
-                                result.x.value().cloned(),
-                                result.y.value().cloned(),
-                                result.z.value().cloned(),
-                            ),
-                            "result",
-                            &mut region,
-                            self.result,
-                            SELECTOR_OFFSET as usize + i + 1,
-                        )?
-                    };
+                        if is_one {
+                            let added = curve_arithmetic::points_add(
+                                result.clone().into(),
+                                input.clone().into(),
+                            );
 
+                            result = assign_grumpkin_advices(
+                                &added,
+                                "result",
+                                &mut region,
+                                self.result,
+                                SELECTOR_OFFSET as usize + i + 1,
+                            )?
+                        } else {
+                            result = assign_grumpkin_advices(
+                                &GrumpkinPoint::new(
+                                    result.x.value().cloned(),
+                                    result.y.value().cloned(),
+                                    result.z.value().cloned(),
+                                ),
+                                "result",
+                                &mut region,
+                                self.result,
+                                SELECTOR_OFFSET as usize + i + 1,
+                            )?
+                        };
+                    }
+
+                    let doubled = curve_arithmetic::point_double(input.clone().into());
                     input = assign_grumpkin_advices(
                         &doubled,
                         "input",
@@ -233,7 +241,7 @@ impl Gate for ScalarMultiplyGate {
                         SELECTOR_OFFSET as usize + i + 1,
                     )?;
 
-                    // if i.eq(&FIELD_BITS) {
+                    // if i.eq(&(FIELD_BITS - 1)) {
                     //     copy_grumpkin_advices(
                     //         &final_result,
                     //         "final result",
