@@ -62,18 +62,19 @@ impl ScalarMultiplyChip {
             z: V(input.z.value().cloned()),
         };
 
-        let result_value: GrumpkinPoint<V> = curve_arithmetic::scalar_multiply(input, bits);
-        let result = result_value.embed(synthesizer, "S")?;
+        let final_result_value: GrumpkinPoint<V> = curve_arithmetic::scalar_multiply(input, bits);
+        let final_result = final_result_value.embed(synthesizer, "S")?;
 
         self.multiply_gate.apply_in_new_region(
             synthesizer,
             ScalarMultiplyGateInput {
                 scalar_bits: scalar_bits.clone(),
                 input: inputs.input.clone(),
+                final_result: final_result.clone(),
             },
         )?;
 
-        Ok(result)
+        Ok(final_result)
     }
 }
 
