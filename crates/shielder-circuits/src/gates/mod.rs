@@ -157,3 +157,35 @@ pub fn assign_grumpkin_advices(
 
     Ok(GrumpkinPoint::new(x, y, z))
 }
+
+pub fn assign_grumpkin_point_at_infinity(
+    annotation: &str,
+    region: &mut Region<'_, Fr>,
+    columns: [Column<Advice>; 3],
+    offset: usize,
+) -> Result<GrumpkinPoint<AssignedCell>, Error> {
+    ensure_unique_columns(&columns);
+
+    let x = region.assign_advice_from_constant(
+        || alloc::format!("{}[x]", annotation),
+        columns[0],
+        offset,
+        Fr::zero(),
+    )?;
+
+    let y = region.assign_advice_from_constant(
+        || alloc::format!("{}[y]", annotation),
+        columns[1],
+        offset,
+        Fr::one(),
+    )?;
+
+    let z = region.assign_advice_from_constant(
+        || alloc::format!("{}[z]", annotation),
+        columns[2],
+        offset,
+        Fr::zero(),
+    )?;
+
+    Ok(GrumpkinPoint::new(x, y, z))
+}

@@ -18,6 +18,10 @@ runs:
       with:
         channel: nightly
 
+    - name: Install active toolchain
+      shell: bash
+      run: rustup toolchain install
+
     - name: Install sccache
       shell: bash
       run: scripts/install-sccache

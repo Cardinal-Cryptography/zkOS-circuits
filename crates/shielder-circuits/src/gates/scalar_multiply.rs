@@ -8,7 +8,7 @@ use halo2_proofs::{
 };
 use macros::embeddable;
 
-use super::{assign_grumpkin_advices, copy_grumpkin_advices};
+use super::{assign_grumpkin_advices, assign_grumpkin_point_at_infinity, copy_grumpkin_advices};
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
     consts::FIELD_BITS,
@@ -169,8 +169,7 @@ impl Gate for ScalarMultiplyGate {
                     ADVICE_OFFSET as usize,
                 )?;
 
-                let mut result = assign_grumpkin_advices(
-                    &GrumpkinPoint::zero(),
+                let mut result = assign_grumpkin_point_at_infinity(
                     "initial result",
                     &mut region,
                     self.result,
@@ -240,16 +239,6 @@ impl Gate for ScalarMultiplyGate {
                         self.input,
                         SELECTOR_OFFSET as usize + i + 1,
                     )?;
-
-                    // if i.eq(&(FIELD_BITS - 1)) {
-                    //     copy_grumpkin_advices(
-                    //         &final_result,
-                    //         "final result",
-                    //         &mut region,
-                    //         self.result,
-                    //         (ADVICE_OFFSET + (i + 1) as i32) as usize,
-                    //     )?;
-                    // }
                 }
 
                 Ok(())
