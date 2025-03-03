@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use core::ops::Mul;
+use core::ops::{Add, Mul, Sub};
 
 pub use curve_scalar_field::CurveScalarField;
 pub use grumpkin_point::{GrumpkinPoint, GrumpkinPointAffine};
@@ -8,7 +8,7 @@ use halo2_proofs::{
     halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
 
-use crate::{chips::sym_key, consts::FIELD_BITS};
+use crate::{chips::sym_key, consts::FIELD_BITS, Value};
 
 mod curve_scalar_field;
 pub mod grumpkin_point;
@@ -181,6 +181,43 @@ fn to_bits_le(num: &[u8]) -> Vec<bool> {
         bits.push(bit);
     }
     bits
+}
+
+/// newtype wrapper to account for the fact we do not have PartialEq nor Eq traits on the Value type
+#[derive(Clone, Debug)]
+pub struct V(pub Value);
+
+impl PartialEq for V {
+    fn eq(&self, other: &Self) -> bool {
+        let mut is_equal = false;
+        self.0.zip(other.0).map(|(this, other)| {
+            if this.eq(&other) {
+                is_equal = true;
+            }
+        });
+        is_equal
+    }
+}
+
+impl Add for V {
+    type Output = V;
+    fn add(self, other: Self) -> Self {
+        V(self.0 + other.0)
+    }
+}
+
+impl Sub for V {
+    type Output = V;
+    fn sub(self, other: Self) -> Self {
+        V(self.0 - other.0)
+    }
+}
+
+impl Mul for V {
+    type Output = V;
+    fn mul(self, other: Self) -> Self {
+        V(self.0 * other.0)
+    }
 }
 
 #[cfg(test)]

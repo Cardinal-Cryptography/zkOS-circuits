@@ -35,11 +35,6 @@ pub struct ScalarMultiplyGate {
 pub struct ScalarMultiplyGateInput<T> {
     pub scalar_bits: [T; FIELD_BITS],
     pub input: GrumpkinPoint<T>,
-    // pub bit: T,
-    // pub input: GrumpkinPoint<T>,
-    // pub result: GrumpkinPoint<T>,
-    // pub next_input: GrumpkinPoint<T>,
-    // pub next_result: GrumpkinPoint<T>,
 }
 
 impl<T: Default + Copy> Default for ScalarMultiplyGateInput<T> {
