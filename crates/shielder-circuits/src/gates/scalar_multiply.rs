@@ -202,34 +202,32 @@ impl Gate for ScalarMultiplyGate {
                             self.result,
                             (ADVICE_OFFSET + (i + 1) as i32) as usize,
                         )?;
-                    } else {
-                        if is_one {
-                            let added = curve_arithmetic::points_add(
-                                result.clone().into(),
-                                input.clone().into(),
-                            );
+                    } else if is_one {
+                        let added = curve_arithmetic::points_add(
+                            result.clone().into(),
+                            input.clone().into(),
+                        );
 
-                            result = assign_grumpkin_advices(
-                                &added,
-                                "result",
-                                &mut region,
-                                self.result,
-                                SELECTOR_OFFSET as usize + i + 1,
-                            )?
-                        } else {
-                            result = assign_grumpkin_advices(
-                                &GrumpkinPoint::new(
-                                    result.x.value().cloned(),
-                                    result.y.value().cloned(),
-                                    result.z.value().cloned(),
-                                ),
-                                "result",
-                                &mut region,
-                                self.result,
-                                SELECTOR_OFFSET as usize + i + 1,
-                            )?
-                        };
-                    }
+                        result = assign_grumpkin_advices(
+                            &added,
+                            "result",
+                            &mut region,
+                            self.result,
+                            SELECTOR_OFFSET as usize + i + 1,
+                        )?
+                    } else {
+                        result = assign_grumpkin_advices(
+                            &GrumpkinPoint::new(
+                                result.x.value().cloned(),
+                                result.y.value().cloned(),
+                                result.z.value().cloned(),
+                            ),
+                            "result",
+                            &mut region,
+                            self.result,
+                            SELECTOR_OFFSET as usize + i + 1,
+                        )?
+                    };
 
                     let doubled = curve_arithmetic::point_double(input.clone().into());
                     input = assign_grumpkin_advices(
