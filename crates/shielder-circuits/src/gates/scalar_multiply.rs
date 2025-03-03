@@ -178,6 +178,7 @@ impl Gate for ScalarMultiplyGate {
                 )?;
 
                 // TODO: constrain initial cells
+                // TODO : constrain final result
 
                 for (i, bit) in scalar_bits.iter().enumerate() {
                     self.selector
@@ -232,19 +233,16 @@ impl Gate for ScalarMultiplyGate {
                         SELECTOR_OFFSET as usize + i + 1,
                     )?;
 
-                    if i.eq(&FIELD_BITS) {
-                        // TODO
-                        copy_grumpkin_advices(
-                            &final_result,
-                            "final result",
-                            &mut region,
-                            self.result,
-                            ADVICE_OFFSET as usize,
-                        )?;
-                    }
+                    // if i.eq(&FIELD_BITS) {
+                    //     copy_grumpkin_advices(
+                    //         &final_result,
+                    //         "final result",
+                    //         &mut region,
+                    //         self.result,
+                    //         (ADVICE_OFFSET + (i + 1) as i32) as usize,
+                    //     )?;
+                    // }
                 }
-
-                // TODO : constrain final result
 
                 Ok(())
             },
@@ -299,6 +297,24 @@ mod tests {
             final_result
         })
         .is_ok());
+    }
+
+    #[test]
+    fn invalid_inputs() {
+        let mut rng = rng();
+        let p = GrumpkinPoint::random(&mut rng);
+        let n = Fr::from_u128(3);
+        let bits = field_element_to_le_bits(n);
+
+        let incorrect_result =
+            curve_arithmetic::scalar_multiply(p, field_element_to_le_bits(Fr::from_u128(4)));
+
+        assert!(verify(ScalarMultiplyGateInput {
+            scalar_bits: bits,
+            input: p,
+            final_result: incorrect_result
+        })
+        .is_err());
     }
 
     // #[test]
