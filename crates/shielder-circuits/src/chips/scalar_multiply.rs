@@ -1,8 +1,7 @@
 use alloc::vec::Vec;
 
-use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
+use halo2_proofs::plonk::Error;
 
-use super::sum::SumChip;
 use crate::{
     consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPoint},
@@ -12,7 +11,7 @@ use crate::{
         Gate,
     },
     synthesizer::Synthesizer,
-    AssignedCell, Value, V,
+    AssignedCell, V,
 };
 
 #[derive(Clone, Debug)]
