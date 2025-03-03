@@ -85,55 +85,30 @@ impl ScalarMultiplyChip {
     ) -> Result<GrumpkinPoint<AssignedCell>, Error> {
         let ScalarMultiplyChipInput { scalar_bits, input } = inputs;
 
-        // let mut input_value: GrumpkinPoint<Value> = input.clone().into();
-        // let mut result_value: GrumpkinPoint<Value> = GrumpkinPoint::<Fr>::zero().into();
-        // let mut last_result = None;
+        // let bits: Vec<V> = scalar_bits
+        //     .iter()
+        //     .map(|cell| V(cell.value().cloned()))
+        //     .collect();
+        // let bits: [V; 254] = bits.try_into().expect("not 254 bit array");
+        // let input: GrumpkinPoint<V> = GrumpkinPoint {
+        //     x: V(p.x.value().cloned()),
+        //     y: V(p.y.value().cloned()),
+        //     z: V(p.z.value().cloned()),
+        // };
 
-        // for (i, bit) in scalar_bits.iter().enumerate() {
-        //     let input = input_value.embed(synthesizer, "input")?;
-        //     let result = result_value.embed(synthesizer, "result")?;
-        //     if i.eq(&0) {
-        //         self.constrain_point_at_infinity(synthesizer, result.clone())?;
-        //         self.constrain_points_equality(synthesizer, input.clone(), inputs.input.clone())?;
-        //     }
+        let result_value: GrumpkinPoint<Value> = curve_arithmetic::scalar_multiply(input, bits);
 
-        //     let mut is_one = false;
-        //     bit.value().map(|f| {
-        //         is_one = Fr::ONE == *f;
-        //     });
+        let result = result_value.embed(synthesizer, "S")?;
 
-        //     let mut next_result_value = result_value;
-        //     if is_one {
-        //         next_result_value = curve_arithmetic::points_add(result_value, input_value);
-        //     }
+        self.multiply_gate.apply_in_new_region(
+            synthesizer,
+            ScalarMultiplyGateInput {
+                scalar_bits: scalar_bits.clone(),
+                input: input.clone(),
+            },
+        )?;
 
-        //     let next_result = next_result_value.embed(synthesizer, "next_result")?;
-
-        //     let next_input_value = curve_arithmetic::point_double(input_value);
-        //     let next_input = next_input_value.embed(synthesizer, "next_input")?;
-
-        //     self.multiply_gate.apply_in_new_region(
-        //         synthesizer,
-        //         ScalarMultiplyGateInput {
-        //             bit: bit.clone(),
-        //             input,
-        //             result,
-        //             next_input,
-        //             next_result: next_result.clone(),
-        //         },
-        //     )?;
-
-        //     input_value = next_input_value;
-        //     result_value = next_result_value;
-
-        //     if i.eq(&(scalar_bits.len() - 1)) {
-        //         last_result = Some(next_result);
-        //     }
-        // }
-
-        // Ok(last_result.expect("last result is returned"))
-
-        todo!()
+        Ok(result)
     }
 }
 

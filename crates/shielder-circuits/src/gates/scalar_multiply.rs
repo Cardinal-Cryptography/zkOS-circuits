@@ -257,7 +257,7 @@ mod tests {
 
     use halo2_proofs::{
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+        halo2curves::{bn256::Fr, ff::PrimeField},
     };
     use rand::RngCore;
 
