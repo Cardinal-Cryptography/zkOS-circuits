@@ -2,6 +2,7 @@ use core::ops::{Add, Mul, Sub};
 
 use halo2_proofs::{arithmetic::CurveExt, halo2curves::grumpkin::G1, plonk::Expression};
 
+use super::V;
 use crate::{Field, Fr, Value};
 
 /// An abstraction over the scalar field of the curve.
@@ -49,6 +50,24 @@ impl CurveScalarField for Value {
 
     fn one() -> Self {
         Value::known(Fr::one())
+    }
+}
+
+impl CurveScalarField for V {
+    fn b() -> Self {
+        V(Value::b())
+    }
+
+    fn b3() -> Self {
+        V(Value::b3())
+    }
+
+    fn zero() -> Self {
+        V(Value::zero())
+    }
+
+    fn one() -> Self {
+        V(Value::one())
     }
 }
 

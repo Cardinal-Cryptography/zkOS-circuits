@@ -5,7 +5,7 @@ use halo2_proofs::plonk::Error;
 use crate::{
     curve_arithmetic::{GrumpkinPoint, GrumpkinPointAffine},
     synthesizer::Synthesizer,
-    AssignedCell, Fr, Value,
+    AssignedCell, Fr, Value, V,
 };
 
 /// Represents a type that can be embedded into a circuit (i.e., converted to an `AssignedCell`).
@@ -55,6 +55,19 @@ impl Embed for Value {
         annotation: impl Into<String>,
     ) -> Result<Self::Embedded, Error> {
         synthesizer.assign_value(annotation, *self)
+    }
+}
+
+impl Embed for V {
+    type Embedded = AssignedCell;
+
+    fn embed(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        annotation: impl Into<String>,
+    ) -> Result<Self::Embedded, Error> {
+        let value = self.0;
+        value.embed(synthesizer, annotation)
     }
 }
 

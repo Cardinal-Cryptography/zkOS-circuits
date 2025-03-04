@@ -1,15 +1,17 @@
 use alloc::vec;
 
 use halo2_proofs::{
+    arithmetic::Field,
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
 use macros::embeddable;
 
-use super::copy_grumpkin_advices;
+use super::{assign_grumpkin_advices, assign_grumpkin_point_at_infinity, copy_grumpkin_advices};
 use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase},
+    consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPoint},
     embed::Embed,
     gates::{ensure_unique_columns, Gate},
@@ -25,17 +27,25 @@ pub struct ScalarMultiplyGate {
     pub input: [Column<Advice>; 3],
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[embeddable(
     receiver = "ScalarMultiplyGateInput<Fr>",
     embedded = "ScalarMultiplyGateInput<crate::AssignedCell>"
 )]
 pub struct ScalarMultiplyGateInput<T> {
-    pub bit: T,
+    pub scalar_bits: [T; FIELD_BITS],
     pub input: GrumpkinPoint<T>,
-    pub result: GrumpkinPoint<T>,
-    pub next_input: GrumpkinPoint<T>,
-    pub next_result: GrumpkinPoint<T>,
+    pub final_result: GrumpkinPoint<T>,
+}
+
+impl<T: Default + Copy> Default for ScalarMultiplyGateInput<T> {
+    fn default() -> Self {
+        Self {
+            input: GrumpkinPoint::default(),
+            final_result: GrumpkinPoint::default(),
+            scalar_bits: [T::default(); FIELD_BITS],
+        }
+    }
 }
 
 const SELECTOR_OFFSET: i32 = 0;
@@ -46,7 +56,7 @@ impl Gate for ScalarMultiplyGate {
     type Input = ScalarMultiplyGateInput<AssignedCell>;
 
     type Advice = (
-        Column<Advice>,      // scalar_bit
+        Column<Advice>,      // scalar_bits
         [Column<Advice>; 3], // input
         [Column<Advice>; 3], // result
     );
@@ -60,6 +70,7 @@ impl Gate for ScalarMultiplyGate {
     /// result[i + 1] = input[i] + result[i] if bit == 1
     ///               = result[i]            if bit == 0
     /// input[i + 1] = 2 * input[i]
+    /// bit \in {0,1}
     fn create_gate_custom(
         cs: &mut ConstraintSystem<Fr>,
         (scalar_bits, input, result): Self::Advice,
@@ -142,57 +153,89 @@ impl Gate for ScalarMultiplyGate {
         &self,
         synthesizer: &mut impl Synthesizer,
         ScalarMultiplyGateInput {
-            bit,
+            scalar_bits,
             input,
-            result,
-            next_input,
-            next_result,
+            final_result,
         }: Self::Input,
     ) -> Result<(), Error> {
         synthesizer.assign_region(
             || GATE_NAME,
             |mut region| {
-                self.selector
-                    .enable(&mut region, SELECTOR_OFFSET as usize)?;
-
-                bit.copy_advice(
-                    || "bit",
-                    &mut region,
-                    self.scalar_bits,
-                    ADVICE_OFFSET as usize,
-                )?;
-
-                copy_grumpkin_advices(
+                let mut input = copy_grumpkin_advices(
                     &input,
-                    "input",
+                    "initial input",
                     &mut region,
                     self.input,
                     ADVICE_OFFSET as usize,
                 )?;
 
-                copy_grumpkin_advices(
-                    &result,
-                    "result",
+                let mut result = assign_grumpkin_point_at_infinity(
+                    "initial result",
                     &mut region,
                     self.result,
                     ADVICE_OFFSET as usize,
                 )?;
 
-                copy_grumpkin_advices(
-                    &next_input,
-                    "next_input",
-                    &mut region,
-                    self.input,
-                    ADVICE_OFFSET as usize + 1,
-                )?;
+                for (i, bit) in scalar_bits.iter().enumerate() {
+                    self.selector
+                        .enable(&mut region, SELECTOR_OFFSET as usize + i)?;
 
-                copy_grumpkin_advices(
-                    &next_result,
-                    "next_result",
-                    &mut region,
-                    self.result,
-                    ADVICE_OFFSET as usize + 1,
-                )?;
+                    bit.copy_advice(
+                        || alloc::format!("bit[{i}]"),
+                        &mut region,
+                        self.scalar_bits,
+                        i,
+                    )?;
+
+                    let mut is_one = false;
+                    bit.value().map(|f| {
+                        is_one = Fr::ONE == *f;
+                    });
+
+                    if i.eq(&(FIELD_BITS - 1)) {
+                        copy_grumpkin_advices(
+                            &final_result,
+                            "final result",
+                            &mut region,
+                            self.result,
+                            (ADVICE_OFFSET + (i + 1) as i32) as usize,
+                        )?;
+                    } else if is_one {
+                        let added = curve_arithmetic::points_add(
+                            result.clone().into(),
+                            input.clone().into(),
+                        );
+
+                        result = assign_grumpkin_advices(
+                            &added,
+                            "result",
+                            &mut region,
+                            self.result,
+                            SELECTOR_OFFSET as usize + i + 1,
+                        )?
+                    } else {
+                        result = assign_grumpkin_advices(
+                            &GrumpkinPoint::new(
+                                result.x.value().cloned(),
+                                result.y.value().cloned(),
+                                result.z.value().cloned(),
+                            ),
+                            "result",
+                            &mut region,
+                            self.result,
+                            SELECTOR_OFFSET as usize + i + 1,
+                        )?
+                    };
+
+                    let doubled = curve_arithmetic::point_double(input.clone().into());
+                    input = assign_grumpkin_advices(
+                        &doubled,
+                        "input",
+                        &mut region,
+                        self.input,
+                        SELECTOR_OFFSET as usize + i + 1,
+                    )?;
+                }
 
                 Ok(())
             },
@@ -218,11 +261,12 @@ mod tests {
 
     use halo2_proofs::{
         dev::{MockProver, VerifyFailure},
-        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+        halo2curves::{bn256::Fr, ff::PrimeField},
     };
+    use rand::RngCore;
 
     use super::*;
-    use crate::{gates::test_utils::OneGateCircuit, rng};
+    use crate::{field_element_to_le_bits, gates::test_utils::OneGateCircuit, rng};
 
     fn verify(input: ScalarMultiplyGateInput<Fr>) -> Result<(), Vec<VerifyFailure>> {
         let circuit = OneGateCircuit::<ScalarMultiplyGate, _>::new(input);
@@ -232,64 +276,54 @@ mod tests {
     }
 
     #[test]
-    fn bit_is_zero() {
-        let rng = rng();
-        let bit = Fr::from_u128(0);
+    fn multiply_random_points() {
+        let mut rng = rng();
+        let p = GrumpkinPoint::random(&mut rng);
+        let n = Fr::from_u128(rng.next_u64() as u128);
+        let bits = field_element_to_le_bits(n);
 
-        let input = G1::random(rng.clone()).into();
-        let result = G1::random(rng.clone()).into();
-
-        let next_input = curve_arithmetic::point_double(input);
-        let next_result = result;
+        let final_result = curve_arithmetic::scalar_multiply(p, bits);
 
         assert!(verify(ScalarMultiplyGateInput {
-            bit,
-            input,
-            result,
-            next_input,
-            next_result
+            scalar_bits: bits,
+            input: p,
+            final_result
         })
         .is_ok());
     }
 
     #[test]
-    fn bit_is_one() {
-        let rng = rng();
-        let bit = Fr::from_u128(1);
+    fn invalid_inputs() {
+        let mut rng = rng();
+        let p = GrumpkinPoint::random(&mut rng);
+        let n = Fr::from_u128(3);
+        let bits = field_element_to_le_bits(n);
 
-        let input = G1::random(rng.clone()).into();
-        let result = G1::random(rng.clone()).into();
-
-        let next_input = curve_arithmetic::point_double(input);
-        let next_result = curve_arithmetic::points_add(input, result);
+        let incorrect_result =
+            curve_arithmetic::scalar_multiply(p, field_element_to_le_bits(Fr::from_u128(4)));
 
         assert!(verify(ScalarMultiplyGateInput {
-            bit,
-            input,
-            result,
-            next_input,
-            next_result
+            scalar_bits: bits,
+            input: p,
+            final_result: incorrect_result
         })
-        .is_ok());
+        .is_err());
     }
 
     #[test]
     fn bit_is_invalid() {
-        let rng = rng();
-        let bit = Fr::from_u128(2);
+        let mut rng = rng();
+        let p = GrumpkinPoint::random(&mut rng);
+        let n = Fr::from_u128(rng.next_u64() as u128);
 
-        let input = G1::random(rng.clone()).into();
-        let result = G1::random(rng.clone()).into();
+        let mut bits = field_element_to_le_bits(n);
+        let final_result = curve_arithmetic::scalar_multiply(p, bits);
 
-        let next_input = curve_arithmetic::point_double(input);
-        let next_result = curve_arithmetic::points_add(input, result);
-
+        bits[0] = Fr::from_u128(2);
         assert!(verify(ScalarMultiplyGateInput {
-            bit,
-            input,
-            result,
-            next_input,
-            next_result
+            scalar_bits: bits,
+            input: p,
+            final_result
         })
         .is_err());
     }
