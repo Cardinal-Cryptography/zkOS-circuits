@@ -310,19 +310,21 @@ mod tests {
         .is_err());
     }
 
-    // #[test]
-    // fn bit_is_invalid() {
-    //     let mut rng = rng();
-    //     let p = GrumpkinPoint::random(&mut rng);
-    //     let n = Fr::from_u128(rng.next_u64() as u128);
+    #[test]
+    fn bit_is_invalid() {
+        let mut rng = rng();
+        let p = GrumpkinPoint::random(&mut rng);
+        let n = Fr::from_u128(rng.next_u64() as u128);
 
-    //     let mut bits = field_element_to_le_bits(n);
-    //     bits[0] = Fr::from_u128(2);
+        let mut bits = field_element_to_le_bits(n);
+        let final_result = curve_arithmetic::scalar_multiply(p, bits);
 
-    //     assert!(verify(ScalarMultiplyGateInput {
-    //         scalar_bits: bits,
-    //         input: p
-    //     })
-    //     .is_err());
-    // }
+        bits[0] = Fr::from_u128(2);
+        assert!(verify(ScalarMultiplyGateInput {
+            scalar_bits: bits,
+            input: p,
+            final_result
+        })
+        .is_err());
+    }
 }
