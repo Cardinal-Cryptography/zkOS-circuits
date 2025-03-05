@@ -59,7 +59,6 @@ impl Circuit<Fr> for WithdrawCircuit {
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge)?;
         main_chip.check_commitment(&mut synthesizer, &knowledge)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge)?;
         main_chip.check_mac(&mut synthesizer, &knowledge)
     }
 }
@@ -232,7 +231,6 @@ mod tests {
             });
 
             let pub_input = |instance: WithdrawInstance| match instance {
-                IdHiding => hash(&[hash(&[pk.id]), pk.nonce]),
                 MerkleRoot => merkle_root,
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,

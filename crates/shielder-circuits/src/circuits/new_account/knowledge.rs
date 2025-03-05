@@ -102,7 +102,7 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
                 account_balance: self.initial_deposit,
                 token_address: self.token_address,
             }),
-            NewAccountInstance::HashedId => hash(&[self.id]),
+            NewAccountInstance::Prenullifier => hash(&[self.id]),
             NewAccountInstance::InitialDeposit => self.initial_deposit,
             NewAccountInstance::TokenAddress => self.token_address,
             NewAccountInstance::AnonymityRevokerPublicKeyX => self.anonymity_revoker_public_key.x,

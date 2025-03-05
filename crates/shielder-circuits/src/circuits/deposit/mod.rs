@@ -13,7 +13,6 @@ use crate::chips::mac::MacInstance;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum DepositInstance {
-    IdHiding,
     MerkleRoot,
     HashedOldNullifier,
     HashedNewNote,
@@ -69,7 +68,6 @@ mod tests {
     fn instance_order() {
         // This is the order used in other parts of the codebase (e.g., in contracts).
         let expected_order = vec![
-            IdHiding,
             MerkleRoot,
             HashedOldNullifier,
             HashedNewNote,

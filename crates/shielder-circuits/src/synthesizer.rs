@@ -52,7 +52,7 @@ struct SynthesizerImpl<'a, L: Layouter<Fr>> {
     advice_pool: &'a ColumnPool<Advice, SynthesisPhase>,
 }
 
-impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
+impl<L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'_, L> {
     fn namespaced(&mut self, name: impl Into<String>) -> impl Synthesizer {
         SynthesizerImpl {
             layouter: self.layouter.namespace(|| name),
@@ -88,7 +88,7 @@ impl<'a, L: Layouter<Fr>> Synthesizer for SynthesizerImpl<'a, L> {
 }
 
 /// Delegate `Layouter` implementation to the inner layouter.
-impl<'a, L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<'a, L> {
+impl<L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<'_, L> {
     type Root = L::Root;
 
     fn assign_region<A, AR, N, NR>(&mut self, name: N, assignment: A) -> Result<AR, Error>
@@ -136,7 +136,7 @@ impl<'a, L: Layouter<Fr>> Layouter<Fr> for SynthesizerImpl<'a, L> {
 }
 
 /// Delegate `AccessColumn` implementation to the inner advice pool.
-impl<'a, L: Layouter<Fr>> AccessColumn<Advice> for SynthesizerImpl<'a, L> {
+impl<L: Layouter<Fr>> AccessColumn<Advice> for SynthesizerImpl<'_, L> {
     fn get_any_column(&self) -> Column<Advice> {
         self.advice_pool.get_any_column()
     }

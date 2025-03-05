@@ -1,5 +1,4 @@
 pub mod el_gamal;
-pub mod id_hiding;
 pub mod mac;
 pub mod note;
 pub mod points_add;

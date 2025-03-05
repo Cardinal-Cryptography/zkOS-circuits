@@ -2,7 +2,6 @@ use halo2_proofs::plonk::Error;
 
 use crate::{
     chips::{
-        id_hiding::IdHidingChip,
         mac::{MacChip, MacInput},
         note::{Note, NoteChip},
         range_check::RangeCheckChip,
@@ -69,18 +68,6 @@ impl WithdrawChip {
 
         self.public_inputs
             .constrain_cells(synthesizer, [(hashed_old_nullifier, HashedOldNullifier)])
-    }
-
-    pub fn check_id_hiding(
-        &self,
-        synthesizer: &mut impl Synthesizer,
-
-        knowledge: &WithdrawProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
-        let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
-            .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
-        self.public_inputs
-            .constrain_cells(synthesizer, [(id_hiding, IdHiding)])
     }
 
     pub fn check_new_note(
