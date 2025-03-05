@@ -17,6 +17,11 @@ jobs:
       - name: Checkout code (from the current branch)
         uses: actions/checkout@v4
 
+      - name: Prepare Rust env
+        uses: ./.github/actions/prepare-rust-env
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
       #################### Run measurements on main branch ####################
 
       - name: Checkout repository from `main`
@@ -25,11 +30,8 @@ jobs:
           ref: main
           path: main
 
-      - name: Install active toolchain on main
-        run: cd main && rustup toolchain install
-
       - name: Build measure-circuits binary from `main`
-        run: make build
+        run: cd main && make build
 
       - name: Run measure-circuits binary from `main`
         run: ./main/target/release/measure-circuits > main-report.txt
@@ -58,7 +60,7 @@ jobs:
       - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
       - name: Install python deps
         run: pip install pandas jinja2
