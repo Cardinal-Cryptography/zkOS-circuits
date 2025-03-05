@@ -61,6 +61,8 @@ impl Circuit<Fr> for NewAccountCircuit {
             .embed(&mut synthesizer, "NewAccountProverKnowledge")?;
 
         main_chip.check_note(&mut synthesizer, &knowledge)?;
+        // Instead of a nullifier we emit here the hashed id. Think of it as the "public key".
+        // Since it is deterministic it can be used as a nullifier to prevent creating a second account with the same id.
         main_chip.constrain_prenullifier(&mut synthesizer, &knowledge)?;
         main_chip.constrain_sym_key_encryption(&mut synthesizer, &knowledge)
     }
