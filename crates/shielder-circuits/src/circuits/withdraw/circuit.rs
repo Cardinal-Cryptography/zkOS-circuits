@@ -132,10 +132,10 @@ mod tests {
             pk.trapdoor_new,
             new_balance_hash,
         ]);
-        assert_eq!(new_note_hash, pub_input[3]);
+        assert_eq!(new_note_hash, pub_input[2]);
 
         // Verify the token address.
-        assert_eq!(Fr::from(123), pub_input[5]);
+        assert_eq!(Fr::from(123), pub_input[4]);
     }
 
     #[test]
@@ -308,7 +308,7 @@ mod tests {
             // The returned failure location happens to be in
             // a `poseidon-gadget` region the token address was copied to.
             "add input for domain ConstantLength<7>",
-            5,
+            4,
         );
     }
 

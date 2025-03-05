@@ -5,7 +5,6 @@ use crate::{
     chips::{
         mac::{MacChip, MacInput},
         note::{Note, NoteChip},
-        range_check::RangeCheckChip,
         sym_key::SymKeyChip,
     },
     circuits::{
@@ -24,7 +23,6 @@ use crate::{
 pub struct DepositChip {
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip,
-    pub range_check: RangeCheckChip,
     pub merkle: MerkleChip,
     pub note: NoteChip,
 }
