@@ -6,10 +6,6 @@ inputs:
   ssh-private-key:
     description: "SSH private key to authenticate with"
     required: true
-  path:
-    description: "path where rust-toolchain.toml file is located"
-    required: false
-    default: '.'
 
 runs:
   using: composite
@@ -25,9 +21,7 @@ runs:
 
     - name: Install active toolchain
       shell: bash
-      run: |
-        cd ${{ inputs.path }}
-        rustup toolchain install
+      run: rustup toolchain install
 
     - name: Install sccache
       shell: bash

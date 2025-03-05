@@ -25,17 +25,11 @@ jobs:
           ref: main
           path: main
 
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
-
-      - name: Prepare Rust env
-        uses: ./.github/actions/prepare-rust-env
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
-          path: main
-
+      - name: Install active toolchain on main
+        run: cd main && rustup toolchain install
+      
       - name: Build measure-circuits binary from `main`
-        run: cd main && make build
+        run: make build
 
       - name: Run measure-circuits binary from `main`
         run: ./main/target/release/measure-circuits > main-report.txt
