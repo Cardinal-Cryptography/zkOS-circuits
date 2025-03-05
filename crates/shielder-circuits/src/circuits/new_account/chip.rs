@@ -58,14 +58,14 @@ impl NewAccountChip {
         )
     }
 
-    pub fn constrain_hashed_id(
+    pub fn constrain_prenullifier(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
         let h_id = hash(synthesizer, self.poseidon.clone(), [knowledge.id.clone()])?;
         self.public_inputs
-            .constrain_cells(synthesizer, [(h_id, HashedId)])
+            .constrain_cells(synthesizer, [(h_id, Prenullifier)])
     }
 
     /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve

@@ -12,7 +12,7 @@ use crate::chips::note::NoteInstance;
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum NewAccountInstance {
     HashedNote,
-    HashedId,
+    Prenullifier,
     InitialDeposit,
     TokenAddress,
     AnonymityRevokerPublicKeyX,
@@ -47,7 +47,7 @@ mod tests {
         // This is the order used in other parts of the codebase (e.g., in contracts).
         let expected_order = vec![
             HashedNote,
-            HashedId,
+            Prenullifier,
             InitialDeposit,
             TokenAddress,
             AnonymityRevokerPublicKeyX,

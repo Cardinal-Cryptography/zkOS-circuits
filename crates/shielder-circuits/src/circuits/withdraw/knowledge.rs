@@ -1,13 +1,12 @@
 use halo2_proofs::halo2curves::ff::PrimeField;
 use macros::embeddable;
-use rand::Rng;
 use rand_core::RngCore;
 
 use crate::{
     chips::sym_key,
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
-        MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK, NONCE_UPPER_LIMIT,
+        MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK,
     },
     curve_arithmetic,
     embed::Embed,
@@ -44,8 +43,6 @@ pub struct WithdrawProverKnowledge<T> {
     pub nullifier_new: T,
     pub trapdoor_new: T,
 
-    // nonce for id_hiding
-    pub nonce: T,
     // Salt for MAC.
     pub mac_salt: T,
 }
@@ -65,7 +62,6 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
     /// `account_old_balance` has the largest possible value that passes the range check.
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
         let id = curve_arithmetic::generate_user_id(Fr::random(&mut *rng).to_bytes());
-        let nonce = Fr::from(rng.gen_range(0..NONCE_UPPER_LIMIT) as u64);
         let nullifier_old = Fr::random(&mut *rng);
         let trapdoor_old = Fr::random(&mut *rng);
 
@@ -86,7 +82,6 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             withdrawal_value: Fr::ONE,
             commitment: Fr::random(&mut *rng),
             id,
-            nonce,
             nullifier_old,
             trapdoor_old,
             account_old_balance,
@@ -110,7 +105,6 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             token_address: Value::known(self.token_address),
 
             id: Value::known(self.id),
-            nonce: Value::known(self.nonce),
 
             path: self.path.map(|level| level.map(Value::known)),
 
@@ -126,7 +120,6 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
         let sym_key = sym_key::off_circuit::derive(self.id);
 
         match instance_id {
-            WithdrawInstance::IdHiding => hash(&[hash(&[self.id]), self.nonce]),
             WithdrawInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
             WithdrawInstance::HashedOldNullifier => hash(&[self.nullifier_old]),
             WithdrawInstance::HashedNewNote => note_hash(&Note {

@@ -59,7 +59,6 @@ impl Circuit<Fr> for WithdrawCircuit {
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge)?;
         main_chip.check_commitment(&mut synthesizer, &knowledge)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge)?;
         main_chip.check_mac(&mut synthesizer, &knowledge)
     }
 }
@@ -133,10 +132,10 @@ mod tests {
             pk.trapdoor_new,
             new_balance_hash,
         ]);
-        assert_eq!(new_note_hash, pub_input[3]);
+        assert_eq!(new_note_hash, pub_input[2]);
 
         // Verify the token address.
-        assert_eq!(Fr::from(123), pub_input[5]);
+        assert_eq!(Fr::from(123), pub_input[4]);
     }
 
     #[test]
@@ -232,7 +231,6 @@ mod tests {
             });
 
             let pub_input = |instance: WithdrawInstance| match instance {
-                IdHiding => hash(&[hash(&[pk.id]), pk.nonce]),
                 MerkleRoot => merkle_root,
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
@@ -310,7 +308,7 @@ mod tests {
             // The returned failure location happens to be in
             // a `poseidon-gadget` region the token address was copied to.
             "add input for domain ConstantLength<7>",
-            5,
+            4,
         );
     }
 

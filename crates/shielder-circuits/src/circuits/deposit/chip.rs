@@ -3,17 +3,15 @@ use DepositInstance::DepositValue;
 
 use crate::{
     chips::{
-        id_hiding::IdHidingChip,
         mac::{MacChip, MacInput},
         note::{Note, NoteChip},
-        range_check::RangeCheckChip,
         sym_key::SymKeyChip,
     },
     circuits::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
     },
-    deposit::DepositInstance::{self, HashedNewNote, HashedOldNullifier, *},
+    deposit::DepositInstance::{self, HashedNewNote, HashedOldNullifier},
     instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
@@ -25,7 +23,6 @@ use crate::{
 pub struct DepositChip {
     pub public_inputs: InstanceWrapper<DepositInstance>,
     pub poseidon: PoseidonChip,
-    pub range_check: RangeCheckChip,
     pub merkle: MerkleChip,
     pub note: NoteChip,
 }
@@ -67,17 +64,6 @@ impl DepositChip {
 
         self.public_inputs
             .constrain_cells(synthesizer, [(hashed_old_nullifier, HashedOldNullifier)])
-    }
-
-    pub fn check_id_hiding(
-        &self,
-        synthesizer: &mut impl Synthesizer,
-        knowledge: &DepositProverKnowledge<AssignedCell>,
-    ) -> Result<(), Error> {
-        let id_hiding = IdHidingChip::new(self.poseidon.clone(), self.range_check.clone())
-            .id_hiding(synthesizer, knowledge.id.clone(), knowledge.nonce.clone())?;
-        self.public_inputs
-            .constrain_cells(synthesizer, [(id_hiding, IdHiding)])
     }
 
     pub fn check_new_note(

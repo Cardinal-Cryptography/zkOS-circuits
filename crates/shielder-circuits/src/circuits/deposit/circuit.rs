@@ -31,7 +31,6 @@ impl Circuit<Fr> for DepositCircuit {
         let configs_builder = ConfigsBuilder::new(meta)
             .with_poseidon()
             .with_merkle(public_inputs.narrow())
-            .with_range_check()
             .with_note(public_inputs.narrow());
 
         (
@@ -39,7 +38,6 @@ impl Circuit<Fr> for DepositCircuit {
                 public_inputs,
                 poseidon: configs_builder.poseidon_chip(),
                 merkle: configs_builder.merkle_chip(),
-                range_check: configs_builder.range_check_chip(),
                 note: configs_builder.note_chip(),
             },
             configs_builder.finish(),
@@ -58,7 +56,6 @@ impl Circuit<Fr> for DepositCircuit {
         main_chip.check_old_note(&mut synthesizer, &knowledge)?;
         main_chip.check_old_nullifier(&mut synthesizer, &knowledge)?;
         main_chip.check_new_note(&mut synthesizer, &knowledge)?;
-        main_chip.check_id_hiding(&mut synthesizer, &knowledge)?;
         main_chip.check_mac(&mut synthesizer, &knowledge)
     }
 }
@@ -186,10 +183,11 @@ mod tests {
             });
 
             let pub_input = |instance: DepositInstance| match instance {
-                IdHiding => hash(&[hash(&[pk.id]), pk.nonce]),
                 MerkleRoot => merkle_root,
                 HashedOldNullifier => h_nullifier_old,
                 HashedNewNote => h_note_new,
+                // Important note: there is no range check in the circuit for DepositValue, however there is an external constraint
+                // (in the smart contract) guaranteeing that this never exceeds MAX_CONTRACT_BALANCE = 2^{112} - 1.
                 DepositValue => pk.deposit_value,
                 TokenAddress => pk.token_address,
                 MacSalt => pk.mac_salt,
@@ -245,10 +243,10 @@ mod tests {
             pk.trapdoor_new,
             new_balance_hash,
         ]);
-        assert_eq!(new_note_hash, pub_input[3]);
+        assert_eq!(new_note_hash, pub_input[2]);
 
         // Verify the token address.
-        assert_eq!(Fr::from(123), pub_input[5]);
+        assert_eq!(Fr::from(123), pub_input[4]);
     }
 
     #[test]
@@ -265,7 +263,7 @@ mod tests {
             // The returned failure location happens to be in
             // a `poseidon-gadget` region the token address was copied to.
             "add input for domain ConstantLength<7>",
-            5,
+            4,
         );
     }
 

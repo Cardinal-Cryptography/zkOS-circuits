@@ -6,6 +6,7 @@ inputs:
   ssh-private-key:
     description: "SSH private key to authenticate with"
     required: true
+
 runs:
   using: composite
   steps:
