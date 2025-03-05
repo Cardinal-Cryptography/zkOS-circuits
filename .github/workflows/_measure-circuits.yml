@@ -25,6 +25,9 @@ jobs:
           ref: main
           path: main
 
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+
       - name: Prepare Rust env
         uses: ./.github/actions/prepare-rust-env
         with:

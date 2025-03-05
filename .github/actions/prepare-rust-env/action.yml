@@ -9,7 +9,7 @@ inputs:
   path:
     description: "path where rust-toolchain.toml file is located"
     required: false
-    default: 'main'
+    default: '.'
 
 runs:
   using: composite
