@@ -14,13 +14,8 @@ jobs:
       RUSTC_WRAPPER: sccache
 
     steps:
-      - name: Checkout code (from the current branch)
-        uses: actions/checkout@v4
-
-      - name: Prepare Rust env
-        uses: ./.github/actions/prepare-rust-env
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+      # - name: Checkout code (from the current branch)
+      #   uses: actions/checkout@v4
 
       #################### Run measurements on main branch ####################
 
@@ -29,6 +24,11 @@ jobs:
         with:
           ref: main
           path: main
+
+      - name: Prepare Rust env
+        uses: ./.github/actions/prepare-rust-env
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: Build measure-circuits binary from `main`
         run: cd main && make build
