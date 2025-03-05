@@ -27,7 +27,7 @@ jobs:
 
       - name: Install active toolchain on main
         run: cd main && rustup toolchain install
-      
+
       - name: Build measure-circuits binary from `main`
         run: make build
 
@@ -58,7 +58,7 @@ jobs:
       - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install python deps
         run: pip install pandas jinja2
