@@ -14,9 +14,9 @@ use crate::{
     column_pool::{AccessColumn, ColumnPool, ConfigPhase, PreSynthesisPhase},
     consts::merkle_constants::WIDTH,
     gates::{
-        is_point_on_curve::IsPointOnCurveGate, is_point_on_curve_affine::IsPointOnCurveAffineGate,
-        membership::MembershipGate, points_add::PointsAddGate, scalar_multiply::ScalarMultiplyGate,
-        sum::SumGate, to_affine::ToAffineGate, Gate,
+        is_point_on_curve_affine::IsPointOnCurveAffineGate, membership::MembershipGate,
+        points_add::PointsAddGate, scalar_multiply::ScalarMultiplyGate, sum::SumGate,
+        to_affine::ToAffineGate, Gate,
     },
     instance_wrapper::InstanceWrapper,
     merkle::{MerkleChip, MerkleInstance},
@@ -37,7 +37,6 @@ pub struct ConfigsBuilder<'cs> {
     scalar_multiply: Option<ScalarMultiplyChip>,
     to_affine: Option<ToAffineChip>,
     to_projective: Option<ToProjectiveChip>,
-    is_point_on_curve: Option<IsPointOnCurveGate>,
     is_point_on_curve_affine: Option<IsPointOnCurveAffineGate>,
     el_gamal_encryption: Option<ElGamalEncryptionChip>,
     note: Option<NoteChip>,
@@ -66,7 +65,6 @@ impl<'cs> ConfigsBuilder<'cs> {
             scalar_multiply: None,
             to_affine: None,
             to_projective: None,
-            is_point_on_curve: None,
             is_point_on_curve_affine: None,
             el_gamal_encryption: None,
             note: None,
@@ -196,20 +194,6 @@ impl<'cs> ConfigsBuilder<'cs> {
         self.to_projective
             .clone()
             .expect("ToProjective chip is not configured")
-    }
-
-    pub fn with_is_point_on_curve(mut self) -> Self {
-        check_if_cached!(self, is_point_on_curve);
-        self.is_point_on_curve = Some(IsPointOnCurveGate::create_gate(
-            self.system,
-            &mut self.advice_pool,
-        ));
-        self
-    }
-
-    pub fn is_point_on_curve_gate(&self) -> IsPointOnCurveGate {
-        self.is_point_on_curve
-            .expect("IsPointOnCurveGate is not configured")
     }
 
     pub fn with_is_point_on_curve_affine(mut self) -> Self {
