@@ -14,8 +14,8 @@ jobs:
       RUSTC_WRAPPER: sccache
 
     steps:
-      # - name: Checkout code (from the current branch)
-      #   uses: actions/checkout@v4
+      - name: Checkout code (from the current branch)
+        uses: actions/checkout@v4
 
       #################### Run measurements on main branch ####################
 
