@@ -29,6 +29,9 @@ pub struct NewAccountProverKnowledge<T> {
     pub token_address: T,
     pub encryption_salt: [T; FIELD_BITS],
     pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
+
+    // Salt for MAC.
+    pub mac_salt: T,
 }
 
 impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
@@ -41,6 +44,7 @@ impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
             token_address: T::default(),
             encryption_salt: [T::default(); FIELD_BITS],
             anonymity_revoker_public_key: GrumpkinPointAffine::default(),
+            mac_salt: T::default(),
         }
     }
 }
@@ -58,6 +62,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             token_address: Fr::ZERO,
             encryption_salt: core::array::from_fn(|_| Fr::ONE),
             anonymity_revoker_public_key: GrumpkinPointAffine::random(rng),
+            mac_salt: Fr::random(rng),
         }
     }
 
@@ -73,6 +78,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
                 Value::known(self.anonymity_revoker_public_key.x),
                 Value::known(self.anonymity_revoker_public_key.y),
             ),
+            mac_salt: Value::known(self.mac_salt),
         })
     }
 }
@@ -107,10 +113,12 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             NewAccountInstance::TokenAddress => self.token_address,
             NewAccountInstance::AnonymityRevokerPublicKeyX => self.anonymity_revoker_public_key.x,
             NewAccountInstance::AnonymityRevokerPublicKeyY => self.anonymity_revoker_public_key.y,
-            NewAccountInstance::SymKeyEncryptionCiphertext1X => ciphertext1.x,
-            NewAccountInstance::SymKeyEncryptionCiphertext1Y => ciphertext1.y,
-            NewAccountInstance::SymKeyEncryptionCiphertext2X => ciphertext2.x,
-            NewAccountInstance::SymKeyEncryptionCiphertext2Y => ciphertext2.y,
+            NewAccountInstance::EncryptedKeyCiphertext1X => ciphertext1.x,
+            NewAccountInstance::EncryptedKeyCiphertext1Y => ciphertext1.y,
+            NewAccountInstance::EncryptedKeyCiphertext2X => ciphertext2.x,
+            NewAccountInstance::EncryptedKeyCiphertext2Y => ciphertext2.y,
+            NewAccountInstance::MacSalt => self.mac_salt,
+            NewAccountInstance::MacCommitment => hash(&[self.mac_salt, symmetric_key]),
         }
     }
 }

@@ -3,6 +3,7 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 use crate::{
     chips::{
         el_gamal::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput},
+        mac::{MacChip, MacInput},
         note::{Note, NoteChip},
         sym_key::SymKeyChip,
         to_affine::ToAffineChip,
@@ -132,11 +133,30 @@ impl NewAccountChip {
             [
                 (revoker_pkey.x, AnonymityRevokerPublicKeyX),
                 (revoker_pkey.y, AnonymityRevokerPublicKeyY),
-                (c1_affine.x, SymKeyEncryptionCiphertext1X),
-                (c1_affine.y, SymKeyEncryptionCiphertext1Y),
-                (c2_affine.x, SymKeyEncryptionCiphertext2X),
-                (c2_affine.y, SymKeyEncryptionCiphertext2Y),
+                (c1_affine.x, EncryptedKeyCiphertext1X),
+                (c1_affine.y, EncryptedKeyCiphertext1Y),
+                (c2_affine.x, EncryptedKeyCiphertext2X),
+                (c2_affine.y, EncryptedKeyCiphertext2Y),
             ],
         )
+    }
+
+    pub fn check_mac(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &NewAccountProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        let sym_key =
+            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+
+        MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
+            synthesizer,
+            &MacInput {
+                key: sym_key,
+                salt: knowledge.mac_salt.clone(),
+            },
+        )?;
+
+        Ok(())
     }
 }

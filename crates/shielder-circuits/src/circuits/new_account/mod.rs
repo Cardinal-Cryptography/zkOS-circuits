@@ -7,7 +7,7 @@ mod knowledge;
 pub use circuit::NewAccountCircuit;
 pub use knowledge::NewAccountProverKnowledge;
 
-use crate::chips::note::NoteInstance;
+use crate::chips::{mac::MacInstance, note::NoteInstance};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter, EnumCount)]
 pub enum NewAccountInstance {
@@ -17,10 +17,12 @@ pub enum NewAccountInstance {
     TokenAddress,
     AnonymityRevokerPublicKeyX,
     AnonymityRevokerPublicKeyY,
-    SymKeyEncryptionCiphertext1X,
-    SymKeyEncryptionCiphertext1Y,
-    SymKeyEncryptionCiphertext2X,
-    SymKeyEncryptionCiphertext2Y,
+    EncryptedKeyCiphertext1X,
+    EncryptedKeyCiphertext1Y,
+    EncryptedKeyCiphertext2X,
+    EncryptedKeyCiphertext2Y,
+    MacSalt,
+    MacCommitment,
 }
 
 impl TryFrom<NewAccountInstance> for NoteInstance {
@@ -29,6 +31,18 @@ impl TryFrom<NewAccountInstance> for NoteInstance {
     fn try_from(value: NewAccountInstance) -> Result<Self, Self::Error> {
         match value {
             NewAccountInstance::TokenAddress => Ok(NoteInstance::TokenAddress),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<NewAccountInstance> for MacInstance {
+    type Error = ();
+
+    fn try_from(value: NewAccountInstance) -> Result<Self, Self::Error> {
+        match value {
+            NewAccountInstance::MacSalt => Ok(Self::MacSalt),
+            NewAccountInstance::MacCommitment => Ok(Self::MacCommitment),
             _ => Err(()),
         }
     }
@@ -52,10 +66,12 @@ mod tests {
             TokenAddress,
             AnonymityRevokerPublicKeyX,
             AnonymityRevokerPublicKeyY,
-            SymKeyEncryptionCiphertext1X,
-            SymKeyEncryptionCiphertext1Y,
-            SymKeyEncryptionCiphertext2X,
-            SymKeyEncryptionCiphertext2Y,
+            EncryptedKeyCiphertext1X,
+            EncryptedKeyCiphertext1Y,
+            EncryptedKeyCiphertext2X,
+            EncryptedKeyCiphertext2Y,
+            MacSalt,
+            MacCommitment,
         ];
         assert_eq!(
             expected_order,

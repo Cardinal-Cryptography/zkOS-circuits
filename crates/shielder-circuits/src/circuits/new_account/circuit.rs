@@ -61,10 +61,11 @@ impl Circuit<Fr> for NewAccountCircuit {
             .embed(&mut synthesizer, "NewAccountProverKnowledge")?;
 
         main_chip.check_note(&mut synthesizer, &knowledge)?;
-        // Instead of a nullifier we emit here the hashed id. Think of it as the "public key".
+        // Instead of a regular nullifier we emit here the hashed id. Think of it as the "public key".
         // Since it is deterministic it can be used as a nullifier to prevent creating a second account with the same id.
         main_chip.constrain_prenullifier(&mut synthesizer, &knowledge)?;
-        main_chip.constrain_sym_key_encryption(&mut synthesizer, &knowledge)
+        main_chip.constrain_sym_key_encryption(&mut synthesizer, &knowledge)?;
+        main_chip.check_mac(&mut synthesizer, &knowledge)
     }
 }
 
@@ -149,6 +150,26 @@ mod tests {
             .expect_err("Verification must fail");
 
         expect_instance_permutation_failures(&failures, "token_address", 3);
+    }
+
+    #[test]
+    fn fails_if_mac_commitment_is_incorrect() {
+        let pk = NewAccountProverKnowledge::random_correct_example(&mut OsRng);
+        let pub_input = pk.with_substitution(MacCommitment, |c| c + Fr::ONE);
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
+        );
+    }
+
+    #[test]
+    fn fails_if_mac_salt_is_incorrect() {
+        let pk = NewAccountProverKnowledge::random_correct_example(&mut OsRng);
+        let pub_input = pk.with_substitution(MacSalt, |s| s + Fr::ONE);
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
+        );
     }
 
     // TODO: Add more tests, as the above tests do not cover all the logic that should be covered.
