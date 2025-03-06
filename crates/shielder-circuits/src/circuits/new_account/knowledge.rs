@@ -29,8 +29,6 @@ pub struct NewAccountProverKnowledge<T> {
     pub token_address: T,
     pub encryption_salt: [T; FIELD_BITS],
     pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
-
-    // Salt for MAC.
     pub mac_salt: T,
 }
 
@@ -85,13 +83,13 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
 
 impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: NewAccountInstance) -> Fr {
-        let symmetric_key = sym_key::off_circuit::derive(self.id);
-        let y = curve_arithmetic::quadratic_residue_given_x_affine(symmetric_key)
+        let viewing_key = sym_key::off_circuit::derive_viewing_key(self.id);
+        let y = curve_arithmetic::quadratic_residue_given_x_affine(viewing_key)
             .sqrt()
             .expect("element has a square root");
 
         let (c1, c2) = el_gamal::off_circuit::encrypt(ElGamalEncryptionInput {
-            message: GrumpkinPointAffine::new(symmetric_key, y).into(),
+            message: GrumpkinPointAffine::new(viewing_key, y).into(),
             public_key: self.anonymity_revoker_public_key.into(),
             salt_le_bits: self.encryption_salt,
         });
@@ -118,7 +116,7 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             NewAccountInstance::EncryptedKeyCiphertext2X => ciphertext2.x,
             NewAccountInstance::EncryptedKeyCiphertext2Y => ciphertext2.y,
             NewAccountInstance::MacSalt => self.mac_salt,
-            NewAccountInstance::MacCommitment => hash(&[self.mac_salt, symmetric_key]),
+            NewAccountInstance::MacCommitment => hash(&[self.mac_salt, viewing_key]),
         }
     }
 }

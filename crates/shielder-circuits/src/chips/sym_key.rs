@@ -1,17 +1,17 @@
 use halo2_proofs::plonk::Error;
 
 use crate::{
-    consts::SYM_KEY_SALT,
+    consts::VIEWING_KEY_SALT,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
     AssignedCell,
 };
 
 pub mod off_circuit {
-    use crate::{consts::SYM_KEY_SALT, poseidon::off_circuit::hash, Fr};
+    use crate::{consts::VIEWING_KEY_SALT, poseidon::off_circuit::hash, Fr};
 
-    pub fn derive(id: Fr) -> Fr {
-        hash(&[id, *SYM_KEY_SALT])
+    pub fn derive_viewing_key(id: Fr) -> Fr {
+        hash(&[id, *VIEWING_KEY_SALT])
     }
 }
 
@@ -25,12 +25,12 @@ impl SymKeyChip {
         Self { poseidon }
     }
 
-    pub fn derive(
+    pub fn derive_viewing_key(
         &self,
         synthesizer: &mut impl Synthesizer,
         id: AssignedCell,
     ) -> Result<AssignedCell, Error> {
-        let salt = synthesizer.assign_constant("SymKey salt", *SYM_KEY_SALT)?;
+        let salt = synthesizer.assign_constant("ViewingKey salt", *VIEWING_KEY_SALT)?;
         hash(synthesizer, self.poseidon.clone(), [id, salt])
     }
 }
@@ -83,9 +83,9 @@ mod tests {
             // Register Poseidon.
             let configs_builder = ConfigsBuilder::new(meta).with_poseidon();
             // Create SymKey chip.
-            let sym_key = SymKeyChip::new(configs_builder.poseidon_chip());
+            let sym_key_chip = SymKeyChip::new(configs_builder.poseidon_chip());
 
-            (configs_builder.finish(), sym_key, instance)
+            (configs_builder.finish(), sym_key_chip, instance)
         }
 
         fn synthesize(
@@ -98,19 +98,19 @@ mod tests {
             // 1. Embed id.
             let id = self.id.embed(&mut synthesizer, "id")?;
 
-            // 2. Derive symmetric key.
-            let sym_key = chip.derive(&mut synthesizer, id)?;
+            // 2. Derive viewing key.
+            let viewing_key = chip.derive_viewing_key(&mut synthesizer, id)?;
 
             // 3. Compare with public input.
-            synthesizer.constrain_instance(sym_key.cell(), instance, 0)
+            synthesizer.constrain_instance(viewing_key.cell(), instance, 0)
         }
     }
 
-    fn verify(id: impl Into<Fr>, expected_sym_key: impl Into<Fr>) -> Result<(), Vec<String>> {
+    fn verify(id: impl Into<Fr>, expected_viewing_key: impl Into<Fr>) -> Result<(), Vec<String>> {
         MockProver::run(
             6,
             &SymKeyCircuit { id: id.into() },
-            vec![vec![expected_sym_key.into()]],
+            vec![vec![expected_viewing_key.into()]],
         )
         .expect("Mock prover should run successfully")
         .verify()
@@ -125,16 +125,16 @@ mod tests {
     #[test]
     fn correct_input_passes() {
         let id = Fr::random(OsRng);
-        let sym_key = off_circuit::derive(id);
-        assert!(verify(id, sym_key).is_ok());
+        let viewing_key = off_circuit::derive_viewing_key(id);
+        assert!(verify(id, viewing_key).is_ok());
     }
 
     #[test]
-    fn incorrect_sym_key_fails() {
-        let expected_sym_key = off_circuit::derive(Fr::from(41));
+    fn incorrect_viewing_key_fails() {
+        let expected_viewing_key = off_circuit::derive_viewing_key(Fr::from(41));
         let another_id = Fr::from(42);
 
-        let mut errors = verify(another_id, expected_sym_key)
+        let mut errors = verify(another_id, expected_viewing_key)
             .expect_err("Verification should fail")
             .into_iter();
 

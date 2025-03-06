@@ -147,7 +147,7 @@ pub fn generate_user_id(start_from: [u8; 32]) -> Fr {
     let mut id = Fr::from_bytes(&start_from).expect("not a 32 byte array");
 
     loop {
-        let x = sym_key::off_circuit::derive(id);
+        let x = sym_key::off_circuit::derive_viewing_key(id);
         let y_squared = x * x * x + G1::b();
         match y_squared.sqrt().into_option() {
             Some(_) => return id,
@@ -314,7 +314,7 @@ mod tests {
             .expect("not a 32 byte array");
 
         let id = curve_arithmetic::generate_user_id(bytes);
-        let x = sym_key::off_circuit::derive(id);
+        let x = sym_key::off_circuit::derive_viewing_key(id);
         let y = (x * x * x + G1::b())
             .sqrt()
             .expect("element is not a quadratic residue");

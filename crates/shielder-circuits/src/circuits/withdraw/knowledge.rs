@@ -117,7 +117,7 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
 
 impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: WithdrawInstance) -> Fr {
-        let sym_key = sym_key::off_circuit::derive(self.id);
+        let viewing_key = sym_key::off_circuit::derive_viewing_key(self.id);
 
         match instance_id {
             WithdrawInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
@@ -134,7 +134,7 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
             WithdrawInstance::Commitment => self.commitment,
             WithdrawInstance::TokenAddress => self.token_address,
             WithdrawInstance::MacSalt => self.mac_salt,
-            WithdrawInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
+            WithdrawInstance::MacCommitment => hash(&[self.mac_salt, viewing_key]),
         }
     }
 }

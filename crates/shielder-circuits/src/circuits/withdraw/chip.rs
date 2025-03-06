@@ -119,13 +119,13 @@ impl WithdrawChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &WithdrawProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let sym_key =
-            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+        let viewing_key = SymKeyChip::new(self.poseidon.clone())
+            .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
         MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
             synthesizer,
             &MacInput {
-                key: sym_key,
+                key: viewing_key,
                 salt: knowledge.mac_salt.clone(),
             },
         )?;

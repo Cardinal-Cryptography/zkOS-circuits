@@ -99,7 +99,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
 
 impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: DepositInstance) -> Fr {
-        let sym_key = sym_key::off_circuit::derive(self.id);
+        let viewing_key = sym_key::off_circuit::derive_viewing_key(self.id);
 
         match instance_id {
             DepositInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),
@@ -115,7 +115,7 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
             DepositInstance::DepositValue => self.deposit_value,
             DepositInstance::TokenAddress => self.token_address,
             DepositInstance::MacSalt => self.mac_salt,
-            DepositInstance::MacCommitment => hash(&[self.mac_salt, sym_key]),
+            DepositInstance::MacCommitment => hash(&[self.mac_salt, viewing_key]),
         }
     }
 }

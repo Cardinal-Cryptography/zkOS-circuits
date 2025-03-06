@@ -191,7 +191,7 @@ mod tests {
                 DepositValue => pk.deposit_value,
                 TokenAddress => pk.token_address,
                 MacSalt => pk.mac_salt,
-                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
+                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive_viewing_key(pk.id)]),
             };
 
             assert_eq!(

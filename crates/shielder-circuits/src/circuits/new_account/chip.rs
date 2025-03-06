@@ -71,7 +71,7 @@ impl NewAccountChip {
 
     /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve
     /// y^2 = key^3 - 17
-    fn constrain_symmetric_key(
+    fn constrain_viewing_key_encodable(
         &self,
         synthesizer: &mut impl Synthesizer,
         key: AssignedCell,
@@ -86,15 +86,15 @@ impl NewAccountChip {
             .apply_in_new_region(synthesizer, GrumpkinPointAffine::new(key, y))
     }
 
-    pub fn constrain_sym_key_encryption(
+    pub fn constrain_encrypting_viewing_key(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let sym_key =
-            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+        let viewing_key = SymKeyChip::new(self.poseidon.clone())
+            .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
-        self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
+        self.constrain_viewing_key_encodable(synthesizer, viewing_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
@@ -102,13 +102,14 @@ impl NewAccountChip {
             .to_projective
             .to_projective(synthesizer, &revoker_pkey)?;
 
-        let y_value = curve_arithmetic::quadratic_residue_given_x_affine(sym_key.value().copied())
-            .map(|elem| elem.sqrt().expect("element has a square root"));
+        let y_value =
+            curve_arithmetic::quadratic_residue_given_x_affine(viewing_key.value().copied())
+                .map(|elem| elem.sqrt().expect("element has a square root"));
         let y = y_value.embed(synthesizer, "y")?;
 
         self.is_point_on_curve.apply_in_new_region(
             synthesizer,
-            GrumpkinPointAffine::new(sym_key.clone(), y.clone()),
+            GrumpkinPointAffine::new(viewing_key.clone(), y.clone()),
         )?;
 
         let z = synthesizer.assign_constant("ONE", Fr::ONE)?;
@@ -119,7 +120,7 @@ impl NewAccountChip {
         } = self.el_gamal_encryption.encrypt(
             synthesizer,
             &ElGamalEncryptionInput {
-                message: GrumpkinPoint::new(sym_key, y, z),
+                message: GrumpkinPoint::new(viewing_key, y, z),
                 public_key: revoker_pkey_projective,
                 salt_le_bits: knowledge.encryption_salt.clone(),
             },
@@ -146,13 +147,13 @@ impl NewAccountChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let sym_key =
-            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+        let viewing_key = SymKeyChip::new(self.poseidon.clone())
+            .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
         MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
             synthesizer,
             &MacInput {
-                key: sym_key,
+                key: viewing_key,
                 salt: knowledge.mac_salt.clone(),
             },
         )?;
