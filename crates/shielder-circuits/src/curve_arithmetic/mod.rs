@@ -201,7 +201,7 @@ pub fn le_bits_to_field_element(le_bits: &[Fr; FIELD_BITS]) -> Fr {
             bitwise_representation[i] = byte;
         });
 
-    Fr::from_repr(bitwise_representation).unwrap()
+    Fr::from_repr(bitwise_representation).expect("not a field element representation")
 }
 
 /// newtype wrapper to account for the fact we do not have PartialEq nor Eq traits on the Value type
