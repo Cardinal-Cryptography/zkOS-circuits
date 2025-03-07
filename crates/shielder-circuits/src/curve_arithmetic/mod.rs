@@ -183,6 +183,27 @@ fn to_bits_le(num: &[u8]) -> Vec<bool> {
     bits
 }
 
+pub fn le_bits_to_field_element(le_bits: &[Fr; FIELD_BITS]) -> Fr {
+    let mut bitwise_representation = [0u8; 32];
+
+    le_bits
+        .as_slice()
+        .chunks(8)
+        .enumerate()
+        .for_each(|(i, bits)| {
+            let mut byte: u8 = 0;
+            for (i, &bit) in bits.iter().enumerate() {
+                if bit.eq(&Fr::one()) {
+                    byte |= 1 << i;
+                }
+            }
+
+            bitwise_representation[i] = byte;
+        });
+
+    Fr::from_repr(bitwise_representation).unwrap()
+}
+
 /// newtype wrapper to account for the fact we do not have PartialEq nor Eq traits on the Value type
 #[derive(Clone, Debug)]
 pub struct V(pub Value);
@@ -234,7 +255,7 @@ mod tests {
             self, grumpkin_point::GrumpkinPoint, normalize_point, point_double, points_add,
             scalar_multiply,
         },
-        rng, Field,
+        le_bits_to_field_element, rng, Field,
     };
 
     #[test]
@@ -321,5 +342,13 @@ mod tests {
         let point = GrumpkinPointAffine::new(x, y);
 
         assert!(curve_arithmetic::is_point_on_curve_affine(point));
+    }
+
+    #[test]
+    fn le_bits_conversion() {
+        let rng = rng();
+        let field_element = Fr::random(rng);
+        let bits = field_element_to_le_bits(field_element);
+        assert_eq!(field_element, le_bits_to_field_element(&bits));
     }
 }

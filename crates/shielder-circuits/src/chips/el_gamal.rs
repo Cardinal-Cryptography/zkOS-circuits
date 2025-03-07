@@ -136,7 +136,10 @@ pub mod off_circuit {
         let private_key = Fr::random(rng);
         let private_key_bits = field_element_to_le_bits(private_key);
 
-        let public_key = curve_arithmetic::scalar_multiply(generator.into(), private_key_bits);
+        let public_key = curve_arithmetic::normalize_point(curve_arithmetic::scalar_multiply(
+            generator.into(),
+            private_key_bits,
+        ));
 
         (private_key_bits, public_key)
     }
