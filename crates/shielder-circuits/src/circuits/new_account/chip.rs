@@ -69,13 +69,13 @@ impl NewAccountChip {
             .constrain_cells(synthesizer, [(h_id, Prenullifier)])
     }
 
-    /// check whether viewing key is such that it forms a quadratic reside on the Grumpkin curve
-    /// y^2 = key^3 - 17
+    /// assert that `key` is an x-coordinate of a point on the Grumpkin curve, i.e.,
+    /// y^2 = key^3 - 17, for some y, if yes, outputs one such y (out of two possible)
     fn constrain_viewing_key_encodable(
         &self,
         synthesizer: &mut impl Synthesizer,
         key: AssignedCell,
-    ) -> Result<(), Error> {
+    ) -> Result<AssignedCell, Error> {
         let y_squared_value =
             curve_arithmetic::quadratic_residue_given_x_affine(key.value().copied());
         let y_value =
@@ -83,7 +83,8 @@ impl NewAccountChip {
         let y = y_value.embed(synthesizer, "y")?;
 
         self.is_point_on_curve
-            .apply_in_new_region(synthesizer, GrumpkinPointAffine::new(key, y))
+            .apply_in_new_region(synthesizer, GrumpkinPointAffine::new(key, y.clone()))?;
+        Ok(y)
     }
 
     pub fn constrain_encrypting_viewing_key(
@@ -94,23 +95,13 @@ impl NewAccountChip {
         let viewing_key = ViewingKeyChip::new(self.poseidon.clone())
             .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
-        self.constrain_viewing_key_encodable(synthesizer, viewing_key.clone())?;
+        let y = self.constrain_viewing_key_encodable(synthesizer, viewing_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
         let revoker_pkey_projective = self
             .to_projective
             .to_projective(synthesizer, &revoker_pkey)?;
-
-        let y_value =
-            curve_arithmetic::quadratic_residue_given_x_affine(viewing_key.value().copied())
-                .map(|elem| elem.sqrt().expect("element has a square root"));
-        let y = y_value.embed(synthesizer, "y")?;
-
-        self.is_point_on_curve.apply_in_new_region(
-            synthesizer,
-            GrumpkinPointAffine::new(viewing_key.clone(), y.clone()),
-        )?;
 
         let z = synthesizer.assign_constant("ONE", Fr::ONE)?;
 
