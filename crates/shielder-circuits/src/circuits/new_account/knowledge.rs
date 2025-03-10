@@ -4,7 +4,7 @@ use rand_core::RngCore;
 use crate::{
     chips::{
         el_gamal::{self, ElGamalEncryptionInput},
-        sym_key,
+        viewing_key,
     },
     consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPointAffine},
@@ -29,6 +29,7 @@ pub struct NewAccountProverKnowledge<T> {
     pub token_address: T,
     pub encryption_salt: [T; FIELD_BITS],
     pub anonymity_revoker_public_key: GrumpkinPointAffine<T>,
+    pub mac_salt: T,
 }
 
 impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
@@ -41,6 +42,7 @@ impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
             token_address: T::default(),
             encryption_salt: [T::default(); FIELD_BITS],
             anonymity_revoker_public_key: GrumpkinPointAffine::default(),
+            mac_salt: T::default(),
         }
     }
 }
@@ -58,6 +60,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             token_address: Fr::ZERO,
             encryption_salt: core::array::from_fn(|_| Fr::ONE),
             anonymity_revoker_public_key: GrumpkinPointAffine::random(rng),
+            mac_salt: Fr::random(rng),
         }
     }
 
@@ -73,19 +76,20 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
                 Value::known(self.anonymity_revoker_public_key.x),
                 Value::known(self.anonymity_revoker_public_key.y),
             ),
+            mac_salt: Value::known(self.mac_salt),
         })
     }
 }
 
 impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: NewAccountInstance) -> Fr {
-        let symmetric_key = sym_key::off_circuit::derive(self.id);
-        let y = curve_arithmetic::quadratic_residue_given_x_affine(symmetric_key)
+        let viewing_key = viewing_key::off_circuit::derive_viewing_key(self.id);
+        let y = curve_arithmetic::quadratic_residue_given_x_affine(viewing_key)
             .sqrt()
             .expect("element has a square root");
 
         let (c1, c2) = el_gamal::off_circuit::encrypt(ElGamalEncryptionInput {
-            message: GrumpkinPointAffine::new(symmetric_key, y).into(),
+            message: GrumpkinPointAffine::new(viewing_key, y).into(),
             public_key: self.anonymity_revoker_public_key.into(),
             salt_le_bits: self.encryption_salt,
         });
@@ -107,10 +111,12 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             NewAccountInstance::TokenAddress => self.token_address,
             NewAccountInstance::AnonymityRevokerPublicKeyX => self.anonymity_revoker_public_key.x,
             NewAccountInstance::AnonymityRevokerPublicKeyY => self.anonymity_revoker_public_key.y,
-            NewAccountInstance::SymKeyEncryptionCiphertext1X => ciphertext1.x,
-            NewAccountInstance::SymKeyEncryptionCiphertext1Y => ciphertext1.y,
-            NewAccountInstance::SymKeyEncryptionCiphertext2X => ciphertext2.x,
-            NewAccountInstance::SymKeyEncryptionCiphertext2Y => ciphertext2.y,
+            NewAccountInstance::EncryptedKeyCiphertext1X => ciphertext1.x,
+            NewAccountInstance::EncryptedKeyCiphertext1Y => ciphertext1.y,
+            NewAccountInstance::EncryptedKeyCiphertext2X => ciphertext2.x,
+            NewAccountInstance::EncryptedKeyCiphertext2Y => ciphertext2.y,
+            NewAccountInstance::MacSalt => self.mac_salt,
+            NewAccountInstance::MacCommitment => hash(&[self.mac_salt, viewing_key]),
         }
     }
 }

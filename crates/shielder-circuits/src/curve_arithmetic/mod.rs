@@ -8,7 +8,7 @@ use halo2_proofs::{
     halo2curves::{bn256::Fr, ff::PrimeField, grumpkin::G1},
 };
 
-use crate::{chips::sym_key, consts::FIELD_BITS, Value};
+use crate::{chips::viewing_key, consts::FIELD_BITS, Value};
 
 mod curve_scalar_field;
 pub mod grumpkin_point;
@@ -147,7 +147,7 @@ pub fn generate_user_id(start_from: [u8; 32]) -> Fr {
     let mut id = Fr::from_bytes(&start_from).expect("not a 32 byte array");
 
     loop {
-        let x = sym_key::off_circuit::derive(id);
+        let x = viewing_key::off_circuit::derive_viewing_key(id);
         let y_squared = x * x * x + G1::b();
         match y_squared.sqrt().into_option() {
             Some(_) => return id,
@@ -229,7 +229,7 @@ mod tests {
 
     use super::{field_element_to_le_bits, GrumpkinPointAffine};
     use crate::{
-        chips::sym_key,
+        chips::viewing_key,
         curve_arithmetic::{
             self, grumpkin_point::GrumpkinPoint, normalize_point, point_double, points_add,
             scalar_multiply,
@@ -314,7 +314,7 @@ mod tests {
             .expect("not a 32 byte array");
 
         let id = curve_arithmetic::generate_user_id(bytes);
-        let x = sym_key::off_circuit::derive(id);
+        let x = viewing_key::off_circuit::derive_viewing_key(id);
         let y = (x * x * x + G1::b())
             .sqrt()
             .expect("element is not a quadratic residue");

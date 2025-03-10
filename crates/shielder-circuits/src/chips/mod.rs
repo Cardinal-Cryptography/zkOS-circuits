@@ -5,6 +5,6 @@ pub mod points_add;
 pub mod range_check;
 pub mod scalar_multiply;
 pub mod sum;
-pub mod sym_key;
 pub mod to_affine;
 pub mod to_projective;
+pub mod viewing_key;
