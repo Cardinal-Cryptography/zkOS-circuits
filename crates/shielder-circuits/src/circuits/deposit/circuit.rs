@@ -67,7 +67,7 @@ mod tests {
     use rand_core::OsRng;
 
     use crate::{
-        chips::sym_key::off_circuit,
+        chips::viewing_key::off_circuit,
         circuits::{
             deposit::knowledge::DepositProverKnowledge,
             merkle::generate_example_path_with_given_leaf,
@@ -191,7 +191,7 @@ mod tests {
                 DepositValue => pk.deposit_value,
                 TokenAddress => pk.token_address,
                 MacSalt => pk.mac_salt,
-                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
+                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive_viewing_key(pk.id)]),
             };
 
             assert_eq!(

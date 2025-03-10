@@ -70,7 +70,7 @@ mod tests {
     use rand_core::OsRng;
 
     use crate::{
-        chips::sym_key::off_circuit,
+        chips::viewing_key::off_circuit,
         circuits::{
             merkle::generate_example_path_with_given_leaf,
             test_utils::{
@@ -238,7 +238,7 @@ mod tests {
                 Commitment => pk.commitment,
                 TokenAddress => pk.token_address,
                 MacSalt => pk.mac_salt,
-                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive(pk.id)]),
+                MacCommitment => hash(&[pk.mac_salt, off_circuit::derive_viewing_key(pk.id)]),
             };
 
             assert_eq!(

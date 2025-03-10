@@ -3,10 +3,11 @@ use halo2_proofs::{arithmetic::Field, halo2curves::bn256::Fr, plonk::Error};
 use crate::{
     chips::{
         el_gamal::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput},
+        mac::{MacChip, MacInput},
         note::{Note, NoteChip},
-        sym_key::SymKeyChip,
         to_affine::ToAffineChip,
         to_projective::ToProjectiveChip,
+        viewing_key::ViewingKeyChip,
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     curve_arithmetic::{self, GrumpkinPointAffine},
@@ -68,13 +69,13 @@ impl NewAccountChip {
             .constrain_cells(synthesizer, [(h_id, Prenullifier)])
     }
 
-    /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve
-    /// y^2 = key^3 - 17
-    fn constrain_symmetric_key(
+    /// assert that `key` is an x-coordinate of a point on the Grumpkin curve, i.e.,
+    /// y^2 = key^3 - 17, for some y, if yes, outputs one such y (out of two possible)
+    fn constrain_viewing_key_encodable(
         &self,
         synthesizer: &mut impl Synthesizer,
         key: AssignedCell,
-    ) -> Result<(), Error> {
+    ) -> Result<AssignedCell, Error> {
         let y_squared_value =
             curve_arithmetic::quadratic_residue_given_x_affine(key.value().copied());
         let y_value =
@@ -82,33 +83,25 @@ impl NewAccountChip {
         let y = y_value.embed(synthesizer, "y")?;
 
         self.is_point_on_curve
-            .apply_in_new_region(synthesizer, GrumpkinPointAffine::new(key, y))
+            .apply_in_new_region(synthesizer, GrumpkinPointAffine::new(key, y.clone()))?;
+        Ok(y)
     }
 
-    pub fn constrain_sym_key_encryption(
+    pub fn constrain_encrypting_viewing_key(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let sym_key =
-            SymKeyChip::new(self.poseidon.clone()).derive(synthesizer, knowledge.id.clone())?;
+        let viewing_key = ViewingKeyChip::new(self.poseidon.clone())
+            .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
-        self.constrain_symmetric_key(synthesizer, sym_key.clone())?;
+        let y = self.constrain_viewing_key_encodable(synthesizer, viewing_key.clone())?;
 
         let revoker_pkey = knowledge.anonymity_revoker_public_key.clone();
 
         let revoker_pkey_projective = self
             .to_projective
             .to_projective(synthesizer, &revoker_pkey)?;
-
-        let y_value = curve_arithmetic::quadratic_residue_given_x_affine(sym_key.value().copied())
-            .map(|elem| elem.sqrt().expect("element has a square root"));
-        let y = y_value.embed(synthesizer, "y")?;
-
-        self.is_point_on_curve.apply_in_new_region(
-            synthesizer,
-            GrumpkinPointAffine::new(sym_key.clone(), y.clone()),
-        )?;
 
         let z = synthesizer.assign_constant("ONE", Fr::ONE)?;
 
@@ -118,7 +111,7 @@ impl NewAccountChip {
         } = self.el_gamal_encryption.encrypt(
             synthesizer,
             &ElGamalEncryptionInput {
-                message: GrumpkinPoint::new(sym_key, y, z),
+                message: GrumpkinPoint::new(viewing_key, y, z),
                 public_key: revoker_pkey_projective,
                 salt_le_bits: knowledge.encryption_salt.clone(),
             },
@@ -132,11 +125,30 @@ impl NewAccountChip {
             [
                 (revoker_pkey.x, AnonymityRevokerPublicKeyX),
                 (revoker_pkey.y, AnonymityRevokerPublicKeyY),
-                (c1_affine.x, SymKeyEncryptionCiphertext1X),
-                (c1_affine.y, SymKeyEncryptionCiphertext1Y),
-                (c2_affine.x, SymKeyEncryptionCiphertext2X),
-                (c2_affine.y, SymKeyEncryptionCiphertext2Y),
+                (c1_affine.x, EncryptedKeyCiphertext1X),
+                (c1_affine.y, EncryptedKeyCiphertext1Y),
+                (c2_affine.x, EncryptedKeyCiphertext2X),
+                (c2_affine.y, EncryptedKeyCiphertext2Y),
             ],
         )
+    }
+
+    pub fn check_mac(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &NewAccountProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        let viewing_key = ViewingKeyChip::new(self.poseidon.clone())
+            .derive_viewing_key(synthesizer, knowledge.id.clone())?;
+
+        MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
+            synthesizer,
+            &MacInput {
+                key: viewing_key,
+                salt: knowledge.mac_salt.clone(),
+            },
+        )?;
+
+        Ok(())
     }
 }
