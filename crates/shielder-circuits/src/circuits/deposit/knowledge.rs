@@ -2,7 +2,7 @@ use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
-    chips::sym_key,
+    chips::viewing_key,
     consts::merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
     curve_arithmetic,
     deposit::{circuit::DepositCircuit, DepositInstance},
@@ -99,7 +99,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
 
 impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: DepositInstance) -> Fr {
-        let viewing_key = sym_key::off_circuit::derive_viewing_key(self.id);
+        let viewing_key = viewing_key::off_circuit::derive_viewing_key(self.id);
 
         match instance_id {
             DepositInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),

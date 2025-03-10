@@ -4,7 +4,7 @@ use rand_core::RngCore;
 use crate::{
     chips::{
         el_gamal::{self, ElGamalEncryptionInput},
-        sym_key,
+        viewing_key,
     },
     consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPointAffine},
@@ -83,7 +83,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
 
 impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: NewAccountInstance) -> Fr {
-        let viewing_key = sym_key::off_circuit::derive_viewing_key(self.id);
+        let viewing_key = viewing_key::off_circuit::derive_viewing_key(self.id);
         let y = curve_arithmetic::quadratic_residue_given_x_affine(viewing_key)
             .sqrt()
             .expect("element has a square root");

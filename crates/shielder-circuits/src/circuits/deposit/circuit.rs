@@ -67,7 +67,7 @@ mod tests {
     use rand_core::OsRng;
 
     use crate::{
-        chips::sym_key::off_circuit,
+        chips::viewing_key::off_circuit,
         circuits::{
             deposit::knowledge::DepositProverKnowledge,
             merkle::generate_example_path_with_given_leaf,

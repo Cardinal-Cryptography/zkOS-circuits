@@ -5,7 +5,7 @@ use crate::{
     chips::{
         mac::{MacChip, MacInput},
         note::{Note, NoteChip},
-        sym_key::SymKeyChip,
+        viewing_key::ViewingKeyChip,
     },
     circuits::{
         deposit::knowledge::DepositProverKnowledge,
@@ -103,7 +103,7 @@ impl DepositChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let viewing_key = SymKeyChip::new(self.poseidon.clone())
+        let viewing_key = ViewingKeyChip::new(self.poseidon.clone())
             .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
         MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(

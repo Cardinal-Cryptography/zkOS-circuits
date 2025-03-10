@@ -3,7 +3,7 @@ use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
-    chips::sym_key,
+    chips::viewing_key,
     consts::{
         merkle_constants::{ARITY, NOTE_TREE_HEIGHT},
         MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK,
@@ -117,7 +117,7 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
 
 impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
     fn compute_public_input(&self, instance_id: WithdrawInstance) -> Fr {
-        let viewing_key = sym_key::off_circuit::derive_viewing_key(self.id);
+        let viewing_key = viewing_key::off_circuit::derive_viewing_key(self.id);
 
         match instance_id {
             WithdrawInstance::MerkleRoot => hash(&self.path[NOTE_TREE_HEIGHT - 1]),

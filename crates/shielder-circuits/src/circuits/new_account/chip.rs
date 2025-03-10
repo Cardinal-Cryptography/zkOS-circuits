@@ -5,9 +5,9 @@ use crate::{
         el_gamal::{ElGamalEncryptionChip, ElGamalEncryptionChipOutput, ElGamalEncryptionInput},
         mac::{MacChip, MacInput},
         note::{Note, NoteChip},
-        sym_key::SymKeyChip,
         to_affine::ToAffineChip,
         to_projective::ToProjectiveChip,
+        viewing_key::ViewingKeyChip,
     },
     circuits::new_account::knowledge::NewAccountProverKnowledge,
     curve_arithmetic::{self, GrumpkinPointAffine},
@@ -69,7 +69,7 @@ impl NewAccountChip {
             .constrain_cells(synthesizer, [(h_id, Prenullifier)])
     }
 
-    /// check whether symmetric key is such that it forms a quadratic reside on the Grumpkin curve
+    /// check whether viewing key is such that it forms a quadratic reside on the Grumpkin curve
     /// y^2 = key^3 - 17
     fn constrain_viewing_key_encodable(
         &self,
@@ -91,7 +91,7 @@ impl NewAccountChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let viewing_key = SymKeyChip::new(self.poseidon.clone())
+        let viewing_key = ViewingKeyChip::new(self.poseidon.clone())
             .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
         self.constrain_viewing_key_encodable(synthesizer, viewing_key.clone())?;
@@ -147,7 +147,7 @@ impl NewAccountChip {
         synthesizer: &mut impl Synthesizer,
         knowledge: &NewAccountProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        let viewing_key = SymKeyChip::new(self.poseidon.clone())
+        let viewing_key = ViewingKeyChip::new(self.poseidon.clone())
             .derive_viewing_key(synthesizer, knowledge.id.clone())?;
 
         MacChip::new(self.poseidon.clone(), self.public_inputs.narrow()).mac(
