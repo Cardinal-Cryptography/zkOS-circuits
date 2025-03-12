@@ -120,7 +120,10 @@ impl ElGamalEncryptionChip {
 pub mod off_circuit {
     use halo2_proofs::{
         arithmetic::Field,
-        halo2curves::{bn256::Fr, grumpkin::G1},
+        halo2curves::{
+            bn256::Fr,
+            grumpkin::{self, G1},
+        },
     };
     use rand::RngCore;
 
@@ -133,7 +136,7 @@ pub mod off_circuit {
 
     pub fn generate_keys(rng: &mut impl RngCore) -> ([Fr; FIELD_BITS], GrumpkinPoint<Fr>) {
         let generator = G1::generator();
-        let private_key = Fr::random(rng);
+        let private_key = grumpkin::Fr::random(rng);
         let private_key_bits = field_element_to_le_bits(private_key);
 
         let public_key = curve_arithmetic::normalize_point(curve_arithmetic::scalar_multiply(

@@ -161,16 +161,24 @@ pub fn generate_user_id(start_from: [u8; 32]) -> Fr {
 /// Converts given field element to the individual LE bit representation
 ///
 /// panics if value is not `FIELD_BITS` bits
-pub fn field_element_to_le_bits(value: Fr) -> [Fr; FIELD_BITS] {
+pub fn field_element_to_le_bits<T: PrimeField>(value: T) -> [Fr; FIELD_BITS] {
     let bits_vec = to_bits_le(value.to_repr().as_ref())
         .to_vec()
         .iter()
         .take(FIELD_BITS)
         .map(|&x| Fr::from(u64::from(x)))
         .collect::<Vec<Fr>>();
-    bits_vec
-        .try_into()
-        .unwrap_or_else(|_| panic!("value is not {FIELD_BITS} bits long!"))
+
+    if bits_vec.len() != FIELD_BITS {
+        panic!("value is not 254 bits long!");
+    }
+
+    let mut array = [Fr::ZERO; FIELD_BITS];
+    for (i, item) in bits_vec.into_iter().enumerate() {
+        array[i] = item;
+    }
+
+    array
 }
 
 fn to_bits_le(num: &[u8]) -> Vec<bool> {
@@ -183,7 +191,7 @@ fn to_bits_le(num: &[u8]) -> Vec<bool> {
     bits
 }
 
-pub fn le_bits_to_field_element(le_bits: &[Fr; FIELD_BITS]) -> Fr {
+pub fn le_bits_to_field_element<T: PrimeField<Repr = [u8; 32]>>(le_bits: &[Fr; FIELD_BITS]) -> T {
     let mut bitwise_representation = [0u8; 32];
 
     le_bits
@@ -201,7 +209,7 @@ pub fn le_bits_to_field_element(le_bits: &[Fr; FIELD_BITS]) -> Fr {
             bitwise_representation[i] = byte;
         });
 
-    Fr::from_repr(bitwise_representation).expect("not a field element representation")
+    T::from_repr(bitwise_representation).expect("not a field element representation")
 }
 
 /// newtype wrapper to account for the fact we do not have PartialEq nor Eq traits on the Value type
@@ -245,7 +253,12 @@ impl Mul for V {
 mod tests {
     use halo2_proofs::{
         arithmetic::CurveExt,
-        halo2curves::{bn256::Fr, ff::PrimeField, group::Group, grumpkin::G1},
+        halo2curves::{
+            bn256::{Fq, Fr},
+            ff::PrimeField,
+            group::Group,
+            grumpkin::G1,
+        },
     };
 
     use super::{field_element_to_le_bits, GrumpkinPointAffine};
@@ -345,9 +358,17 @@ mod tests {
     }
 
     #[test]
-    fn le_bits_conversion() {
+    fn le_bits_conversion_from_fr() {
         let rng = rng();
         let field_element = Fr::random(rng);
+        let bits = field_element_to_le_bits(field_element);
+        assert_eq!(field_element, le_bits_to_field_element(&bits));
+    }
+
+    #[test]
+    fn le_bits_conversion_from_fq() {
+        let rng = rng();
+        let field_element = Fq::random(rng);
         let bits = field_element_to_le_bits(field_element);
         assert_eq!(field_element, le_bits_to_field_element(&bits));
     }
