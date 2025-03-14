@@ -117,29 +117,43 @@ impl ElGamalEncryptionChip {
     }
 }
 
-#[allow(dead_code)]
 pub mod off_circuit {
-    use halo2_proofs::halo2curves::bn256::Fr;
+    use halo2_proofs::{
+        arithmetic::Field,
+        halo2curves::{
+            bn256::Fr,
+            grumpkin::{self, G1},
+        },
+    };
+    use rand::RngCore;
 
-    use super::ElGamalEncryptionInput;
     use crate::{
-        consts::FIELD_BITS,
         curve_arithmetic::{self, GrumpkinPoint},
+        field_element_to_le_bits,
     };
 
+    pub fn generate_keys(rng: &mut impl RngCore) -> (grumpkin::Fr, GrumpkinPoint<Fr>) {
+        let generator = G1::generator();
+        let private_key = grumpkin::Fr::random(rng);
+        let private_key_bits = field_element_to_le_bits(private_key);
+
+        let public_key = curve_arithmetic::normalize_point(curve_arithmetic::scalar_multiply(
+            generator.into(),
+            private_key_bits,
+        ));
+
+        (private_key, public_key)
+    }
+
     pub fn encrypt(
-        ElGamalEncryptionInput {
-            message,
-            public_key,
-            salt_le_bits,
-        }: ElGamalEncryptionInput<Fr>,
+        message: GrumpkinPoint<Fr>,
+        public_key: GrumpkinPoint<Fr>,
+        encryption_salt: grumpkin::Fr,
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
         let generator = GrumpkinPoint::generator();
-
-        let shared_secret = curve_arithmetic::scalar_multiply(public_key, salt_le_bits);
-
-        let ciphertext1 = curve_arithmetic::scalar_multiply(generator, salt_le_bits);
-
+        let salt_bits = field_element_to_le_bits(encryption_salt);
+        let shared_secret = curve_arithmetic::scalar_multiply(public_key, salt_bits);
+        let ciphertext1 = curve_arithmetic::scalar_multiply(generator, salt_bits);
         let ciphertext2 = curve_arithmetic::points_add(message, shared_secret);
 
         (ciphertext1, ciphertext2)
@@ -148,9 +162,10 @@ pub mod off_circuit {
     pub fn decrypt(
         ciphertext1: GrumpkinPoint<Fr>,
         ciphertext2: GrumpkinPoint<Fr>,
-        private_key_le_bits: [Fr; FIELD_BITS],
+        private_key: grumpkin::Fr,
     ) -> GrumpkinPoint<Fr> {
-        let shared_secret = curve_arithmetic::scalar_multiply(ciphertext1, private_key_le_bits);
+        let private_key_bits = field_element_to_le_bits(private_key);
+        let shared_secret = curve_arithmetic::scalar_multiply(ciphertext1, private_key_bits);
         ciphertext2 - shared_secret
     }
 }
@@ -167,7 +182,7 @@ mod tests {
         arithmetic::Field,
         circuit::{floor_planner::V1, Layouter},
         dev::MockProver,
-        halo2curves::{bn256::Fr, grumpkin::G1},
+        halo2curves::{bn256::Fr, grumpkin},
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
     };
 
@@ -177,10 +192,9 @@ mod tests {
     use crate::{
         column_pool::{ColumnPool, PreSynthesisPhase},
         config_builder::ConfigsBuilder,
-        consts::FIELD_BITS,
-        curve_arithmetic::{self, field_element_to_le_bits, normalize_point, GrumpkinPoint},
+        curve_arithmetic::{field_element_to_le_bits, normalize_point, GrumpkinPoint},
         embed::Embed,
-        rng,
+        generate_keys, rng,
         synthesizer::create_synthesizer,
     };
 
@@ -248,27 +262,15 @@ mod tests {
         }
     }
 
-    fn generate_keys() -> ([Fr; FIELD_BITS], GrumpkinPoint<Fr>) {
-        let rng = rng();
-
-        let generator = G1::generator();
-        let private_key = Fr::random(rng.clone());
-        let private_key_bits = field_element_to_le_bits(private_key);
-
-        let public_key = curve_arithmetic::scalar_multiply(generator.into(), private_key_bits);
-
-        (private_key_bits, public_key)
-    }
-
     fn input(
         message: GrumpkinPoint<Fr>,
         public_key: GrumpkinPoint<Fr>,
-        salt_le_bits: [Fr; FIELD_BITS],
+        salt: grumpkin::Fr,
     ) -> ElGamalEncryptionInput<Fr> {
         ElGamalEncryptionInput {
             message,
             public_key,
-            salt_le_bits,
+            salt_le_bits: field_element_to_le_bits(salt),
         }
     }
 
@@ -302,18 +304,12 @@ mod tests {
     fn off_circuit_encryption_and_decryption() {
         let mut rng = rng();
 
-        let (private_key_bits, public_key) = generate_keys();
-
+        let (private_key, public_key) = generate_keys(&mut rng);
         let message = GrumpkinPoint::random(&mut rng);
-        let salt_le_bits = field_element_to_le_bits(Fr::random(rng));
+        let salt = grumpkin::Fr::random(rng);
 
-        let (ciphertext1, ciphertext2) = off_circuit::encrypt(ElGamalEncryptionInput {
-            message,
-            public_key,
-            salt_le_bits,
-        });
-
-        let recovered_message = off_circuit::decrypt(ciphertext1, ciphertext2, private_key_bits);
+        let (ciphertext1, ciphertext2) = off_circuit::encrypt(message, public_key, salt);
+        let recovered_message = off_circuit::decrypt(ciphertext1, ciphertext2, private_key);
 
         assert_eq!(message, normalize_point(recovered_message));
     }
@@ -322,18 +318,13 @@ mod tests {
     fn encrypt_random_message() {
         let mut rng = rng();
 
-        let (_, public_key) = generate_keys();
-
+        let (_, public_key) = generate_keys(&mut rng);
         let message = GrumpkinPoint::random(&mut rng);
-        let salt_le_bits = field_element_to_le_bits(Fr::random(rng));
+        let salt = grumpkin::Fr::random(rng);
 
-        let (ciphertext1, ciphertext2) = off_circuit::encrypt(ElGamalEncryptionInput {
-            message,
-            public_key,
-            salt_le_bits,
-        });
+        let (ciphertext1, ciphertext2) = off_circuit::encrypt(message, public_key, salt);
 
-        let input = input(message, public_key, salt_le_bits);
+        let input = input(message, public_key, salt);
         let output = ElGamalEncryptionChipOutput {
             ciphertext1,
             ciphertext2,

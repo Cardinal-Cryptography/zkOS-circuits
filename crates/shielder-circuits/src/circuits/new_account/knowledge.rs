@@ -1,14 +1,16 @@
+use halo2_proofs::halo2curves::grumpkin;
 use macros::embeddable;
 use rand_core::RngCore;
 
 use crate::{
     chips::{
-        el_gamal::{self, ElGamalEncryptionInput},
+        el_gamal::{self},
         viewing_key,
     },
     consts::FIELD_BITS,
     curve_arithmetic::{self, GrumpkinPointAffine},
     embed::Embed,
+    field_element_to_le_bits, le_bits_to_field_element,
     new_account::{circuit::NewAccountCircuit, NewAccountInstance},
     note_hash,
     poseidon::off_circuit::hash,
@@ -58,7 +60,7 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
             trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
             token_address: Fr::ZERO,
-            encryption_salt: core::array::from_fn(|_| Fr::ONE),
+            encryption_salt: field_element_to_le_bits(grumpkin::Fr::ONE),
             anonymity_revoker_public_key: GrumpkinPointAffine::random(rng),
             mac_salt: Fr::random(rng),
         }
@@ -88,11 +90,13 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
             .sqrt()
             .expect("element has a square root");
 
-        let (c1, c2) = el_gamal::off_circuit::encrypt(ElGamalEncryptionInput {
-            message: GrumpkinPointAffine::new(viewing_key, y).into(),
-            public_key: self.anonymity_revoker_public_key.into(),
-            salt_le_bits: self.encryption_salt,
-        });
+        let salt: grumpkin::Fr = le_bits_to_field_element(&self.encryption_salt);
+
+        let (c1, c2) = el_gamal::off_circuit::encrypt(
+            GrumpkinPointAffine::new(viewing_key, y).into(),
+            self.anonymity_revoker_public_key.into(),
+            salt,
+        );
 
         let ciphertext1: GrumpkinPointAffine<Fr> = c1.into();
         let ciphertext2: GrumpkinPointAffine<Fr> = c2.into();
