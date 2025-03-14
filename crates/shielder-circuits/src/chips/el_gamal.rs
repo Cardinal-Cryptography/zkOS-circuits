@@ -148,10 +148,10 @@ pub mod off_circuit {
     pub fn encrypt(
         message: GrumpkinPoint<Fr>,
         public_key: GrumpkinPoint<Fr>,
-        salt: grumpkin::Fr,
+        encryption_salt: grumpkin::Fr,
     ) -> (GrumpkinPoint<Fr>, GrumpkinPoint<Fr>) {
         let generator = GrumpkinPoint::generator();
-        let salt_bits = field_element_to_le_bits(salt);
+        let salt_bits = field_element_to_le_bits(encryption_salt);
         let shared_secret = curve_arithmetic::scalar_multiply(public_key, salt_bits);
         let ciphertext1 = curve_arithmetic::scalar_multiply(generator, salt_bits);
         let ciphertext2 = curve_arithmetic::points_add(message, shared_secret);
