@@ -31,6 +31,8 @@ pub use halo2_proofs::{
     arithmetic::Field,
     dev::CircuitCost,
     halo2curves::bn256::{Bn256, Fr, G1Affine, G1},
+    halo2curves::ff::PrimeField,
+    halo2curves::grumpkin,
     plonk::{Circuit, ProvingKey, VerifyingKey},
     poly::{commitment::Params, kzg::commitment::ParamsKZG},
     SerdeFormat,
