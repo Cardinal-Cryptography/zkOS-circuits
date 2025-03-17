@@ -30,9 +30,11 @@ pub use curve_arithmetic::{grumpkin_point::*, *};
 pub use halo2_proofs::{
     arithmetic::Field,
     dev::CircuitCost,
-    halo2curves::bn256::{Bn256, Fr, G1Affine, G1},
-    halo2curves::ff::PrimeField,
-    halo2curves::grumpkin,
+    halo2curves::{
+        bn256::{Bn256, Fr, G1Affine, G1},
+        ff::PrimeField,
+        grumpkin,
+    },
     plonk::{Circuit, ProvingKey, VerifyingKey},
     poly::{commitment::Params, kzg::commitment::ParamsKZG},
     SerdeFormat,
