@@ -23,6 +23,7 @@ use alloc::{fmt::Debug, vec::Vec};
 pub use chips::{
     el_gamal::off_circuit::{decrypt, encrypt, generate_keys},
     note::{off_circuit::note_hash, Note},
+    viewing_key::off_circuit::derive_viewing_key,
 };
 pub use circuits::*;
 pub use consts::MAX_K;
