@@ -14,7 +14,7 @@ concurrency:
 jobs:
   main:
     name: YAML Lint
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: LINT | Execute YAML linter
         uses: Cardinal-Cryptography/github-actions/yaml-lint@v7
