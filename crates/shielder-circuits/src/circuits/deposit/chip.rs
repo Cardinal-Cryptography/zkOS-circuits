@@ -1,5 +1,4 @@
 use halo2_proofs::plonk::Error;
-use DepositInstance::DepositValue;
 
 use crate::{
     chips::{
@@ -11,7 +10,9 @@ use crate::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
     },
-    deposit::DepositInstance::{self, HashedNewNote, HashedOldNullifier},
+    deposit::DepositInstance::{
+        self, CallerAddress, DepositValue, HashedNewNote, HashedOldNullifier,
+    },
     instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
@@ -114,5 +115,16 @@ impl DepositChip {
             },
         )?;
         Ok(())
+    }
+
+    pub fn check_caller_address(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &DepositProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        self.public_inputs.constrain_cells(
+            synthesizer,
+            [(knowledge.caller_address.clone(), CallerAddress)],
+        )
     }
 }

@@ -65,7 +65,8 @@ impl Circuit<Fr> for NewAccountCircuit {
         // Since it is deterministic it can be used as a nullifier to prevent creating a second account with the same id.
         main_chip.constrain_prenullifier(&mut synthesizer, &knowledge)?;
         main_chip.constrain_encrypting_viewing_key(&mut synthesizer, &knowledge)?;
-        main_chip.check_mac(&mut synthesizer, &knowledge)
+        main_chip.check_mac(&mut synthesizer, &knowledge)?;
+        main_chip.check_caller_address(&mut synthesizer, &knowledge)
     }
 }
 
@@ -166,6 +167,16 @@ mod tests {
     fn fails_if_mac_salt_is_incorrect() {
         let pk = NewAccountProverKnowledge::random_correct_example(&mut OsRng);
         let pub_input = pk.with_substitution(MacSalt, |s| s + Fr::ONE);
+
+        assert!(
+            expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
+        );
+    }
+
+    #[test]
+    fn fails_if_caller_address_is_incorrect() {
+        let pk = NewAccountProverKnowledge::random_correct_example(&mut OsRng);
+        let pub_input = pk.with_substitution(CallerAddress, |s| s + Fr::ONE);
 
         assert!(
             expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
