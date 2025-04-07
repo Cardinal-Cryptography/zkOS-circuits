@@ -43,6 +43,7 @@ pub struct DepositProverKnowledge<T> {
     pub mac_salt: T,
 
     pub deposit_value: T,
+    pub caller_address: T,
 }
 
 impl ProverKnowledge for DepositProverKnowledge<Fr> {
@@ -77,7 +78,8 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             nullifier_new: Fr::random(&mut *rng),
             trapdoor_new: Fr::random(&mut *rng),
             deposit_value: Fr::ONE,
-            mac_salt: Fr::random(rng),
+            mac_salt: Fr::random(&mut *rng),
+            caller_address: Fr::random(rng),
         }
     }
 
@@ -93,6 +95,7 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
             path: self.path.map(|level| level.map(Value::known)),
             deposit_value: Value::known(self.deposit_value),
             mac_salt: Value::known(self.mac_salt),
+            caller_address: Value::known(self.caller_address),
         })
     }
 }
@@ -113,6 +116,7 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
                 token_address: self.token_address,
             }),
             DepositInstance::DepositValue => self.deposit_value,
+            DepositInstance::CallerAddress => self.caller_address,
             DepositInstance::TokenAddress => self.token_address,
             DepositInstance::MacSalt => self.mac_salt,
             DepositInstance::MacCommitment => hash(&[self.mac_salt, viewing_key]),

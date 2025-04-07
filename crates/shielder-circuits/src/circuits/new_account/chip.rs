@@ -151,4 +151,15 @@ impl NewAccountChip {
 
         Ok(())
     }
+
+    pub fn check_caller_address(
+        &self,
+        synthesizer: &mut impl Synthesizer,
+        knowledge: &NewAccountProverKnowledge<AssignedCell>,
+    ) -> Result<(), Error> {
+        self.public_inputs.constrain_cells(
+            synthesizer,
+            [(knowledge.caller_address.clone(), CallerAddress)],
+        )
+    }
 }
