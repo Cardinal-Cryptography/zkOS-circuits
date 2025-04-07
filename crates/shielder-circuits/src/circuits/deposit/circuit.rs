@@ -189,6 +189,7 @@ mod tests {
                 // Important note: there is no range check in the circuit for DepositValue, however there is an external constraint
                 // (in the smart contract) guaranteeing that this never exceeds MAX_CONTRACT_BALANCE = 2^{112} - 1.
                 DepositValue => pk.deposit_value,
+                CallerAddress => pk.caller_address,
                 TokenAddress => pk.token_address,
                 MacSalt => pk.mac_salt,
                 MacCommitment => hash(&[pk.mac_salt, off_circuit::derive_viewing_key(pk.id)]),
@@ -246,7 +247,7 @@ mod tests {
         assert_eq!(new_note_hash, pub_input[2]);
 
         // Verify the token address.
-        assert_eq!(Fr::from(123), pub_input[4]);
+        assert_eq!(Fr::from(123), pub_input[5]);
     }
 
     #[test]
@@ -263,7 +264,7 @@ mod tests {
             // The returned failure location happens to be in
             // a `poseidon-gadget` region the token address was copied to.
             "add input for domain ConstantLength<7>",
-            4,
+            5,
         );
     }
 

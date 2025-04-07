@@ -149,7 +149,7 @@ mod tests {
         let failures = expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input)
             .expect_err("Verification must fail");
 
-        expect_instance_permutation_failures(&failures, "token_address", 3);
+        expect_instance_permutation_failures(&failures, "token_address", 4);
     }
 
     #[test]
