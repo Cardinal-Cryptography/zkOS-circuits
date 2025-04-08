@@ -44,7 +44,6 @@ impl NewAccountChip {
                 version: NOTE_VERSION,
                 id: knowledge.id.clone(),
                 nullifier: knowledge.nullifier.clone(),
-                trapdoor: knowledge.trapdoor.clone(),
                 account_balance: knowledge.initial_deposit.clone(),
                 token_address: knowledge.token_address.clone(),
             },

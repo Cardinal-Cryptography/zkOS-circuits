@@ -32,7 +32,6 @@ pub struct WithdrawProverKnowledge<T> {
     // Old note
     pub id: T,
     pub nullifier_old: T,
-    pub trapdoor_old: T,
     pub account_old_balance: T,
     pub token_address: T,
 
@@ -41,7 +40,6 @@ pub struct WithdrawProverKnowledge<T> {
 
     // New note
     pub nullifier_new: T,
-    pub trapdoor_new: T,
 
     // Salt for MAC.
     pub mac_salt: T,
@@ -63,7 +61,6 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
     fn random_correct_example(rng: &mut impl RngCore) -> Self {
         let id = curve_arithmetic::generate_user_id(Fr::random(&mut *rng).to_bytes());
         let nullifier_old = Fr::random(&mut *rng);
-        let trapdoor_old = Fr::random(&mut *rng);
 
         let account_old_balance = Fr::from_u128(MAX_ACCOUNT_BALANCE_PASSING_RANGE_CHECK);
         let token_address = Fr::ZERO;
@@ -71,7 +68,6 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             version: NOTE_VERSION,
             id,
             nullifier: nullifier_old,
-            trapdoor: trapdoor_old,
             account_balance: account_old_balance,
             token_address,
         });
@@ -83,21 +79,16 @@ impl ProverKnowledge for WithdrawProverKnowledge<Fr> {
             commitment: Fr::random(&mut *rng),
             id,
             nullifier_old,
-            trapdoor_old,
             account_old_balance,
             token_address,
             path,
             nullifier_new: Fr::random(&mut *rng),
-            trapdoor_new: Fr::random(&mut *rng),
             mac_salt: Fr::random(rng),
         }
     }
 
     fn create_circuit(&self) -> Self::Circuit {
         WithdrawCircuit(WithdrawProverKnowledge {
-            trapdoor_new: Value::known(self.trapdoor_new),
-            trapdoor_old: Value::known(self.trapdoor_old),
-
             nullifier_new: Value::known(self.nullifier_new),
             nullifier_old: Value::known(self.nullifier_old),
 
@@ -126,7 +117,6 @@ impl PublicInputProvider<WithdrawInstance> for WithdrawProverKnowledge<Fr> {
                 version: NOTE_VERSION,
                 id: self.id,
                 nullifier: self.nullifier_new,
-                trapdoor: self.trapdoor_new,
                 account_balance: self.account_old_balance - self.withdrawal_value,
                 token_address: self.token_address,
             }),

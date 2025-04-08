@@ -106,7 +106,6 @@ mod tests {
             version: NoteVersion::new(0),
             id: pk.id,
             nullifier: pk.nullifier_old,
-            trapdoor: pk.trapdoor_old,
             account_balance: pk.account_old_balance,
             token_address: pk.token_address,
         });
@@ -129,7 +128,6 @@ mod tests {
             Fr::ZERO, // Note version.
             pk.id,
             pk.nullifier_new,
-            pk.trapdoor_new,
             new_balance_hash,
         ]);
         assert_eq!(new_note_hash, pub_input[2]);
@@ -207,7 +205,6 @@ mod tests {
                 version: NOTE_VERSION,
                 id: pk.id,
                 nullifier: pk.nullifier_old,
-                trapdoor: pk.trapdoor_old,
                 account_balance: pk.account_old_balance,
                 token_address: pk.token_address,
             }) + modification /* Modification here! */;
@@ -225,7 +222,6 @@ mod tests {
                 version: NOTE_VERSION,
                 id: pk.id,
                 nullifier: pk.nullifier_new,
-                trapdoor: pk.trapdoor_new,
                 account_balance: account_balance_new,
                 token_address: pk.token_address,
             });

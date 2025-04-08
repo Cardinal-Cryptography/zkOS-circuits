@@ -28,7 +28,6 @@ pub struct DepositProverKnowledge<T> {
     // Old note
     pub id: T,
     pub nullifier_old: T,
-    pub trapdoor_old: T,
     pub account_old_balance: T,
     pub token_address: T,
 
@@ -37,7 +36,6 @@ pub struct DepositProverKnowledge<T> {
 
     // New note
     pub nullifier_new: T,
-    pub trapdoor_new: T,
 
     // Salt for MAC.
     pub mac_salt: T,
@@ -56,14 +54,12 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
         let id = curve_arithmetic::generate_user_id(Fr::random(&mut *rng).to_bytes());
 
         let nullifier_old = Fr::random(&mut *rng);
-        let trapdoor_old = Fr::random(&mut *rng);
         let account_old_balance = Fr::from(10);
         let token_address = Fr::ZERO;
         let h_note_old = note_hash(&Note {
             version: NOTE_VERSION,
             id,
             nullifier: nullifier_old,
-            trapdoor: trapdoor_old,
             account_balance: account_old_balance,
             token_address,
         });
@@ -71,12 +67,10 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
         Self {
             id,
             nullifier_old,
-            trapdoor_old,
             account_old_balance,
             token_address,
             path,
             nullifier_new: Fr::random(&mut *rng),
-            trapdoor_new: Fr::random(&mut *rng),
             deposit_value: Fr::ONE,
             mac_salt: Fr::random(&mut *rng),
             caller_address: Fr::random(rng),
@@ -85,8 +79,6 @@ impl ProverKnowledge for DepositProverKnowledge<Fr> {
 
     fn create_circuit(&self) -> Self::Circuit {
         DepositCircuit(DepositProverKnowledge {
-            trapdoor_new: Value::known(self.trapdoor_new),
-            trapdoor_old: Value::known(self.trapdoor_old),
             nullifier_new: Value::known(self.nullifier_new),
             nullifier_old: Value::known(self.nullifier_old),
             account_old_balance: Value::known(self.account_old_balance),
@@ -111,7 +103,6 @@ impl PublicInputProvider<DepositInstance> for DepositProverKnowledge<Fr> {
                 version: NOTE_VERSION,
                 id: self.id,
                 nullifier: self.nullifier_new,
-                trapdoor: self.trapdoor_new,
                 account_balance: self.account_old_balance + self.deposit_value,
                 token_address: self.token_address,
             }),

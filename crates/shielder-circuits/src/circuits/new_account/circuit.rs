@@ -115,7 +115,6 @@ mod tests {
             Fr::ZERO, // Note version.
             pk.id,
             pk.nullifier,
-            pk.trapdoor,
             balance_hash,
         ]);
         assert_eq!(note_hash, pub_input[0]);

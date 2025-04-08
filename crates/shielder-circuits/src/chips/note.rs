@@ -24,7 +24,6 @@ pub struct Note<T> {
     pub version: NoteVersion,
     pub id: T,
     pub nullifier: T,
-    pub trapdoor: T,
     pub account_balance: T,
     pub token_address: T,
 }
@@ -43,7 +42,6 @@ impl Embed for Note<Value> {
             version: self.version,
             id: self.id.embed(synthesizer, annotation.clone())?,
             nullifier: self.nullifier.embed(synthesizer, annotation.clone())?,
-            trapdoor: self.trapdoor.embed(synthesizer, annotation.clone())?,
             account_balance: self
                 .account_balance
                 .embed(synthesizer, annotation.clone())?,
@@ -72,7 +70,6 @@ pub mod off_circuit {
             note.version.as_field(),
             note.id,
             note.nullifier,
-            note.trapdoor,
             balance_hash,
         ];
 
@@ -101,7 +98,7 @@ impl NoteChip {
 
     /// Calculates the note_hash as follows:
     ///
-    ///   `note_hash = poseidon2(NOTE_VERSION, note.id, note.nullifier, note.trapdoor,
+    ///   `note_hash = poseidon2(NOTE_VERSION, note.id, note.nullifier,
     ///                          poseidon2(note.balance, note.token_address, 0, 0, 0, 0, 0))`
     ///
     /// The reason for the double nesting and for the padding is historical: we keep this hash shape
@@ -126,7 +123,6 @@ impl NoteChip {
             note_version,
             note.id.clone(),
             note.nullifier.clone(),
-            note.trapdoor.clone(),
             h_balance,
         ];
 
@@ -223,7 +219,6 @@ mod tests {
                 version: note.version,
                 id: Value::known(note.id.into()),
                 nullifier: Value::known(note.nullifier.into()),
-                trapdoor: Value::known(note.trapdoor.into()),
                 account_balance: Value::known(note.account_balance.into()),
                 token_address: Value::known(note.token_address.into()),
             })
@@ -281,7 +276,6 @@ mod tests {
                     version: NoteVersion::new(0),
                     id: Value::unknown(),
                     nullifier: Value::unknown(),
-                    trapdoor: Value::unknown(),
                     account_balance: Value::unknown(),
                     token_address: Value::unknown(),
                 }),
@@ -350,17 +344,15 @@ mod tests {
             version: NoteVersion::new(0),
             id: Fr::from(1),
             nullifier: Fr::from(2),
-            trapdoor: Fr::from(3),
-            account_balance: Fr::from(4),
+            account_balance: Fr::from(3),
             token_address,
         });
         let expected_output = hash(&[
             Fr::from(0),
             Fr::from(1),
             Fr::from(2),
-            Fr::from(3),
             hash(&[
-                Fr::from(4),
+                Fr::from(3),
                 token_address,
                 Fr::ZERO,
                 Fr::ZERO,
@@ -380,11 +372,10 @@ mod tests {
             version: NoteVersion::new(0),
             id: Fr::from(1),
             nullifier: Fr::from(2),
-            trapdoor: Fr::from(3),
-            account_balance: Fr::from(4),
-            token_address: Fr::from(5),
+            account_balance: Fr::from(3),
+            token_address: Fr::from(4),
         });
-        let pub_input = [Fr::from(5), Fr::from(999999)];
+        let pub_input = [Fr::from(4), Fr::from(999999)];
 
         let failures = expect_prover_success_and_run_verification(circuit, &pub_input)
             .expect_err("Verification must fail");
@@ -402,9 +393,8 @@ mod tests {
             version: NoteVersion::new(0),
             id: Fr::from(1),
             nullifier: Fr::from(2),
-            trapdoor: Fr::from(3),
-            account_balance: Fr::from(4),
-            token_address: Fr::from(5),
+            account_balance: Fr::from(3),
+            token_address: Fr::from(4),
         };
         let circuit = TestCircuit::note_hash_test(note);
         let pub_input = [Fr::from(999999), super::off_circuit::note_hash(&note)];
