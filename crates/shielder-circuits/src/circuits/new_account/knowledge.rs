@@ -26,7 +26,6 @@ use crate::{
 pub struct NewAccountProverKnowledge<T> {
     pub id: T,
     pub nullifier: T,
-    pub trapdoor: T,
     pub initial_deposit: T,
     pub caller_address: T,
     pub token_address: T,
@@ -40,7 +39,6 @@ impl<T: Default + Copy> Default for NewAccountProverKnowledge<T> {
         Self {
             id: T::default(),
             nullifier: T::default(),
-            trapdoor: T::default(),
             initial_deposit: T::default(),
             caller_address: T::default(),
             token_address: T::default(),
@@ -59,7 +57,6 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
         Self {
             id: curve_arithmetic::generate_user_id(Fr::random(&mut *rng).to_bytes()),
             nullifier: Fr::random(&mut *rng),
-            trapdoor: Fr::random(&mut *rng),
             initial_deposit: Fr::ONE,
             caller_address: Fr::random(&mut *rng),
             token_address: Fr::ZERO,
@@ -72,7 +69,6 @@ impl ProverKnowledge for NewAccountProverKnowledge<Fr> {
     fn create_circuit(&self) -> Self::Circuit {
         NewAccountCircuit(NewAccountProverKnowledge {
             id: Value::known(self.id),
-            trapdoor: Value::known(self.trapdoor),
             nullifier: Value::known(self.nullifier),
             initial_deposit: Value::known(self.initial_deposit),
             caller_address: Value::known(self.caller_address),
@@ -110,7 +106,6 @@ impl PublicInputProvider<NewAccountInstance> for NewAccountProverKnowledge<Fr> {
                 version: NOTE_VERSION,
                 id: self.id,
                 nullifier: self.nullifier,
-                trapdoor: self.trapdoor,
                 account_balance: self.initial_deposit,
                 token_address: self.token_address,
             }),
