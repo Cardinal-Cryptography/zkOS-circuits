@@ -1,8 +1,5 @@
 [![LOGO][logo]][aleph-homepage]
 
-[![Test suite][tests-badge]][tests]
-[![Nightly benches][nightly-tests-badge]][nightly-tests]
-
 
 # `shielder-circuits`
 
@@ -86,7 +83,3 @@ Also, they will define their configuration struct that normally contains:
 
 [aleph-homepage]: https://alephzero.org
 [logo]: logo.png
-[tests]: https://github.com/Cardinal-Cryptography/zkOS-circuits/actions/workflows/on-main-branch-push-pull_request.yml
-[tests-badge]: https://github.com/Cardinal-Cryptography/zkOS-circuits/actions/workflows/on-main-branch-push-pull_request.yml/badge.svg
-[nightly-tests]: https://github.com/Cardinal-Cryptography/zkOS-circuits/actions/workflows/nightly-benches.yml
-[nightly-tests-badge]: https://github.com/Cardinal-Cryptography/zkOS-circuits/actions/workflows/nightly-benches.yml/badge.svg
