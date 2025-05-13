@@ -23,8 +23,6 @@ jobs:
 
       - name: Prepare Rust env
         uses: ./.github/actions/prepare-rust-env
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: Run benches for shielder-circuits
         run: make bench

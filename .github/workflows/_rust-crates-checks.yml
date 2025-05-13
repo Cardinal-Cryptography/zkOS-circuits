@@ -19,8 +19,6 @@ jobs:
 
       - name: Prepare Rust env
         uses: ./.github/actions/prepare-rust-env
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: Ensure formatting is correct
         run: cargo +nightly fmt --all --check
