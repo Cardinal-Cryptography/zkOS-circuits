@@ -8,6 +8,8 @@
 
 Contains implementation of the halo2 circuits for Shielder.
 
+**Audit report** by zkSecurity is available [here](https://reports.zksecurity.xyz/reports/aleph-zero-shielder/).
+
 # Benchmarks
 
 In order to run the CPU benchmarks, execute the following command:
