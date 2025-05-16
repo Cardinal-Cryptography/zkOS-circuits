@@ -44,3 +44,8 @@ regex = { workspace = true }
 name = "benchmarks"
 path = "benches/bench.rs"
 harness = false
+
+[[bench]]
+name = "batching"
+path = "benches/batching.rs"
+harness = false
