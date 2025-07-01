@@ -10,9 +10,7 @@ use crate::{
         deposit::knowledge::DepositProverKnowledge,
         merkle::{MerkleChip, MerkleProverKnowledge},
     },
-    deposit::DepositInstance::{
-        self, CallerAddress, DepositValue, HashedNewNote, HashedOldNullifier,
-    },
+    deposit::DepositInstance::{self, Commitment, DepositValue, HashedNewNote, HashedOldNullifier},
     instance_wrapper::InstanceWrapper,
     poseidon::circuit::{hash, PoseidonChip},
     synthesizer::Synthesizer,
@@ -115,14 +113,12 @@ impl DepositChip {
         Ok(())
     }
 
-    pub fn check_caller_address(
+    pub fn check_commitment(
         &self,
         synthesizer: &mut impl Synthesizer,
         knowledge: &DepositProverKnowledge<AssignedCell>,
     ) -> Result<(), Error> {
-        self.public_inputs.constrain_cells(
-            synthesizer,
-            [(knowledge.caller_address.clone(), CallerAddress)],
-        )
+        self.public_inputs
+            .constrain_cells(synthesizer, [(knowledge.commitment.clone(), Commitment)])
     }
 }
