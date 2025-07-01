@@ -66,7 +66,7 @@ impl Circuit<Fr> for NewAccountCircuit {
         main_chip.constrain_prenullifier(&mut synthesizer, &knowledge)?;
         main_chip.constrain_encrypting_viewing_key(&mut synthesizer, &knowledge)?;
         main_chip.check_mac(&mut synthesizer, &knowledge)?;
-        main_chip.check_caller_address(&mut synthesizer, &knowledge)
+        main_chip.check_commitment(&mut synthesizer, &knowledge)
     }
 }
 
@@ -173,9 +173,9 @@ mod tests {
     }
 
     #[test]
-    fn fails_if_caller_address_is_incorrect() {
+    fn fails_if_commitment_is_incorrect() {
         let pk = NewAccountProverKnowledge::random_correct_example(&mut OsRng);
-        let pub_input = pk.with_substitution(CallerAddress, |s| s + Fr::ONE);
+        let pub_input = pk.with_substitution(Commitment, |s| s + Fr::ONE);
 
         assert!(
             expect_prover_success_and_run_verification(pk.create_circuit(), &pub_input).is_err()
