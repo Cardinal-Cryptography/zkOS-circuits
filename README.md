@@ -1,3 +1,5 @@
+# Repo deprecation warning. Development has been moved to https://github.com/Cardinal-Cryptography/blanksquare-monorepo
+
 [![LOGO][logo]][aleph-homepage]
 
 
